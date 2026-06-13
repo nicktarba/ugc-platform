@@ -27,7 +27,7 @@ export default function RegisterPage() {
     if (data.user) {
       await supabase.from('profiles').insert([{ id: data.user.id, email: form.email, role: form.role }])
       if (form.role === 'author') router.push('/dashboard/author')
-      else router.push('/catalog')
+      else router.push("/dashboard/business")
     }
     setLoading(false)
   }

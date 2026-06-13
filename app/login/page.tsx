@@ -21,7 +21,7 @@ export default function LoginPage() {
 
     const role = data.user?.user_metadata?.role
     if (role === 'author') router.push('/dashboard/author')
-    else router.push('/catalog')
+    else router.push("/dashboard/business")
     setLoading(false)
   }
 
