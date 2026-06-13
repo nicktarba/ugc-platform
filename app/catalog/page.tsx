@@ -14,12 +14,21 @@ export default function CatalogPage() {
   const [city, setCity] = useState('')
   const [barter, setBarter] = useState<'all'|'yes'|'no'>('all')
   const [search, setSearch] = useState('')
+  const [userId, setUserId] = useState<string|null>(null)
   const [userRole, setUserRole] = useState<string|null>(null)
   const [userEmail, setUserEmail] = useState<string|null>(null)
+
+  // Modal state
+  const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sentTo, setSentTo] = useState<string[]>([])
+  const [error, setError] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
+        setUserId(data.user.id)
         setUserRole(data.user.user_metadata?.role || null)
         setUserEmail(data.user.email || null)
       }
@@ -43,6 +52,29 @@ export default function CatalogPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const openModal = (author: Author) => {
+    setModalAuthor(author)
+    setMessage('')
+    setError('')
+  }
+
+  const sendRequest = async () => {
+    if (!modalAuthor || !userId || !message.trim()) return
+    setSending(true)
+    setError('')
+    const { error: err } = await supabase.from('requests').insert([{
+      business_id: userId,
+      business_email: userEmail,
+      author_id: modalAuthor.id,
+      message: message.trim(),
+      status: 'new',
+    }])
+    setSending(false)
+    if (err) { setError('Не получилось отправить. Попробуй ещё раз.'); return }
+    setSentTo([...sentTo, modalAuthor.id])
+    setModalAuthor(null)
   }
 
   const inp = { padding:'10px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }
@@ -117,9 +149,13 @@ export default function CatalogPage() {
                 <div style={{ display:'flex', gap:'8px' }}>
                   {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
                   {userRole === 'business' && (
-                    <button style={{ padding:'8px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-                      Написать
-                    </button>
+                    sentTo.includes(a.id) ? (
+                      <span style={{ padding:'8px 20px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', color:'#16a34a', fontSize:'13px', fontWeight:600 }}>Отправлено ✓</span>
+                    ) : (
+                      <button onClick={() => openModal(a)} style={{ padding:'8px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                        Написать
+                      </button>
+                    )
                   )}
                   {!userEmail && (
                     <Link href="/register" style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#7a7570', fontSize:'13px', fontWeight:500 }}>Войти чтобы написать</Link>
@@ -130,6 +166,30 @@ export default function CatalogPage() {
           </div>
         )}
       </div>
+
+      {/* Modal */}
+      {modalAuthor && (
+        <div onClick={() => setModalAuthor(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'32px', maxWidth:'480px', width:'100%' }}>
+            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Написать {modalAuthor.name}</h3>
+            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>Расскажи коротко что предлагаешь — автор увидит сообщение в личном кабинете.</p>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              rows={5}
+              placeholder="Например: предлагаем сотрудничество — обзор нашего продукта за бартер..."
+              style={{ width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'16px' }}
+            />
+            {error && <div style={{ padding:'12px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'10px', color:'#dc2626', fontSize:'14px', marginBottom:'16px' }}>{error}</div>}
+            <div style={{ display:'flex', gap:'12px' }}>
+              <button onClick={() => setModalAuthor(null)} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
+              <button onClick={sendRequest} disabled={sending || !message.trim()} style={{ flex:1, padding:'12px', border:'none', borderRadius:'100px', background: sending || !message.trim() ? '#9a9590' : '#1a1a1a', color:'#fff', cursor: sending || !message.trim() ? 'not-allowed' : 'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+                {sending ? 'Отправляем...' : 'Отправить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

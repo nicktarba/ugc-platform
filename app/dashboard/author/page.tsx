@@ -4,12 +4,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-type Profile = { name: string; city: string; instagram_url: string; followers_count: number; lifestyle: string[]; open_to_barter: boolean }
+type Profile = { id: string; name: string; city: string; instagram_url: string; followers_count: number; lifestyle: string[]; open_to_barter: boolean }
+type Req = { id: string; message: string; status: string; business_email: string; created_at: string }
 
 export default function AuthorDashboard() {
   const router = useRouter()
   const [user, setUser] = useState<{ email?: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [requests, setRequests] = useState<Req[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -18,6 +20,10 @@ export default function AuthorDashboard() {
       setUser(data.user)
       const { data: p } = await supabase.from('authors').select('*').eq('user_id', data.user.id).single()
       setProfile(p)
+      if (p) {
+        const { data: r } = await supabase.from('requests').select('*').eq('author_id', p.id).order('created_at', { ascending: false })
+        setRequests(r || [])
+      }
       setLoading(false)
     })
   }, [router])
@@ -25,6 +31,11 @@ export default function AuthorDashboard() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const markViewed = async (id: string) => {
+    await supabase.from('requests').update({ status: 'viewed' }).eq('id', id)
+    setRequests(requests.map(r => r.id === id ? { ...r, status: 'viewed' } : r))
   }
 
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
@@ -49,7 +60,6 @@ export default function AuthorDashboard() {
 
         {profile ? (
           <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
-            {/* Profile card */}
             <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'16px' }}>
                 <div>
@@ -76,8 +86,24 @@ export default function AuthorDashboard() {
             </div>
 
             <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-              <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Входящие запросы</h3>
-              <p style={{ fontSize:'14px', color:'#9a9590' }}>Пока запросов нет — появятся здесь когда бизнес напишет тебе.</p>
+              <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>
+                Входящие запросы {requests.length > 0 && `(${requests.length})`}
+              </h3>
+              {requests.length === 0 ? (
+                <p style={{ fontSize:'14px', color:'#9a9590' }}>Пока запросов нет — появятся здесь когда бизнес напишет тебе.</p>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+                  {requests.map(r => (
+                    <div key={r.id} onClick={() => r.status === 'new' && markViewed(r.id)} style={{ padding:'16px', background: r.status === 'new' ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', cursor: r.status === 'new' ? 'pointer' : 'default' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
+                        <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.business_email}</span>
+                        {r.status === 'new' && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff' }}>Новое</span>}
+                      </div>
+                      <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{r.message}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (

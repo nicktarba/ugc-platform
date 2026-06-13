@@ -4,15 +4,20 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
+type Req = { id: string; message: string; status: string; created_at: string; authors: { name: string; city: string } | null }
+
 export default function BusinessDashboard() {
   const router = useRouter()
   const [user, setUser] = useState<{ email?: string } | null>(null)
+  const [requests, setRequests] = useState<Req[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.push('/login'); return }
       setUser(data.user)
+      const { data: r } = await supabase.from('requests').select('*, authors(name, city)').eq('business_id', data.user.id).order('created_at', { ascending: false })
+      setRequests((r as unknown as Req[]) || [])
       setLoading(false)
     })
   }, [router])
@@ -20,6 +25,13 @@ export default function BusinessDashboard() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const statusLabel = (status: string) => {
+    if (status === 'new') return { text: 'Отправлено', color: '#9a9590', bg: '#f0ede6' }
+    if (status === 'viewed') return { text: 'Просмотрено', color: '#c17f3e', bg: '#fdf3e7' }
+    if (status === 'accepted') return { text: 'Принято', color: '#16a34a', bg: '#f0fdf4' }
+    return { text: 'Отклонено', color: '#dc2626', bg: '#fef2f2' }
   }
 
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
@@ -40,7 +52,7 @@ export default function BusinessDashboard() {
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>Добро пожаловать</h1>
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'16px' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'16px', marginBottom:'16px' }}>
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
             <div style={{ fontSize:'32px', marginBottom:'12px' }}>🔍</div>
             <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Найти авторов</h3>
@@ -49,18 +61,35 @@ export default function BusinessDashboard() {
           </div>
 
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-            <div style={{ fontSize:'32px', marginBottom:'12px' }}>📨</div>
-            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Мои запросы</h3>
-            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>Запросы которые ты отправил авторам. Появятся здесь когда напишешь первому.</p>
-            <span style={{ display:'inline-block', padding:'10px 24px', background:'#f0ede6', borderRadius:'100px', fontSize:'14px', fontWeight:600, color:'#9a9590' }}>Скоро</span>
-          </div>
-
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
             <div style={{ fontSize:'32px', marginBottom:'12px' }}>⭐️</div>
             <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Избранные</h3>
             <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>Авторы которых ты сохранил. Удобно собирать шортлист.</p>
             <span style={{ display:'inline-block', padding:'10px 24px', background:'#f0ede6', borderRadius:'100px', fontSize:'14px', fontWeight:600, color:'#9a9590' }}>Скоро</span>
           </div>
+        </div>
+
+        <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
+          <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>
+            Мои запросы {requests.length > 0 && `(${requests.length})`}
+          </h3>
+          {requests.length === 0 ? (
+            <p style={{ fontSize:'14px', color:'#9a9590' }}>Запросы которые ты отправил авторам появятся здесь.</p>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+              {requests.map(r => {
+                const s = statusLabel(r.status)
+                return (
+                  <div key={r.id} style={{ padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
+                      <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.authors?.name} · {r.authors?.city}</span>
+                      <span style={{ padding:'2px 10px', background:s.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:s.color }}>{s.text}</span>
+                    </div>
+                    <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{r.message}</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </main>
