@@ -13,6 +13,7 @@ export default function BusinessDashboard() {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [favoritesCount, setFavoritesCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -61,11 +62,27 @@ export default function BusinessDashboard() {
   const statusLabel = (status: string) => {
     if (status === 'new') return { text: 'Отправлено', color: '#9a9590', bg: '#f0ede6' }
     if (status === 'viewed') return { text: 'Просмотрено', color: '#c17f3e', bg: '#fdf3e7' }
-    if (status === 'accepted') return { text: 'Принято', color: '#16a34a', bg: '#f0fdf4' }
+    if (status === 'accepted') return { text: 'В работе', color: '#16a34a', bg: '#f0fdf4' }
     if (status === 'cancelled') return { text: 'Отменено', color: '#7a7570', bg: '#f0ede6' }
-    if (status === 'completed') return { text: 'Завершено', color: '#16a34a', bg: '#f0fdf4' }
+    if (status === 'completed') return { text: '✓ Завершено', color: '#16a34a', bg: '#f0fdf4' }
     return { text: 'Отклонено', color: '#dc2626', bg: '#fef2f2' }
   }
+
+  const truncate = (s: string, n = 110) => s.length > n ? s.slice(0, n).trim() + '…' : s
+
+  const formatRelative = (iso: string) => {
+    const d = new Date(iso)
+    const today = new Date()
+    const diffDays = Math.floor((today.setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0)) / 86400000)
+    if (diffDays === 0) return 'сегодня'
+    if (diffDays === 1) return 'вчера'
+    if (diffDays < 7) return `${diffDays} дн назад`
+    return d.toLocaleDateString('ru', { day:'numeric', month:'short' })
+  }
+
+  const OPEN = ['new', 'viewed', 'accepted']
+  const activeRequests = requests.filter(r => OPEN.includes(r.status))
+  const historyRequests = requests.filter(r => !OPEN.includes(r.status))
 
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0)
 
@@ -115,30 +132,64 @@ export default function BusinessDashboard() {
           {requests.length === 0 ? (
             <p style={{ fontSize:'14px', color:'#9a9590' }}>Запросы которые ты отправил авторам появятся здесь.</p>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-              {requests.map(r => {
-                const s = statusLabel(r.status)
-                const unread = unreadCounts[r.id] || 0
-                return (
-                  <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background: unread > 0 ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
-                      <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.authors?.name} · {r.authors?.city}</span>
-                      <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
-                        {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
-                        <span style={{ padding:'2px 10px', background:s.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:s.color }}>{s.text}</span>
-                      </div>
+            <>
+              {activeRequests.length === 0 ? (
+                <p style={{ fontSize:'13px', color:'#9a9590', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>Нет активных запросов</p>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>
+                  {activeRequests.map(r => {
+                    const s = statusLabel(r.status)
+                    const unread = unreadCounts[r.id] || 0
+                    return (
+                      <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background: unread > 0 ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
+                          <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.authors?.name} · {r.authors?.city}</span>
+                          <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
+                            {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
+                            <span style={{ padding:'2px 10px', background:s.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:s.color, whiteSpace:'nowrap' }}>{s.text}</span>
+                          </div>
+                        </div>
+                        <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
+                          <div style={{ display:'flex', gap:'12px' }}>
+                            {r.budget && <span>💰 {r.budget}</span>}
+                            {r.deadline && <span>📅 {new Date(r.deadline).toLocaleDateString('ru', { day:'numeric', month:'short' })}</span>}
+                          </div>
+                          <span>{formatRelative(r.created_at)}</span>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+
+              {historyRequests.length > 0 && (
+                <>
+                  <button onClick={() => setShowHistory(!showHistory)} style={{ width:'100%', padding:'10px', border:'1px dashed #e0ddd8', borderRadius:'12px', background:'none', cursor:'pointer', fontSize:'13px', fontWeight:500, color:'#9a9590', fontFamily:'inherit' }}>
+                    {showHistory ? 'Скрыть историю' : `Показать историю (${historyRequests.length})`}
+                  </button>
+                  {showHistory && (
+                    <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginTop:'12px' }}>
+                      {historyRequests.map(r => {
+                        const s = statusLabel(r.status)
+                        return (
+                          <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
+                              <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.authors?.name} · {r.authors?.city}</span>
+                              <span style={{ padding:'2px 10px', background:s.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:s.color, whiteSpace:'nowrap' }}>{s.text}</span>
+                            </div>
+                            <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
+                            <div style={{ display:'flex', justifyContent:'flex-end', fontSize:'12px', color:'#9a9590' }}>
+                              <span>{formatRelative(r.created_at)}</span>
+                            </div>
+                          </Link>
+                        )
+                      })}
                     </div>
-                    <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{r.message}</p>
-                    {(r.budget || r.deadline) && (
-                      <div style={{ display:'flex', gap:'12px', marginTop:'6px', fontSize:'12px', color:'#9a9590' }}>
-                        {r.budget && <span>💰 {r.budget}</span>}
-                        {r.deadline && <span>📅 {new Date(r.deadline).toLocaleDateString('ru', { day:'numeric', month:'short' })}</span>}
-                      </div>
-                    )}
-                  </Link>
-                )
-              })}
-            </div>
+                  )}
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
