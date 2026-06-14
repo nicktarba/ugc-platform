@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-type Profile = { id: string; name: string; city: string; instagram_url: string; followers_count: number; lifestyle: string[]; open_to_barter: boolean }
+type Profile = { id: string; name: string; city: string; instagram_url: string; followers_count: number; lifestyle: string[]; open_to_barter: boolean; status: string }
 type Req = { id: string; message: string; status: string; business_email: string; created_at: string }
 
 export default function AuthorDashboard() {
@@ -79,6 +79,18 @@ export default function AuthorDashboard() {
             {profile ? `Привет, ${profile.name}` : 'Добро пожаловать'}
           </h1>
         </div>
+
+        {profile?.status === 'pending' && (
+          <div style={{ padding:'12px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'24px', fontSize:'14px', color:'#c17f3e', fontWeight:500 }}>
+            ⏳ Анкета на модерации — скоро появится в каталоге
+          </div>
+        )}
+
+        {profile?.status === 'rejected' && (
+          <div style={{ padding:'12px 20px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'14px', marginBottom:'24px', fontSize:'14px', color:'#dc2626', fontWeight:500 }}>
+            Анкета не прошла модерацию. Проверь данные и отредактируй профиль.
+          </div>
+        )}
 
         {profile ? (
           <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>

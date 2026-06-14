@@ -58,7 +58,6 @@ export default function BecomeAuthorPage() {
       hobbies: form.hobbies,
       bio: form.bio,
       open_to_barter: form.open_to_barter === 'yes',
-      status: 'approved',
       ...(userId ? { user_id: userId } : {}),
     }
 
@@ -67,7 +66,7 @@ export default function BecomeAuthorPage() {
       const { error: e } = await supabase.from('authors').update(payload).eq('user_id', userId)
       err = e
     } else {
-      const { error: e } = await supabase.from('authors').insert([payload])
+      const { error: e } = await supabase.from('authors').insert([{ ...payload, status: 'pending' }])
       err = e
     }
 
@@ -86,7 +85,7 @@ export default function BecomeAuthorPage() {
       <div style={{ textAlign:'center', maxWidth:'480px' }}>
         <div style={{ fontSize:'48px', marginBottom:'24px' }}>🎉</div>
         <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Анкета отправлена</h1>
-        <p style={{ fontSize:'16px', color:'#7a7570', marginBottom:'32px', lineHeight:1.7 }}>Твой профиль появился в каталоге.</p>
+        <p style={{ fontSize:'16px', color:'#7a7570', marginBottom:'32px', lineHeight:1.7 }}>Профиль отправлен на проверку. Появится в каталоге после модерации — обычно это быстро.</p>
         <Link href="/catalog" style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'15px', fontWeight:600 }}>Смотреть каталог</Link>
       </div>
     </main>
