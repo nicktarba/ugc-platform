@@ -86,7 +86,7 @@ export default function ChatPage() {
     if (!error) setText('')
   }
 
-  const updateStatus = async (status: 'accepted' | 'declined') => {
+  const updateStatus = async (status: 'accepted' | 'declined' | 'viewed') => {
     setUpdatingStatus(true)
     const { error } = await supabase.from('requests').update({ status }).eq('id', requestId)
     setUpdatingStatus(false)
@@ -110,7 +110,8 @@ export default function ChatPage() {
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
   const sInfo = request ? statusInfo(request.status) : null
-  const showActions = userRole === 'author' && request && request.status !== 'accepted' && request.status !== 'declined'
+  const showAuthorActions = userRole === 'author' && request && request.status !== 'accepted' && request.status !== 'declined'
+  const showCancelAction = request && request.status === 'accepted'
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
@@ -131,13 +132,21 @@ export default function ChatPage() {
           </div>
         )}
 
-        {showActions && (
+        {showAuthorActions && (
           <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
             <button onClick={() => updateStatus('accepted')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
               Принять предложение
             </button>
             <button onClick={() => updateStatus('declined')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
               Отклонить
+            </button>
+          </div>
+        )}
+
+        {showCancelAction && (
+          <div style={{ marginBottom:'16px' }}>
+            <button onClick={() => updateStatus('viewed')} disabled={updatingStatus} style={{ width:'100%', padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+              Отменить сделку
             </button>
           </div>
         )}
