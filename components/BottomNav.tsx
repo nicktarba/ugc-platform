@@ -9,11 +9,10 @@ export default function BottomNav({ role, active, unread = 0 }: { role: 'busines
         { key: 'catalog', href: '/catalog', label: 'Каталог', icon: '🔍' },
         { key: 'requests', href: '/dashboard/business', label: 'Запросы', icon: '💬', badge: unread },
         { key: 'favorites', href: '/dashboard/business/favorites', label: 'Избранное', icon: '⭐️' },
-        { key: 'support', href: '/support', label: 'Поддержка', icon: '🛟' },
       ]
     : [
         { key: 'requests', href: '/dashboard/author', label: 'Запросы', icon: '💬', badge: unread },
-        { key: 'support', href: '/support', label: 'Поддержка', icon: '🛟' },
+        { key: 'profile', href: '/dashboard/author/profile', label: 'Профиль', icon: '👤' },
       ]
 
   return (

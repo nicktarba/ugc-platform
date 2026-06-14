@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
+import AppHeader from '@/components/AppHeader'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean }
 
@@ -71,11 +72,6 @@ export default function CatalogPage() {
     setFiltered(r)
   }, [city, barter, search, authors])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
-
   const openModal = (author: Author) => {
     setModalAuthor(author)
     setMessage('')
@@ -117,27 +113,9 @@ export default function CatalogPage() {
 
   const inp = { padding:'10px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }
 
-  const dashboardLink = userRole === 'author' ? '/dashboard/author' : userRole === 'business' ? '/dashboard/business' : '/login'
-
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9', position:'sticky', top:0, zIndex:100 }}>
-        <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
-        <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
-          <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
-          {userEmail ? (
-            <>
-              <Link href={dashboardLink} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>{userEmail}</Link>
-              <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" style={{ padding:'8px 16px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>Войти</Link>
-              <Link href="/register" style={{ padding:'8px 20px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:500 }}>Регистрация</Link>
-            </>
-          )}
-        </div>
-      </nav>
+      <AppHeader />
 
       <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'clamp(28px, 7vw, 48px) clamp(16px, 5vw, 40px)' }}>
         <div style={{ marginBottom:'40px' }}>

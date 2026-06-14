@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
+import AppHeader from '@/components/AppHeader'
 
 type Req = { id: string; message: string; status: string; created_at: string; budget: string | null; deadline: string | null; authors: { name: string; city: string } | null }
 
@@ -55,11 +56,6 @@ export default function BusinessDashboard() {
     return () => { supabase.removeChannel(channel) }
   }, [user?.id])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
-
   const statusLabel = (status: string) => {
     if (status === 'new') return { text: 'Отправлено', color: '#9a9590', bg: '#f0ede6' }
     if (status === 'viewed') return { text: 'Просмотрено', color: '#c17f3e', bg: '#fdf3e7' }
@@ -91,17 +87,7 @@ export default function BusinessDashboard() {
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
-        <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
-        <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
-          <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
-          <span style={{ fontSize:'14px', color:'#7a7570', position:'relative' }}>
-            {user?.email}
-            {totalUnread > 0 && <span style={{ position:'absolute', top:'-6px', right:'-14px', width:'8px', height:'8px', borderRadius:'50%', background:'#c17f3e' }} />}
-          </span>
-          <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
-        </div>
-      </nav>
+      <AppHeader />
 
       <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
         <div style={{ marginBottom:'40px' }}>

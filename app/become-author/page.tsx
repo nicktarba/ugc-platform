@@ -76,7 +76,7 @@ export default function BecomeAuthorPage() {
     setLoading(false)
     if (err) { setError('Ошибка при сохранении. Попробуй ещё раз.'); return }
     
-    if (userId) router.push('/dashboard/author')
+    if (userId) router.push('/dashboard/author/profile')
     else setSuccess(true)
   }
 

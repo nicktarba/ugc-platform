@@ -7,18 +7,28 @@ import { supabase } from '@/lib/supabase'
 export default function HomePage() {
   const router = useRouter()
   const [user, setUser] = useState<{ email?: string; user_metadata?: { role?: string } } | null>(null)
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
+      const role = data.user?.user_metadata?.role
+      if (role === 'business') { router.replace('/catalog'); return }
+      if (role === 'author') { router.replace('/dashboard/author'); return }
+      if (role === 'admin') { router.replace('/dashboard/admin'); return }
+      setChecking(false)
+    })
     const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => setUser(session?.user ?? null))
     return () => listener.subscription.unsubscribe()
-  }, [])
+  }, [router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setUser(null)
     router.refresh()
   }
+
+  if (checking) return <div style={{ minHeight:'100vh', background:'#fafaf9' }} />
 
   return (
     <main style={{ background: '#fafaf9', minHeight: '100vh' }}>
