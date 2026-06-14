@@ -17,6 +17,9 @@ type RequestInfo = {
   authors: { name: string; user_id: string; status: string } | null
 }
 
+const OPEN_STATUSES = ['new', 'viewed', 'accepted']
+const CLOSED_STATUSES = ['declined', 'cancelled', 'completed']
+
 export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
@@ -24,6 +27,7 @@ export default function ChatPage() {
 
   const [userId, setUserId] = useState<string|null>(null)
   const [userRole, setUserRole] = useState<string|null>(null)
+  const [userEmail, setUserEmail] = useState<string|null>(null)
   const [request, setRequest] = useState<RequestInfo|null>(null)
   const [messages, setMessages] = useState<Msg[]>([])
   const [text, setText] = useState('')
@@ -38,6 +42,7 @@ export default function ChatPage() {
       if (!userData.user) { router.push('/login'); return }
       const uid = userData.user.id
       setUserId(uid)
+      setUserEmail(userData.user.email || null)
       const role = userData.user.user_metadata?.role
       setUserRole(role)
 
@@ -88,11 +93,33 @@ export default function ChatPage() {
     if (!error) setText('')
   }
 
-  const updateStatus = async (status: 'accepted' | 'declined' | 'viewed') => {
+  const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
     setUpdatingStatus(true)
     const { error } = await supabase.from('requests').update({ status }).eq('id', requestId)
     setUpdatingStatus(false)
     if (!error) setRequest(prev => prev ? { ...prev, status } : prev)
+  }
+
+  const startNewDeal = async () => {
+    if (!request || !userId) return
+    setUpdatingStatus(true)
+
+    // Если уже есть другая открытая сделка с этим автором — переходим в неё
+    const { data: existing } = await supabase.from('requests').select('id')
+      .eq('business_id', userId).eq('author_id', request.author_id)
+      .in('status', OPEN_STATUSES).neq('id', requestId).maybeSingle()
+
+    if (existing) { router.push(`/dashboard/chat/${existing.id}`); return }
+
+    const { data: inserted, error } = await supabase.from('requests').insert([{
+      business_id: userId,
+      business_email: userEmail,
+      author_id: request.author_id,
+      message: 'Хотим обсудить новое сотрудничество',
+      status: 'new',
+    }]).select('id').single()
+    setUpdatingStatus(false)
+    if (!error && inserted) router.push(`/dashboard/chat/${inserted.id}`)
   }
 
   const handleLogout = async () => {
@@ -105,7 +132,9 @@ export default function ChatPage() {
 
   const statusInfo = (status: string) => {
     if (status === 'accepted') return { text: '✓ Сделка принята', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
-    if (status === 'declined') return { text: '✕ Предложение отклонено', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' }
+    if (status === 'declined') return { text: '✕ Сделка отклонена', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' }
+    if (status === 'cancelled') return { text: 'Сделка отменена', color: '#7a7570', bg: '#f0ede6', border: '#e0ddd8' }
+    if (status === 'completed') return { text: '✓ Сделка завершена', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
     return null
   }
 
@@ -113,8 +142,10 @@ export default function ChatPage() {
 
   const sInfo = request ? statusInfo(request.status) : null
   const authorRejected = request?.authors?.status === 'rejected'
-  const showAuthorActions = userRole === 'author' && request && request.status !== 'accepted' && request.status !== 'declined' && !authorRejected
-  const showCancelAction = request && request.status === 'accepted'
+  const dealClosed = request ? CLOSED_STATUSES.includes(request.status) : false
+  const showAuthorActions = userRole === 'author' && request && (request.status === 'new' || request.status === 'viewed') && !authorRejected
+  const showAcceptedActions = request && request.status === 'accepted' && !authorRejected
+  const canChat = !authorRejected && !dealClosed
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
@@ -158,7 +189,20 @@ export default function ChatPage() {
           </div>
         )}
 
-        {authorRejected && (
+        {dealClosed && (
+          <div style={{ padding:'14px 16px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px' }}>
+            <div style={{ fontSize:'13px', color:'#7a7570', marginBottom: userRole === 'business' ? '12px' : 0 }}>
+              Сделка закрыта — переписка доступна только для просмотра.
+            </div>
+            {userRole === 'business' && (
+              <button onClick={startNewDeal} disabled={updatingStatus} style={{ padding:'10px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:updatingStatus?'not-allowed':'pointer', fontFamily:'inherit' }}>
+                Начать новую сделку
+              </button>
+            )}
+          </div>
+        )}
+
+        {authorRejected && !dealClosed && (
           <div style={{ padding:'10px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginBottom:'16px', fontSize:'13px', fontWeight:600, color:'#dc2626' }}>
             {userRole === 'author'
               ? 'Твой профиль не прошёл модерацию — переписка временно недоступна. Отредактируй анкету, чтобы отправить на повторную проверку.'
@@ -177,9 +221,12 @@ export default function ChatPage() {
           </div>
         )}
 
-        {showCancelAction && (
-          <div style={{ marginBottom:'16px' }}>
-            <button onClick={() => updateStatus('viewed')} disabled={updatingStatus} style={{ width:'100%', padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+        {showAcceptedActions && (
+          <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
+            <button onClick={() => updateStatus('completed')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+              Завершить сделку
+            </button>
+            <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
               Отменить сделку
             </button>
           </div>
@@ -212,7 +259,7 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        {!authorRejected && (
+        {canChat && (
           <div style={{ display:'flex', gap:'12px', paddingBottom:'24px' }}>
             <input
               value={text}
