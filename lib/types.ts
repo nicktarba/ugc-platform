@@ -1,0 +1,35 @@
+export type DealStatus = 'new' | 'viewed' | 'accepted' | 'declined' | 'cancelled' | 'completed'
+
+export const OPEN_STATUSES: DealStatus[] = ['new', 'viewed', 'accepted']
+export const CLOSED_STATUSES: DealStatus[] = ['declined', 'cancelled', 'completed']
+
+export type BusinessRequest = {
+  id: string
+  message: string
+  status: string
+  created_at: string
+  budget: string | null
+  deadline: string | null
+  authors: { name: string; city: string } | null
+}
+
+export type AuthorRequest = {
+  id: string
+  message: string
+  status: string
+  business_email: string
+  created_at: string
+  budget: string | null
+  deadline: string | null
+}
+
+export type AuthorProfile = {
+  id: string
+  name: string
+  city: string
+  instagram_url: string
+  followers_count: number
+  lifestyle: string[]
+  open_to_barter: boolean
+  status: string
+}

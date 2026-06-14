@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import AppHeader from '@/components/AppHeader'
+import LoadingScreen from '@/components/LoadingScreen'
+import { truncate, formatRelative, formatDate } from '@/lib/format'
+import { authorStatusBadge } from '@/lib/status'
+import { OPEN_STATUSES, type AuthorRequest as Req } from '@/lib/types'
 
 type Profile = { id: string; name: string; status: string }
-type Req = { id: string; message: string; status: string; business_email: string; created_at: string; budget: string | null; deadline: string | null }
 
 export default function AuthorRequestsPage() {
   const router = useRouter()
@@ -73,31 +76,11 @@ export default function AuthorRequestsPage() {
   const newRequestsCount = requests.filter(r => r.status === 'new').length
   const badgeCount = totalUnread + newRequestsCount
 
-  const statusBadge = (status: string) => {
-    if (status === 'accepted') return { text: 'В работе', color: '#16a34a', bg: '#f0fdf4' }
-    if (status === 'declined') return { text: 'Отклонено', color: '#dc2626', bg: '#fef2f2' }
-    if (status === 'cancelled') return { text: 'Отменено', color: '#7a7570', bg: '#f0ede6' }
-    if (status === 'completed') return { text: '✓ Завершено', color: '#16a34a', bg: '#f0fdf4' }
-    return null
-  }
-
-  const truncate = (s: string, n = 110) => s.length > n ? s.slice(0, n).trim() + '…' : s
-
-  const formatRelative = (iso: string) => {
-    const d = new Date(iso)
-    const today = new Date()
-    const diffDays = Math.floor((today.setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0)) / 86400000)
-    if (diffDays === 0) return 'сегодня'
-    if (diffDays === 1) return 'вчера'
-    if (diffDays < 7) return `${diffDays} дн назад`
-    return d.toLocaleDateString('ru', { day:'numeric', month:'short' })
-  }
-
-  const OPEN = ['new', 'viewed', 'accepted']
+  const OPEN: string[] = OPEN_STATUSES
   const activeRequests = requests.filter(r => OPEN.includes(r.status))
   const historyRequests = requests.filter(r => !OPEN.includes(r.status))
 
-  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
+  if (loading) return <LoadingScreen />
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
@@ -144,7 +127,7 @@ export default function AuthorRequestsPage() {
                     {activeRequests.map(r => {
                       const unread = unreadCounts[r.id] || 0
                       const isNew = r.status === 'new' || unread > 0
-                      const sBadge = statusBadge(r.status)
+                      const sBadge = authorStatusBadge(r.status)
                       return (
                         <Link key={r.id} href={`/dashboard/chat/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: isNew ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
@@ -159,7 +142,7 @@ export default function AuthorRequestsPage() {
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
                             <div style={{ display:'flex', gap:'12px' }}>
                               {r.budget && <span>💰 {r.budget}</span>}
-                              {r.deadline && <span>📅 {new Date(r.deadline).toLocaleDateString('ru', { day:'numeric', month:'short' })}</span>}
+                              {r.deadline && <span>📅 {formatDate(r.deadline)}</span>}
                             </div>
                             <span>{formatRelative(r.created_at)}</span>
                           </div>
@@ -177,7 +160,7 @@ export default function AuthorRequestsPage() {
                     {showHistory && (
                       <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginTop:'12px' }}>
                         {historyRequests.map(r => {
-                          const sBadge = statusBadge(r.status)
+                          const sBadge = authorStatusBadge(r.status)
                           return (
                             <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>

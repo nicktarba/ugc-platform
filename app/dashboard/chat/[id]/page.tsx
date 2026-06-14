@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
 
 type Msg = { id: string; sender_id: string; sender_role: string; text: string; created_at: string; read: boolean }
 type RequestInfo = {
@@ -17,8 +18,8 @@ type RequestInfo = {
   authors: { name: string; user_id: string; status: string } | null
 }
 
-const OPEN_STATUSES = ['new', 'viewed', 'accepted']
-const CLOSED_STATUSES = ['declined', 'cancelled', 'completed']
+const OPEN: string[] = OPEN_STATUSES
+const CLOSED: string[] = CLOSED_STATUSES
 
 export default function ChatPage() {
   const params = useParams()
@@ -117,7 +118,7 @@ export default function ChatPage() {
     // Если уже есть другая открытая сделка с этим автором — переходим в неё
     const { data: existing } = await supabase.from('requests').select('id')
       .eq('business_id', userId).eq('author_id', request.author_id)
-      .in('status', OPEN_STATUSES).neq('id', requestId).maybeSingle()
+      .in("status", OPEN).neq('id', requestId).maybeSingle()
 
     if (existing) { router.push(`/dashboard/chat/${existing.id}`); return }
 
@@ -152,7 +153,7 @@ export default function ChatPage() {
 
   const sInfo = request ? statusInfo(request.status) : null
   const authorRejected = request?.authors?.status === 'rejected'
-  const dealClosed = request ? CLOSED_STATUSES.includes(request.status) : false
+  const dealClosed = request ? CLOSED.includes(request.status) : false
   const showAuthorActions = userRole === 'author' && request && (request.status === 'new' || request.status === 'viewed') && !authorRejected
   const showAcceptedActions = request && request.status === 'accepted'
   const showBusinessWithdraw = userRole === 'business' && request && (request.status === 'new' || request.status === 'viewed')

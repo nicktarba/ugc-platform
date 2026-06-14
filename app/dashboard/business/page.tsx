@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import AppHeader from '@/components/AppHeader'
-
-type Req = { id: string; message: string; status: string; created_at: string; budget: string | null; deadline: string | null; authors: { name: string; city: string } | null }
+import LoadingScreen from '@/components/LoadingScreen'
+import { truncate, formatRelative, formatDate } from '@/lib/format'
+import { businessStatusLabel } from '@/lib/status'
+import { OPEN_STATUSES, type BusinessRequest as Req } from '@/lib/types'
 
 export default function BusinessDashboard() {
   const router = useRouter()
@@ -56,34 +58,13 @@ export default function BusinessDashboard() {
     return () => { supabase.removeChannel(channel) }
   }, [user?.id])
 
-  const statusLabel = (status: string) => {
-    if (status === 'new') return { text: 'Отправлено', color: '#9a9590', bg: '#f0ede6' }
-    if (status === 'viewed') return { text: 'Просмотрено', color: '#c17f3e', bg: '#fdf3e7' }
-    if (status === 'accepted') return { text: 'В работе', color: '#16a34a', bg: '#f0fdf4' }
-    if (status === 'cancelled') return { text: 'Отменено', color: '#7a7570', bg: '#f0ede6' }
-    if (status === 'completed') return { text: '✓ Завершено', color: '#16a34a', bg: '#f0fdf4' }
-    return { text: 'Отклонено', color: '#dc2626', bg: '#fef2f2' }
-  }
-
-  const truncate = (s: string, n = 110) => s.length > n ? s.slice(0, n).trim() + '…' : s
-
-  const formatRelative = (iso: string) => {
-    const d = new Date(iso)
-    const today = new Date()
-    const diffDays = Math.floor((today.setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0)) / 86400000)
-    if (diffDays === 0) return 'сегодня'
-    if (diffDays === 1) return 'вчера'
-    if (diffDays < 7) return `${diffDays} дн назад`
-    return d.toLocaleDateString('ru', { day:'numeric', month:'short' })
-  }
-
-  const OPEN = ['new', 'viewed', 'accepted']
+  const OPEN: string[] = OPEN_STATUSES
   const activeRequests = requests.filter(r => OPEN.includes(r.status))
   const historyRequests = requests.filter(r => !OPEN.includes(r.status))
 
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0)
 
-  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
+  if (loading) return <LoadingScreen />
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
@@ -125,7 +106,7 @@ export default function BusinessDashboard() {
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>
                   {activeRequests.map(r => {
-                    const s = statusLabel(r.status)
+                    const s = businessStatusLabel(r.status)
                     const unread = unreadCounts[r.id] || 0
                     return (
                       <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background: unread > 0 ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
@@ -140,7 +121,7 @@ export default function BusinessDashboard() {
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
                           <div style={{ display:'flex', gap:'12px' }}>
                             {r.budget && <span>💰 {r.budget}</span>}
-                            {r.deadline && <span>📅 {new Date(r.deadline).toLocaleDateString('ru', { day:'numeric', month:'short' })}</span>}
+                            {r.deadline && <span>📅 {formatDate(r.deadline)}</span>}
                           </div>
                           <span>{formatRelative(r.created_at)}</span>
                         </div>
@@ -158,7 +139,7 @@ export default function BusinessDashboard() {
                   {showHistory && (
                     <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginTop:'12px' }}>
                       {historyRequests.map(r => {
-                        const s = statusLabel(r.status)
+                        const s = businessStatusLabel(r.status)
                         return (
                           <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
                             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
