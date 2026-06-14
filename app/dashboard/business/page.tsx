@@ -11,6 +11,7 @@ export default function BusinessDashboard() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [requests, setRequests] = useState<Req[]>([])
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  const [favoritesCount, setFavoritesCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -19,6 +20,9 @@ export default function BusinessDashboard() {
       setUser(data.user)
       const { data: r } = await supabase.from('requests').select('*, authors(name, city)').eq('business_id', data.user.id).order('created_at', { ascending: false })
       setRequests((r as unknown as Req[]) || [])
+
+      const { count } = await supabase.from('favorites').select('id', { count: 'exact', head: true }).eq('business_id', data.user.id)
+      setFavoritesCount(count || 0)
 
       if (r && r.length > 0) {
         const ids = r.map(req => req.id)
@@ -94,9 +98,9 @@ export default function BusinessDashboard() {
 
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
             <div style={{ fontSize:'32px', marginBottom:'12px' }}>⭐️</div>
-            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Избранные</h3>
+            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Избранные {favoritesCount > 0 && `(${favoritesCount})`}</h3>
             <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>Авторы которых ты сохранил. Удобно собирать шортлист.</p>
-            <span style={{ display:'inline-block', padding:'10px 24px', background:'#f0ede6', borderRadius:'100px', fontSize:'14px', fontWeight:600, color:'#9a9590' }}>Скоро</span>
+            <Link href="/dashboard/business/favorites" style={{ display:'inline-block', padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Открыть</Link>
           </div>
         </div>
 

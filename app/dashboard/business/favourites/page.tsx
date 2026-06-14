@@ -4,20 +4,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean }
+type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; bio:string; open_to_barter:boolean; status:string }
 
-export default function CatalogPage() {
+export default function FavoritesPage() {
   const router = useRouter()
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [authors, setAuthors] = useState<Author[]>([])
-  const [filtered, setFiltered] = useState<Author[]>([])
   const [loading, setLoading] = useState(true)
-  const [city, setCity] = useState('')
-  const [barter, setBarter] = useState<'all'|'yes'|'no'>('all')
-  const [search, setSearch] = useState('')
-  const [userId, setUserId] = useState<string|null>(null)
-  const [userRole, setUserRole] = useState<string|null>(null)
-  const [userEmail, setUserEmail] = useState<string|null>(null)
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([])
 
   // Modal state
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
@@ -27,37 +20,30 @@ export default function CatalogPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setUserId(data.user.id)
-        setUserRole(data.user.user_metadata?.role || null)
-        setUserEmail(data.user.email || null)
-        if (data.user.user_metadata?.role === 'business') {
-          supabase.from('favorites').select('author_id').eq('business_id', data.user.id).then(({ data: favs }) => {
-            setFavoriteIds((favs || []).map(f => f.author_id))
-          })
-        }
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { router.push('/login'); return }
+      setUser(data.user)
+
+      const { data: favs } = await supabase.from('favorites').select('author_id').eq('business_id', data.user.id)
+      const ids = (favs || []).map(f => f.author_id)
+
+      if (ids.length > 0) {
+        const { data: a } = await supabase.from('authors').select('*').in('id', ids)
+        setAuthors(a || [])
       }
-    })
-    supabase.from('authors').select('*').eq('status', 'approved').order('created_at', { ascending: false }).then(({ data }) => {
-      setAuthors(data || [])
-      setFiltered(data || [])
       setLoading(false)
     })
-  }, [])
-
-  useEffect(() => {
-    let r = [...authors]
-    if (city) r = r.filter(a => a.city.toLowerCase().includes(city.toLowerCase()))
-    if (barter === 'yes') r = r.filter(a => a.open_to_barter)
-    if (barter === 'no') r = r.filter(a => !a.open_to_barter)
-    if (search) { const q = search.toLowerCase(); r = r.filter(a => a.name?.toLowerCase().includes(q) || a.occupation?.toLowerCase().includes(q) || a.hobbies?.toLowerCase().includes(q) || a.bio?.toLowerCase().includes(q) || a.lifestyle?.some(l => l.toLowerCase().includes(q))) }
-    setFiltered(r)
-  }, [city, barter, search, authors])
+  }, [router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  const removeFavorite = async (authorId: string) => {
+    if (!user) return
+    await supabase.from('favorites').delete().eq('business_id', user.id).eq('author_id', authorId)
+    setAuthors(authors.filter(a => a.id !== authorId))
   }
 
   const openModal = (author: Author) => {
@@ -67,12 +53,12 @@ export default function CatalogPage() {
   }
 
   const sendRequest = async () => {
-    if (!modalAuthor || !userId || !message.trim()) return
+    if (!modalAuthor || !user || !message.trim()) return
     setSending(true)
     setError('')
     const { error: err } = await supabase.from('requests').insert([{
-      business_id: userId,
-      business_email: userEmail,
+      business_id: user.id,
+      business_email: user.email,
       author_id: modalAuthor.id,
       message: message.trim(),
       status: 'new',
@@ -83,66 +69,35 @@ export default function CatalogPage() {
     setModalAuthor(null)
   }
 
-  const toggleFavorite = async (authorId: string) => {
-    if (!userId) return
-    if (favoriteIds.includes(authorId)) {
-      await supabase.from('favorites').delete().eq('business_id', userId).eq('author_id', authorId)
-      setFavoriteIds(favoriteIds.filter(id => id !== authorId))
-    } else {
-      await supabase.from('favorites').insert([{ business_id: userId, author_id: authorId }])
-      setFavoriteIds([...favoriteIds, authorId])
-    }
-  }
-
-  const inp = { padding:'10px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }
-
-  const dashboardLink = userRole === 'author' ? '/dashboard/author' : userRole === 'business' ? '/dashboard/business' : '/login'
+  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9', position:'sticky', top:0, zIndex:100 }}>
+      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
         <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
-          {userEmail ? (
-            <>
-              <Link href={dashboardLink} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>{userEmail}</Link>
-              <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" style={{ padding:'8px 16px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>Войти</Link>
-              <Link href="/register" style={{ padding:'8px 20px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:500 }}>Регистрация</Link>
-            </>
-          )}
+          <span style={{ fontSize:'14px', color:'#7a7570' }}>{user?.email}</span>
+          <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
         </div>
       </nav>
 
       <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'48px 40px' }}>
-        <div style={{ marginBottom:'40px' }}>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'40px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Каталог авторов</h1>
-          <p style={{ fontSize:'15px', color:'#7a7570' }}>{filtered.length} {filtered.length===1?'автор':filtered.length<5?'автора':'авторов'}</p>
+        <div style={{ marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px' }}>
+          <Link href="/dashboard/business" style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Кабинет</Link>
+        </div>
+        <div style={{ marginBottom:'32px' }}>
+          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>Избранные авторы</h1>
         </div>
 
-        <div style={{ display:'flex', gap:'12px', flexWrap:'wrap', marginBottom:'32px', padding:'20px', background:'#fff', borderRadius:'16px', border:'1px solid #e8e6e1' }}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по имени, хобби, профессии..." style={{ ...inp, minWidth:'240px', flex:1 }} />
-          <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Город" style={{ ...inp, width:'160px' }} />
-          <div style={{ display:'flex', gap:'8px' }}>
-            {[{val:'all',label:'Все'},{val:'yes',label:'Бартер ✓'},{val:'no',label:'Без бартера'}].map(opt => (
-              <button key={opt.val} onClick={()=>setBarter(opt.val as 'all'|'yes'|'no')} style={{ padding:'10px 16px', borderRadius:'100px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
-            ))}
-          </div>
-        </div>
-
-        {loading ? (
-          <div style={{ textAlign:'center', padding:'80px', color:'#9a9590' }}>Загружаем авторов...</div>
-        ) : filtered.length===0 ? (
-          <div style={{ textAlign:'center', padding:'80px' }}>
-            <div style={{ fontSize:'40px', marginBottom:'16px' }}>🔍</div>
-            <p style={{ color:'#7a7570', fontSize:'16px' }}>Авторов с такими параметрами пока нет</p>
+        {authors.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'80px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px' }}>
+            <div style={{ fontSize:'40px', marginBottom:'16px' }}>⭐️</div>
+            <p style={{ color:'#7a7570', fontSize:'16px', marginBottom:'20px' }}>Пока пусто. Сохраняй авторов из каталога, чтобы собрать шортлист.</p>
+            <Link href="/catalog" style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'15px', fontWeight:600 }}>Открыть каталог</Link>
           </div>
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'16px' }}>
-            {filtered.map(a => (
+            {authors.map(a => (
               <div key={a.id} style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px' }}>
                   <div>
@@ -163,19 +118,16 @@ export default function CatalogPage() {
                     {a.lifestyle.length>4 && <span style={{ fontSize:'11px', color:'#9a9590', padding:'3px 6px' }}>+{a.lifestyle.length-4}</span>}
                   </div>
                 )}
+
+                {a.status !== 'approved' && (
+                  <div style={{ padding:'8px 12px', background:'#f0ede6', borderRadius:'10px', fontSize:'12px', color:'#9a9590', marginBottom:'12px' }}>
+                    Анкета этого автора сейчас недоступна
+                  </div>
+                )}
+
                 <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
                   {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
-                  {userRole === 'business' && (
-                    <button onClick={() => toggleFavorite(a.id)} style={{
-                      padding:'8px 16px', borderRadius:'100px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit',
-                      border: favoriteIds.includes(a.id) ? '1.5px solid #f5dcb8' : '1.5px solid #e0ddd8',
-                      background: favoriteIds.includes(a.id) ? '#fdf3e7' : '#fff',
-                      color: favoriteIds.includes(a.id) ? '#c17f3e' : '#1a1a1a',
-                    }}>
-                      {favoriteIds.includes(a.id) ? '★ В избранном' : '☆ В избранное'}
-                    </button>
-                  )}
-                  {userRole === 'business' && (
+                  {a.status === 'approved' && (
                     sentTo.includes(a.id) ? (
                       <span style={{ padding:'8px 20px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', color:'#16a34a', fontSize:'13px', fontWeight:600 }}>Отправлено ✓</span>
                     ) : (
@@ -184,9 +136,9 @@ export default function CatalogPage() {
                       </button>
                     )
                   )}
-                  {!userEmail && (
-                    <Link href="/register" style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#7a7570', fontSize:'13px', fontWeight:500 }}>Войти чтобы написать</Link>
-                  )}
+                  <button onClick={() => removeFavorite(a.id)} style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#9a9590', fontSize:'13px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+                    Убрать
+                  </button>
                 </div>
               </div>
             ))}
