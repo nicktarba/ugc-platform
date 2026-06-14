@@ -18,7 +18,7 @@ export default function FavoritesPage() {
   const [budget, setBudget] = useState('')
   const [deadline, setDeadline] = useState('')
   const [sending, setSending] = useState(false)
-  const [sentTo, setSentTo] = useState<string[]>([])
+  const [requestMap, setRequestMap] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -33,6 +33,12 @@ export default function FavoritesPage() {
         const { data: a } = await supabase.from('authors').select('*').in('id', ids)
         setAuthors(a || [])
       }
+
+      const { data: reqs } = await supabase.from('requests').select('id, author_id').eq('business_id', data.user.id).in('status', ['new','viewed','accepted'])
+      const map: Record<string, string> = {}
+      reqs?.forEach(r => { map[r.author_id] = r.id })
+      setRequestMap(map)
+
       setLoading(false)
     })
   }, [router])
@@ -60,7 +66,7 @@ export default function FavoritesPage() {
     if (!modalAuthor || !user || !message.trim()) return
     setSending(true)
     setError('')
-    const { error: err } = await supabase.from('requests').insert([{
+    const { data: inserted, error: err } = await supabase.from('requests').insert([{
       business_id: user.id,
       business_email: user.email,
       author_id: modalAuthor.id,
@@ -68,11 +74,10 @@ export default function FavoritesPage() {
       budget: budget.trim() || null,
       deadline: deadline || null,
       status: 'new',
-    }])
+    }]).select('id').single()
     setSending(false)
-    if (err) { setError('Не получилось отправить. Попробуй ещё раз.'); return }
-    setSentTo([...sentTo, modalAuthor.id])
-    setModalAuthor(null)
+    if (err || !inserted) { setError('Не получилось отправить. Попробуй ещё раз.'); return }
+    router.push(`/dashboard/chat/${inserted.id}`)
   }
 
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
@@ -135,8 +140,10 @@ export default function FavoritesPage() {
                 <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
                   {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
                   {a.status === 'approved' && (
-                    sentTo.includes(a.id) ? (
-                      <span style={{ padding:'8px 20px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', color:'#16a34a', fontSize:'13px', fontWeight:600 }}>Отправлено ✓</span>
+                    requestMap[a.id] ? (
+                      <Link href={`/dashboard/chat/${requestMap[a.id]}`} style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>
+                        Перейти в чат
+                      </Link>
                     ) : (
                       <button onClick={() => openModal(a)} style={{ padding:'8px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
                         Написать

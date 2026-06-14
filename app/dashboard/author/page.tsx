@@ -72,6 +72,8 @@ export default function AuthorDashboard() {
   const statusBadge = (status: string) => {
     if (status === 'accepted') return { text: 'Принято', color: '#16a34a', bg: '#f0fdf4' }
     if (status === 'declined') return { text: 'Отклонено', color: '#dc2626', bg: '#fef2f2' }
+    if (status === 'cancelled') return { text: 'Отменено', color: '#7a7570', bg: '#f0ede6' }
+    if (status === 'completed') return { text: 'Завершено', color: '#16a34a', bg: '#f0fdf4' }
     return null
   }
 

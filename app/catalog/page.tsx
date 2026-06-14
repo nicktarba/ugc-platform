@@ -25,7 +25,7 @@ export default function CatalogPage() {
   const [budget, setBudget] = useState('')
   const [deadline, setDeadline] = useState('')
   const [sending, setSending] = useState(false)
-  const [sentTo, setSentTo] = useState<string[]>([])
+  const [requestMap, setRequestMap] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -37,6 +37,11 @@ export default function CatalogPage() {
         if (data.user.user_metadata?.role === 'business') {
           supabase.from('favorites').select('author_id').eq('business_id', data.user.id).then(({ data: favs }) => {
             setFavoriteIds((favs || []).map(f => f.author_id))
+          })
+          supabase.from('requests').select('id, author_id').eq('business_id', data.user.id).in('status', ['new','viewed','accepted']).then(({ data: reqs }) => {
+            const map: Record<string, string> = {}
+            reqs?.forEach(r => { map[r.author_id] = r.id })
+            setRequestMap(map)
           })
         }
       }
@@ -74,7 +79,7 @@ export default function CatalogPage() {
     if (!modalAuthor || !userId || !message.trim()) return
     setSending(true)
     setError('')
-    const { error: err } = await supabase.from('requests').insert([{
+    const { data: inserted, error: err } = await supabase.from('requests').insert([{
       business_id: userId,
       business_email: userEmail,
       author_id: modalAuthor.id,
@@ -82,11 +87,12 @@ export default function CatalogPage() {
       budget: budget.trim() || null,
       deadline: deadline || null,
       status: 'new',
-    }])
+    }]).select('id').single()
     setSending(false)
-    if (err) { setError('Не получилось отправить. Попробуй ещё раз.'); return }
-    setSentTo([...sentTo, modalAuthor.id])
+    if (err || !inserted) { setError('Не получилось отправить. Попробуй ещё раз.'); return }
+    setRequestMap({ ...requestMap, [modalAuthor.id]: inserted.id })
     setModalAuthor(null)
+    router.push(`/dashboard/chat/${inserted.id}`)
   }
 
   const toggleFavorite = async (authorId: string) => {
@@ -183,8 +189,10 @@ export default function CatalogPage() {
                     </button>
                   )}
                   {userRole === 'business' && (
-                    sentTo.includes(a.id) ? (
-                      <span style={{ padding:'8px 20px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', color:'#16a34a', fontSize:'13px', fontWeight:600 }}>Отправлено ✓</span>
+                    requestMap[a.id] ? (
+                      <Link href={`/dashboard/chat/${requestMap[a.id]}`} style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>
+                        Перейти в чат
+                      </Link>
                     ) : (
                       <button onClick={() => openModal(a)} style={{ padding:'8px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
                         Написать

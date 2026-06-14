@@ -62,6 +62,8 @@ export default function BusinessDashboard() {
     if (status === 'new') return { text: 'Отправлено', color: '#9a9590', bg: '#f0ede6' }
     if (status === 'viewed') return { text: 'Просмотрено', color: '#c17f3e', bg: '#fdf3e7' }
     if (status === 'accepted') return { text: 'Принято', color: '#16a34a', bg: '#f0fdf4' }
+    if (status === 'cancelled') return { text: 'Отменено', color: '#7a7570', bg: '#f0ede6' }
+    if (status === 'completed') return { text: 'Завершено', color: '#16a34a', bg: '#f0fdf4' }
     return { text: 'Отклонено', color: '#dc2626', bg: '#fef2f2' }
   }
 
