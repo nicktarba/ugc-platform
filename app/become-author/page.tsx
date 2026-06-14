@@ -14,6 +14,7 @@ export default function BecomeAuthorPage() {
   const [error, setError] = useState('')
   const [userId, setUserId] = useState<string|null>(null)
   const [existing, setExisting] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState<string|null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -35,6 +36,7 @@ export default function BecomeAuthorPage() {
           open_to_barter: profile.open_to_barter ? 'yes' : 'no',
         })
         setExisting(true)
+        setCurrentStatus(profile.status)
       }
     })
   }, [])
@@ -63,7 +65,8 @@ export default function BecomeAuthorPage() {
 
     let err
     if (existing && userId) {
-      const { error: e } = await supabase.from('authors').update(payload).eq('user_id', userId)
+      const updatePayload = currentStatus === 'rejected' ? { ...payload, status: 'pending' } : payload
+      const { error: e } = await supabase.from('authors').update(updatePayload).eq('user_id', userId)
       err = e
     } else {
       const { error: e } = await supabase.from('authors').insert([{ ...payload, status: 'pending' }])

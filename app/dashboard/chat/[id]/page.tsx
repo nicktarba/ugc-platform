@@ -12,7 +12,7 @@ type RequestInfo = {
   author_id: string
   business_id: string
   status: string
-  authors: { name: string; user_id: string } | null
+  authors: { name: string; user_id: string; status: string } | null
 }
 
 export default function ChatPage() {
@@ -39,7 +39,7 @@ export default function ChatPage() {
       const role = userData.user.user_metadata?.role
       setUserRole(role)
 
-      const { data: req } = await supabase.from('requests').select('*, authors(name, user_id)').eq('id', requestId).single()
+      const { data: req } = await supabase.from('requests').select('*, authors(name, user_id, status)').eq('id', requestId).single()
       if (!req) { router.push('/'); return }
       setRequest(req as unknown as RequestInfo)
 
@@ -110,8 +110,9 @@ export default function ChatPage() {
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
   const sInfo = request ? statusInfo(request.status) : null
-  const showAuthorActions = userRole === 'author' && request && request.status !== 'accepted' && request.status !== 'declined'
-  const showCancelAction = request && request.status === 'accepted'
+  const authorRejected = request?.authors?.status === 'rejected'
+  const showAuthorActions = userRole === 'author' && request && request.status !== 'accepted' && request.status !== 'declined' && !authorRejected
+  const showCancelAction = request && request.status === 'accepted' && !authorRejected
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
@@ -129,6 +130,14 @@ export default function ChatPage() {
         {sInfo && (
           <div style={{ padding:'10px 16px', background:sInfo.bg, border:`1px solid ${sInfo.border}`, borderRadius:'12px', marginBottom:'16px', fontSize:'13px', fontWeight:600, color:sInfo.color }}>
             {sInfo.text}
+          </div>
+        )}
+
+        {authorRejected && (
+          <div style={{ padding:'10px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginBottom:'16px', fontSize:'13px', fontWeight:600, color:'#dc2626' }}>
+            {userRole === 'author'
+              ? 'Твой профиль не прошёл модерацию — переписка временно недоступна. Отредактируй анкету, чтобы отправить на повторную проверку.'
+              : 'Профиль этого автора временно недоступен — переписка приостановлена.'}
           </div>
         )}
 
@@ -178,18 +187,20 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        <div style={{ display:'flex', gap:'12px', paddingBottom:'24px' }}>
-          <input
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendMessage()}
-            placeholder="Написать сообщение..."
-            style={{ flex:1, padding:'14px 20px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }}
-          />
-          <button onClick={sendMessage} disabled={sending || !text.trim()} style={{ padding:'14px 28px', background: sending || !text.trim() ? '#9a9590' : '#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'15px', fontWeight:600, cursor: sending || !text.trim() ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
-            Отправить
-          </button>
-        </div>
+        {!authorRejected && (
+          <div style={{ display:'flex', gap:'12px', paddingBottom:'24px' }}>
+            <input
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendMessage()}
+              placeholder="Написать сообщение..."
+              style={{ flex:1, padding:'14px 20px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }}
+            />
+            <button onClick={sendMessage} disabled={sending || !text.trim()} style={{ padding:'14px 28px', background: sending || !text.trim() ? '#9a9590' : '#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'15px', fontWeight:600, cursor: sending || !text.trim() ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
+              Отправить
+            </button>
+          </div>
+        )}
       </div>
     </main>
   )
