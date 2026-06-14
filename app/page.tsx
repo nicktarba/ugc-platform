@@ -25,6 +25,7 @@ export default function HomePage() {
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', borderBottom: '1px solid #e8e6e1', background: '#fafaf9', position: 'sticky', top: 0, zIndex: 100 }}>
         <span style={{ fontFamily: 'Fraunces, serif', fontSize: '22px', fontWeight: 700, color: '#1a1a1a' }}>ugcmarket</span>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <Link href="/support" style={{ padding: '8px 16px', fontSize: '14px', color: '#7a7570', textDecoration: 'none' }}>Поддержка</Link>
           <Link href="/catalog" style={{ padding: '8px 16px', border: '1px solid #d4d0c8', borderRadius: '100px', textDecoration: 'none', color: '#1a1a1a', fontSize: '14px', fontWeight: 500 }}>Каталог</Link>
           {user ? (
             <>

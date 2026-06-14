@@ -22,6 +22,8 @@ export default function CatalogPage() {
   // Modal state
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
   const [message, setMessage] = useState('')
+  const [budget, setBudget] = useState('')
+  const [deadline, setDeadline] = useState('')
   const [sending, setSending] = useState(false)
   const [sentTo, setSentTo] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -63,6 +65,8 @@ export default function CatalogPage() {
   const openModal = (author: Author) => {
     setModalAuthor(author)
     setMessage('')
+    setBudget('')
+    setDeadline('')
     setError('')
   }
 
@@ -75,6 +79,8 @@ export default function CatalogPage() {
       business_email: userEmail,
       author_id: modalAuthor.id,
       message: message.trim(),
+      budget: budget.trim() || null,
+      deadline: deadline || null,
       status: 'new',
     }])
     setSending(false)
@@ -103,6 +109,7 @@ export default function CatalogPage() {
       <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9', position:'sticky', top:0, zIndex:100 }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
         <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
+          <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
           {userEmail ? (
             <>
               <Link href={dashboardLink} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>{userEmail}</Link>
@@ -205,8 +212,28 @@ export default function CatalogPage() {
               onChange={e => setMessage(e.target.value)}
               rows={5}
               placeholder="Например: предлагаем сотрудничество — обзор нашего продукта за бартер..."
-              style={{ width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'16px' }}
+              style={{ width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'12px' }}
             />
+            <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
+              <div style={{ flex:1 }}>
+                <label style={{ display:'block', fontSize:'12px', color:'#9a9590', marginBottom:'6px', fontWeight:500 }}>Бюджет (опционально)</label>
+                <input
+                  value={budget}
+                  onChange={e => setBudget(e.target.value)}
+                  placeholder="напр. 5000 ₽ или бартер"
+                  style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+                />
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={{ display:'block', fontSize:'12px', color:'#9a9590', marginBottom:'6px', fontWeight:500 }}>Срок (опционально)</label>
+                <input
+                  type="date"
+                  value={deadline}
+                  onChange={e => setDeadline(e.target.value)}
+                  style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+                />
+              </div>
+            </div>
             {error && <div style={{ padding:'12px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'10px', color:'#dc2626', fontSize:'14px', marginBottom:'16px' }}>{error}</div>}
             <div style={{ display:'flex', gap:'12px' }}>
               <button onClick={() => setModalAuthor(null)} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>

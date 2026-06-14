@@ -12,6 +12,8 @@ type RequestInfo = {
   author_id: string
   business_id: string
   status: string
+  budget: string | null
+  deadline: string | null
   authors: { name: string; user_id: string; status: string } | null
 }
 
@@ -118,7 +120,10 @@ export default function ChatPage() {
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
       <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
-        <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
+        <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
+          <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
+          <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
+        </div>
       </nav>
 
       <div style={{ maxWidth:'700px', margin:'0 auto', padding:'24px 40px', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
@@ -126,6 +131,26 @@ export default function ChatPage() {
           <Link href={dashboardLink} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a' }}>{otherName}</h1>
         </div>
+
+        {(request?.budget || request?.deadline) && (
+          <div style={{ padding:'14px 16px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px' }}>
+            <div style={{ fontSize:'12px', color:'#9a9590', fontWeight:600, marginBottom:'8px', textTransform:'uppercase', letterSpacing:'0.04em' }}>Условия сделки</div>
+            <div style={{ display:'flex', gap:'20px', flexWrap:'wrap' }}>
+              {request.budget && (
+                <div>
+                  <div style={{ fontSize:'11px', color:'#9a9590' }}>Бюджет</div>
+                  <div style={{ fontSize:'15px', fontWeight:600, color:'#1a1a1a' }}>{request.budget}</div>
+                </div>
+              )}
+              {request.deadline && (
+                <div>
+                  <div style={{ fontSize:'11px', color:'#9a9590' }}>Срок</div>
+                  <div style={{ fontSize:'15px', fontWeight:600, color:'#1a1a1a' }}>{new Date(request.deadline).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {sInfo && (
           <div style={{ padding:'10px 16px', background:sInfo.bg, border:`1px solid ${sInfo.border}`, borderRadius:'12px', marginBottom:'16px', fontSize:'13px', fontWeight:600, color:sInfo.color }}>

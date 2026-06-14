@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-type Req = { id: string; message: string; status: string; created_at: string; authors: { name: string; city: string } | null }
+type Req = { id: string; message: string; status: string; created_at: string; budget: string | null; deadline: string | null; authors: { name: string; city: string } | null }
 
 export default function BusinessDashboard() {
   const router = useRouter()
@@ -74,6 +74,7 @@ export default function BusinessDashboard() {
       <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
         <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
+          <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
           <span style={{ fontSize:'14px', color:'#7a7570', position:'relative' }}>
             {user?.email}
             {totalUnread > 0 && <span style={{ position:'absolute', top:'-6px', right:'-14px', width:'8px', height:'8px', borderRadius:'50%', background:'#c17f3e' }} />}
@@ -126,6 +127,12 @@ export default function BusinessDashboard() {
                       </div>
                     </div>
                     <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{r.message}</p>
+                    {(r.budget || r.deadline) && (
+                      <div style={{ display:'flex', gap:'12px', marginTop:'6px', fontSize:'12px', color:'#9a9590' }}>
+                        {r.budget && <span>💰 {r.budget}</span>}
+                        {r.deadline && <span>📅 {new Date(r.deadline).toLocaleDateString('ru', { day:'numeric', month:'short' })}</span>}
+                      </div>
+                    )}
                   </Link>
                 )
               })}

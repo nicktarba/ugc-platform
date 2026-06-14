@@ -98,7 +98,10 @@ export default function BecomeAuthorPage() {
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
       <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
-        <Link href="/catalog" style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Каталог</Link>
+        <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
+          <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
+          <Link href="/catalog" style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Каталог</Link>
+        </div>
       </nav>
       <div style={{ maxWidth:'600px', margin:'0 auto', padding:'60px 40px' }}>
         <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'40px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px', lineHeight:1.1 }}>
