@@ -1,27 +1,33 @@
 @import "tailwindcss";
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+#business, #authors, #how { scroll-margin-top: 90px; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #fafaf9; color: #1a1a1a; line-height: 1.6; }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Home page */
+.home-hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
+.home-collage { position: relative; height: 560px; }
+.home-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.home-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.home-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+.home-cta-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 40px; align-items: center; }
+.home-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.home-step-arrow { display: flex; }
+
+@media (max-width: 920px) {
+  .home-hero-grid { grid-template-columns: 1fr; gap: 40px; }
+  .home-collage { height: 460px; max-width: 460px; margin: 0 auto; width: 100%; }
+  .home-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .home-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .home-grid-2 { grid-template-columns: 1fr; gap: 32px; }
+  .home-cta-grid { grid-template-columns: 1fr; gap: 32px; }
+  .home-steps { grid-template-columns: 1fr; gap: 16px; }
+  .home-step-arrow { display: none; }
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #fafaf9;
-  color: #1a1a1a;
-  line-height: 1.6;
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-up {
-  animation: fadeUp 0.6s ease forwards;
+@media (max-width: 560px) {
+  .home-grid-3 { grid-template-columns: 1fr; }
+  .home-grid-4 { grid-template-columns: 1fr; }
+  .home-collage { height: 380px; }
+  .home-hide-mobile { display: none; }
 }
