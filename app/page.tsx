@@ -22,7 +22,7 @@ export default function HomePage() {
 
   return (
     <main style={{ background: '#fafaf9', minHeight: '100vh' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', borderBottom: '1px solid #e8e6e1', background: '#fafaf9', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom: '1px solid #e8e6e1', background: '#fafaf9', position: 'sticky', top: 0, zIndex: 100 }}>
         <span style={{ fontFamily: 'Fraunces, serif', fontSize: '22px', fontWeight: 700, color: '#1a1a1a' }}>ugcmarket</span>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <Link href="/support" style={{ padding: '8px 16px', fontSize: '14px', color: '#7a7570', textDecoration: 'none' }}>Поддержка</Link>
@@ -41,9 +41,9 @@ export default function HomePage() {
         </div>
       </nav>
 
-      <section style={{ maxWidth: '900px', margin: '0 auto', padding: '100px 40px 80px', textAlign: 'center' }}>
+      <section style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(48px, 12vw, 100px) clamp(16px, 5vw, 40px) clamp(40px, 10vw, 80px)', textAlign: 'center' }}>
         <div style={{ display: 'inline-block', padding: '6px 16px', background: '#f0ede6', borderRadius: '100px', fontSize: '13px', color: '#7a7570', marginBottom: '32px', fontWeight: 500 }}>Площадка микро-авторов</div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(42px, 6vw, 72px)', fontWeight: 700, lineHeight: 1.1, color: '#1a1a1a', marginBottom: '28px', letterSpacing: '-1px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(34px, 10vw, 72px)', fontWeight: 700, lineHeight: 1.15, color: '#1a1a1a', marginBottom: '28px', letterSpacing: '-1px' }}>
           Живые люди с <span style={{ fontStyle: 'italic', color: '#c17f3e' }}>тёплой</span> аудиторией
         </h1>
         <p style={{ fontSize: '18px', color: '#5a5650', maxWidth: '620px', margin: '0 auto 16px', lineHeight: 1.7 }}>
@@ -58,7 +58,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section style={{ maxWidth: '900px', margin: '0 auto', padding: '0 40px 80px' }}>
+      <section style={{ maxWidth: '900px', margin: '0 auto', padding: '0 clamp(16px, 5vw, 40px) clamp(40px, 10vw, 80px)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
           {[{ who: 'Фитнес-тренер', for: 'Спортпит, клубы, массаж' }, { who: 'Студент', for: 'Кафе, ивенты, курсы' }, { who: 'Автолюбитель', for: 'Автосервис, детейлинг' }, { who: 'Девушка-кофеман', for: 'Рестораны, кофейни' }, { who: 'Мастер красоты', for: 'Салоны, косметика' }].map(item => (
             <div key={item.who} style={{ padding: '20px', background: '#fff', borderRadius: '16px', border: '1px solid #e8e6e1' }}>
@@ -69,7 +69,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section style={{ background: '#fff', borderTop: '1px solid #e8e6e1', borderBottom: '1px solid #e8e6e1', padding: '80px 40px' }}>
+      <section style={{ background: '#fff', borderTop: '1px solid #e8e6e1', borderBottom: '1px solid #e8e6e1', padding:'clamp(40px, 10vw, 80px) clamp(16px, 5vw, 40px)' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '48px', textAlign: 'center' }}>Как это работает</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '32px' }}>
@@ -83,13 +83,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section style={{ padding: '80px 40px', textAlign: 'center' }}>
+      <section style={{ padding:'clamp(40px, 10vw, 80px) clamp(16px, 5vw, 40px)', textAlign: 'center' }}>
         <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '16px' }}>Ты микро-автор?</h2>
         <p style={{ fontSize: '16px', color: '#7a7570', marginBottom: '32px' }}>Заполни анкету — и бизнесы сами найдут тебя.</p>
         <Link href="/become-author" style={{ padding: '14px 40px', background: '#c17f3e', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '16px', fontWeight: 600 }}>Заполнить анкету</Link>
       </section>
 
-      <footer style={{ borderTop: '1px solid #e8e6e1', padding: '24px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#9a9590' }}>
+      <footer style={{ borderTop: '1px solid #e8e6e1', padding:'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#9a9590' }}>
         <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 700, color: '#1a1a1a' }}>ugcmarket</span>
         <span>Площадка микро-авторов</span>
       </footer>

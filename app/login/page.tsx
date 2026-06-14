@@ -30,12 +30,12 @@ export default function LoginPage() {
 
   return (
     <main style={{ background: '#fafaf9', minHeight: '100vh' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', borderBottom: '1px solid #e8e6e1', background: '#fafaf9' }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom: '1px solid #e8e6e1', background: '#fafaf9' }}>
         <Link href="/" style={{ fontFamily: 'Fraunces, serif', fontSize: '22px', fontWeight: 700, color: '#1a1a1a', textDecoration: 'none' }}>ugcmarket</Link>
         <Link href="/register" style={{ padding: '8px 20px', background: '#1a1a1a', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '14px', fontWeight: 500 }}>Регистрация</Link>
       </nav>
 
-      <div style={{ maxWidth: '480px', margin: '0 auto', padding: '60px 40px' }}>
+      <div style={{ maxWidth: '480px', margin: '0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '8px' }}>Вход</h1>
         <p style={{ fontSize: '15px', color: '#7a7570', marginBottom: '40px' }}>Нет аккаунта? <Link href="/register" style={{ color: '#1a1a1a', fontWeight: 600 }}>Зарегистрироваться</Link></p>
 

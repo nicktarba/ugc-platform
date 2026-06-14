@@ -160,7 +160,7 @@ export default function ChatPage() {
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
+      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
         <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
           <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
@@ -168,7 +168,7 @@ export default function ChatPage() {
         </div>
       </nav>
 
-      <div style={{ maxWidth:'700px', margin:'0 auto', padding:'24px 40px', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
+      <div style={{ maxWidth:'700px', margin:'0 auto', padding:'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
         <div style={{ marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px' }}>
           <Link href={dashboardLink} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a' }}>{otherName}</h1>
@@ -279,7 +279,7 @@ export default function ChatPage() {
         </div>
 
         {canChat && (
-          <div style={{ display:'flex', gap:'12px', paddingBottom:'24px' }}>
+          <div style={{ display:'flex', gap:'12px', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
             <input
               value={text}
               onChange={e => setText(e.target.value)}

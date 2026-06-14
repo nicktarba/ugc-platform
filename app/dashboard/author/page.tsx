@@ -102,7 +102,7 @@ export default function AuthorDashboard() {
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
+      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
         <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
           <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
@@ -114,7 +114,7 @@ export default function AuthorDashboard() {
         </div>
       </nav>
 
-      <div style={{ maxWidth:'800px', margin:'0 auto', padding:'60px 40px' }}>
+      <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
         <div style={{ marginBottom:'40px' }}>
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет автора</div>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>
@@ -233,7 +233,7 @@ export default function AuthorDashboard() {
             </div>
           </div>
         ) : (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'40px', textAlign:'center' }}>
+          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'clamp(20px, 6vw, 40px)', textAlign:'center' }}>
             <div style={{ fontSize:'40px', marginBottom:'16px' }}>✍️</div>
             <h3 style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Заполни анкету</h3>
             <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'24px', lineHeight:1.6 }}>Чтобы бизнесы могли найти тебя в каталоге — нужно заполнить профиль.</p>

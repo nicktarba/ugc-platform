@@ -133,7 +133,7 @@ export default function AdminDashboard() {
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
   if (denied) return (
-    <main style={{ minHeight:'100vh', background:'#fafaf9', display:'flex', alignItems:'center', justifyContent:'center', padding:'40px' }}>
+    <main style={{ minHeight:'100vh', background:'#fafaf9', display:'flex', alignItems:'center', justifyContent:'center', padding:'clamp(20px, 6vw, 40px)' }}>
       <div style={{ textAlign:'center', maxWidth:'400px' }}>
         <div style={{ fontSize:'40px', marginBottom:'16px' }}>🔒</div>
         <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'28px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px' }}>Доступ запрещён</h1>
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
+      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
         <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
           <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
@@ -154,7 +154,7 @@ export default function AdminDashboard() {
         </div>
       </nav>
 
-      <div style={{ maxWidth:'1000px', margin:'0 auto', padding:'48px 40px' }}>
+      <div style={{ maxWidth:'1000px', margin:'0 auto', padding:'clamp(28px, 7vw, 48px) clamp(16px, 5vw, 40px)' }}>
         <div style={{ marginBottom:'32px' }}>
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'12px', fontWeight:500 }}>Админка</div>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>Управление платформой</h1>
