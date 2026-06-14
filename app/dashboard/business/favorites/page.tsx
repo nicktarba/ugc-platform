@@ -102,10 +102,10 @@ export default function FavoritesPage() {
         </div>
 
         {authors.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'80px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px' }}>
+          <div style={{ textAlign:'center', padding:'clamp(32px, 10vw, 80px) clamp(20px, 6vw, 40px)', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px' }}>
             <div style={{ fontSize:'40px', marginBottom:'16px' }}>⭐️</div>
             <p style={{ color:'#7a7570', fontSize:'16px', marginBottom:'20px' }}>Пока пусто. Сохраняй авторов из каталога, чтобы собрать шортлист.</p>
-            <Link href="/catalog" style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'15px', fontWeight:600 }}>Открыть каталог</Link>
+            <Link href="/catalog" style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'15px', fontWeight:600, whiteSpace:'nowrap', display:'inline-block' }}>Открыть каталог</Link>
           </div>
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'16px' }}>

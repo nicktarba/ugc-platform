@@ -64,7 +64,7 @@ export default function ChatPage() {
       .channel(`messages-${requestId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `request_id=eq.${requestId}` }, async (payload) => {
         const newMsg = payload.new as Msg
-        setMessages(prev => [...prev, newMsg])
+        setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
         if (userId && newMsg.sender_id !== userId) {
           await supabase.from('messages').update({ read: true }).eq('id', newMsg.id)
         }
@@ -83,14 +83,17 @@ export default function ChatPage() {
   const sendMessage = async () => {
     if (!text.trim() || !userId || !userRole) return
     setSending(true)
-    const { error } = await supabase.from('messages').insert([{
+    const { data, error } = await supabase.from('messages').insert([{
       request_id: requestId,
       sender_id: userId,
       sender_role: userRole,
       text: text.trim(),
-    }])
+    }]).select().single()
     setSending(false)
-    if (!error) setText('')
+    if (!error && data) {
+      setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data as Msg])
+      setText('')
+    }
   }
 
   const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
@@ -282,7 +285,7 @@ export default function ChatPage() {
               onChange={e => setText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendMessage()}
               placeholder="Написать сообщение..."
-              style={{ flex:1, padding:'14px 20px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }}
+              style={{ flex:1, minWidth:0, padding:'14px 20px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }}
             />
             <button onClick={sendMessage} disabled={sending || !text.trim()} style={{ padding:'14px 28px', background: sending || !text.trim() ? '#9a9590' : '#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'15px', fontWeight:600, cursor: sending || !text.trim() ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
               Отправить
