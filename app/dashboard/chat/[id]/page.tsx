@@ -11,6 +11,7 @@ type RequestInfo = {
   business_email: string
   author_id: string
   business_id: string
+  status: string
   authors: { name: string; user_id: string } | null
 }
 
@@ -26,6 +27,7 @@ export default function ChatPage() {
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -45,7 +47,6 @@ export default function ChatPage() {
       setMessages(msgs || [])
       setLoading(false)
 
-      // Mark incoming messages as read
       await supabase.from('messages').update({ read: true }).eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
     }
     init()
@@ -60,6 +61,9 @@ export default function ChatPage() {
         if (userId && newMsg.sender_id !== userId) {
           await supabase.from('messages').update({ read: true }).eq('id', newMsg.id)
         }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: `id=eq.${requestId}` }, (payload) => {
+        setRequest(prev => prev ? { ...prev, status: (payload.new as { status: string }).status } : prev)
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -82,6 +86,13 @@ export default function ChatPage() {
     if (!error) setText('')
   }
 
+  const updateStatus = async (status: 'accepted' | 'declined') => {
+    setUpdatingStatus(true)
+    const { error } = await supabase.from('requests').update({ status }).eq('id', requestId)
+    setUpdatingStatus(false)
+    if (!error) setRequest(prev => prev ? { ...prev, status } : prev)
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
@@ -90,7 +101,16 @@ export default function ChatPage() {
   const dashboardLink = userRole === 'author' ? '/dashboard/author' : '/dashboard/business'
   const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
 
+  const statusInfo = (status: string) => {
+    if (status === 'accepted') return { text: '✓ Сделка принята', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
+    if (status === 'declined') return { text: '✕ Предложение отклонено', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' }
+    return null
+  }
+
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
+
+  const sInfo = request ? statusInfo(request.status) : null
+  const showActions = userRole === 'author' && request && request.status !== 'accepted' && request.status !== 'declined'
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
@@ -100,10 +120,27 @@ export default function ChatPage() {
       </nav>
 
       <div style={{ maxWidth:'700px', margin:'0 auto', padding:'24px 40px', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
-        <div style={{ marginBottom:'20px', display:'flex', alignItems:'center', gap:'12px' }}>
+        <div style={{ marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px' }}>
           <Link href={dashboardLink} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a' }}>{otherName}</h1>
         </div>
+
+        {sInfo && (
+          <div style={{ padding:'10px 16px', background:sInfo.bg, border:`1px solid ${sInfo.border}`, borderRadius:'12px', marginBottom:'16px', fontSize:'13px', fontWeight:600, color:sInfo.color }}>
+            {sInfo.text}
+          </div>
+        )}
+
+        {showActions && (
+          <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
+            <button onClick={() => updateStatus('accepted')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+              Принять предложение
+            </button>
+            <button onClick={() => updateStatus('declined')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+              Отклонить
+            </button>
+          </div>
+        )}
 
         <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px', minHeight:'300px' }}>
           {request && (

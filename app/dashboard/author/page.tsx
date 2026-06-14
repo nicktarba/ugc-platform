@@ -51,6 +51,12 @@ export default function AuthorDashboard() {
 
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0)
 
+  const statusBadge = (status: string) => {
+    if (status === 'accepted') return { text: 'Принято', color: '#16a34a', bg: '#f0fdf4' }
+    if (status === 'declined') return { text: 'Отклонено', color: '#dc2626', bg: '#fef2f2' }
+    return null
+  }
+
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
   return (
@@ -113,6 +119,7 @@ export default function AuthorDashboard() {
                   {requests.map(r => {
                     const unread = unreadCounts[r.id] || 0
                     const isNew = r.status === 'new' || unread > 0
+                    const sBadge = statusBadge(r.status)
                     return (
                       <Link key={r.id} href={`/dashboard/chat/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: isNew ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
@@ -120,6 +127,7 @@ export default function AuthorDashboard() {
                           <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
                             {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
                             {r.status === 'new' && unread === 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff' }}>Новое</span>}
+                            {sBadge && <span style={{ padding:'2px 10px', background:sBadge.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:sBadge.color }}>{sBadge.text}</span>}
                           </div>
                         </div>
                         <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{r.message}</p>
