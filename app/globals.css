@@ -4,3 +4,5 @@ html { scroll-behavior: smooth; overflow-x: hidden; }
 body { overflow-x: hidden; }
 body { font-family: 'Inter', -apple-system, sans-serif; background: #fafaf9; color: #1a1a1a; line-height: 1.6; }
 nav { flex-wrap: wrap; row-gap: 10px; }
+nav > div { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
+input, textarea, select { font-size: 16px !important; }
