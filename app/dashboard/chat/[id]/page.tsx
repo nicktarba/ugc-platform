@@ -94,6 +94,13 @@ export default function ChatPage() {
   }
 
   const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
+    const confirmText: Record<string, string> = {
+      declined: 'Сделка будет отклонена, переписка закроется (история останется). Продолжить?',
+      cancelled: 'Сделка будет отменена, переписка закроется (история останется). Продолжить?',
+      completed: 'Отметить сделку как завершённую? Переписка закроется (история останется).',
+    }
+    if (confirmText[status] && !confirm(confirmText[status])) return
+
     setUpdatingStatus(true)
     const { error } = await supabase.from('requests').update({ status }).eq('id', requestId)
     setUpdatingStatus(false)
@@ -144,7 +151,8 @@ export default function ChatPage() {
   const authorRejected = request?.authors?.status === 'rejected'
   const dealClosed = request ? CLOSED_STATUSES.includes(request.status) : false
   const showAuthorActions = userRole === 'author' && request && (request.status === 'new' || request.status === 'viewed') && !authorRejected
-  const showAcceptedActions = request && request.status === 'accepted' && !authorRejected
+  const showAcceptedActions = request && request.status === 'accepted'
+  const showBusinessWithdraw = userRole === 'business' && request && (request.status === 'new' || request.status === 'viewed')
   const canChat = !authorRejected && !dealClosed
 
   return (
@@ -217,6 +225,14 @@ export default function ChatPage() {
             </button>
             <button onClick={() => updateStatus('declined')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
               Отклонить
+            </button>
+          </div>
+        )}
+
+        {showBusinessWithdraw && (
+          <div style={{ marginBottom:'16px' }}>
+            <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ width:'100%', padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+              Отозвать заявку
             </button>
           </div>
         )}

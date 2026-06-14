@@ -45,6 +45,10 @@ export default function AuthorDashboard() {
         const updated = payload.new as { id: string; status: string }
         setRequests(prev => prev.map(r => r.id === updated.id ? { ...r, status: updated.status } : r))
       })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'requests', filter: `author_id=eq.${profile.id}` }, (payload) => {
+        const newReq = payload.new as Req
+        setRequests(prev => [newReq, ...prev])
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as { request_id: string; sender_role: string }
         if (msg.sender_role === 'business') {
