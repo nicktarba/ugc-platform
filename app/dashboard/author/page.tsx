@@ -33,7 +33,8 @@ export default function AuthorDashboard() {
     router.push('/')
   }
 
-  const markViewed = async (id: string) => {
+  const markViewed = async (id: string, status: string) => {
+    if (status !== 'new') return
     await supabase.from('requests').update({ status: 'viewed' }).eq('id', id)
     setRequests(requests.map(r => r.id === id ? { ...r, status: 'viewed' } : r))
   }
@@ -94,13 +95,13 @@ export default function AuthorDashboard() {
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
                   {requests.map(r => (
-                    <div key={r.id} onClick={() => r.status === 'new' && markViewed(r.id)} style={{ padding:'16px', background: r.status === 'new' ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', cursor: r.status === 'new' ? 'pointer' : 'default' }}>
+                    <Link key={r.id} href={`/dashboard/chat/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: r.status === 'new' ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
                         <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.business_email}</span>
                         {r.status === 'new' && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff' }}>Новое</span>}
                       </div>
                       <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{r.message}</p>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
