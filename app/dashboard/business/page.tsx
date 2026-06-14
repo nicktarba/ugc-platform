@@ -8,7 +8,7 @@ type Req = { id: string; message: string; status: string; created_at: string; au
 
 export default function BusinessDashboard() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email?: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [requests, setRequests] = useState<Req[]>([])
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
@@ -30,6 +30,24 @@ export default function BusinessDashboard() {
       setLoading(false)
     })
   }, [router])
+
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase
+      .channel(`business-requests-${user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: `business_id=eq.${user.id}` }, (payload) => {
+        const updated = payload.new as { id: string; status: string }
+        setRequests(prev => prev.map(r => r.id === updated.id ? { ...r, status: updated.status } : r))
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const msg = payload.new as { request_id: string; sender_role: string }
+        if (msg.sender_role === 'author') {
+          setUnreadCounts(prev => ({ ...prev, [msg.request_id]: (prev[msg.request_id] || 0) + 1 }))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

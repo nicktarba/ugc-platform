@@ -112,7 +112,7 @@ export default function ChatPage() {
   const sInfo = request ? statusInfo(request.status) : null
   const authorRejected = request?.authors?.status === 'rejected'
   const showAuthorActions = userRole === 'author' && request && request.status !== 'accepted' && request.status !== 'declined' && !authorRejected
-  const showCancelAction = request && request.status === 'accepted' && !authorRejected
+  const showCancelAction = request && request.status === 'accepted'
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>

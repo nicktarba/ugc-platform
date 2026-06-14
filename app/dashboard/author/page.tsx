@@ -37,6 +37,24 @@ export default function AuthorDashboard() {
     })
   }, [router])
 
+  useEffect(() => {
+    if (!profile) return
+    const channel = supabase
+      .channel(`author-requests-${profile.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: `author_id=eq.${profile.id}` }, (payload) => {
+        const updated = payload.new as { id: string; status: string }
+        setRequests(prev => prev.map(r => r.id === updated.id ? { ...r, status: updated.status } : r))
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const msg = payload.new as { request_id: string; sender_role: string }
+        if (msg.sender_role === 'business') {
+          setUnreadCounts(prev => ({ ...prev, [msg.request_id]: (prev[msg.request_id] || 0) + 1 }))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [profile])
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
