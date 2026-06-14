@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import AppHeader from '@/components/AppHeader'
+import { getBusinessBadgeCount } from '@/lib/badges'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; bio:string; open_to_barter:boolean; status:string }
 
@@ -42,12 +43,7 @@ export default function FavoritesPage() {
       reqs?.forEach(r => { map[r.author_id] = r.id })
       setRequestMap(map)
 
-      const { data: allReqs } = await supabase.from('requests').select('id').eq('business_id', data.user.id)
-      if (allReqs && allReqs.length > 0) {
-        const ids2 = allReqs.map(r => r.id)
-        const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true }).in('request_id', ids2).eq('sender_role', 'author').eq('read', false)
-        setUnreadCount(count || 0)
-      }
+      setUnreadCount(await getBusinessBadgeCount(data.user.id))
 
       setLoading(false)
     })

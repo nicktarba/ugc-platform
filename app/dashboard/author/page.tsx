@@ -70,6 +70,8 @@ export default function AuthorRequestsPage() {
   }
 
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0)
+  const newRequestsCount = requests.filter(r => r.status === 'new').length
+  const badgeCount = totalUnread + newRequestsCount
 
   const statusBadge = (status: string) => {
     if (status === 'accepted') return { text: 'В работе', color: '#16a34a', bg: '#f0fdf4' }
@@ -106,7 +108,7 @@ export default function AuthorRequestsPage() {
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет автора</div>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a', display:'flex', alignItems:'center', gap:'10px' }}>
             Входящие запросы
-            {totalUnread > 0 && <span style={{ padding:'2px 12px', background:'#c17f3e', borderRadius:'100px', fontSize:'14px', fontWeight:700, color:'#fff' }}>{totalUnread} новых</span>}
+            {badgeCount > 0 && <span style={{ padding:'2px 12px', background:'#c17f3e', borderRadius:'100px', fontSize:'14px', fontWeight:700, color:'#fff' }}>{badgeCount} новых</span>}
           </h1>
         </div>
 
@@ -198,7 +200,7 @@ export default function AuthorRequestsPage() {
           </div>
         )}
       </div>
-      <BottomNav role="author" active="requests" unread={totalUnread} />
+      <BottomNav role="author" active="requests" unread={badgeCount} />
     </main>
   )
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BottomNav from '@/components/BottomNav'
 import AppHeader from '@/components/AppHeader'
+import { getBusinessBadgeCount, getAuthorBadgeCount } from '@/lib/badges'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean }
 
@@ -46,12 +47,11 @@ export default function CatalogPage() {
             reqs?.forEach(r => { map[r.author_id] = r.id })
             setRequestMap(map)
           })
-          supabase.from('requests').select('id').eq('business_id', data.user.id).then(async ({ data: allReqs }) => {
-            if (allReqs && allReqs.length > 0) {
-              const ids = allReqs.map(r => r.id)
-              const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true }).in('request_id', ids).eq('sender_role', 'author').eq('read', false)
-              setUnreadCount(count || 0)
-            }
+          getBusinessBadgeCount(data.user.id).then(setUnreadCount)
+        }
+        if (data.user.user_metadata?.role === 'author') {
+          supabase.from('authors').select('id').eq('user_id', data.user.id).single().then(({ data: p }) => {
+            if (p) getAuthorBadgeCount(p.id).then(setUnreadCount)
           })
         }
       }
@@ -239,7 +239,7 @@ export default function CatalogPage() {
           </div>
         </div>
       )}
-      {userRole === 'business' && <BottomNav role="business" active="catalog" unread={unreadCount} />}
+      {(userRole === 'business' || userRole === 'author') && <BottomNav role={userRole} active="catalog" unread={unreadCount} />}
     </main>
   )
 }

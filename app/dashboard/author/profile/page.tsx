@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getAuthorBadgeCount } from '@/lib/badges'
 import BottomNav from '@/components/BottomNav'
 import AppHeader from '@/components/AppHeader'
 
@@ -23,12 +24,8 @@ export default function AuthorProfilePage() {
       setProfileChecked(true)
 
       if (p) {
-        const { data: reqs } = await supabase.from('requests').select('id').eq('author_id', p.id)
-        if (reqs && reqs.length > 0) {
-          const ids = reqs.map(r => r.id)
-          const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true }).in('request_id', ids).eq('sender_role', 'business').eq('read', false)
-          setTotalUnread(count || 0)
-        }
+        const count = await getAuthorBadgeCount(p.id)
+        setTotalUnread(count)
       }
       setLoading(false)
     })
