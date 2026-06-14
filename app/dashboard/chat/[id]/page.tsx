@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
-type Msg = { id: string; sender_id: string; sender_role: string; text: string; created_at: string }
+type Msg = { id: string; sender_id: string; sender_role: string; text: string; created_at: string; read: boolean }
 type RequestInfo = {
   id: string
   message: string
@@ -32,7 +32,8 @@ export default function ChatPage() {
     const init = async () => {
       const { data: userData } = await supabase.auth.getUser()
       if (!userData.user) { router.push('/login'); return }
-      setUserId(userData.user.id)
+      const uid = userData.user.id
+      setUserId(uid)
       const role = userData.user.user_metadata?.role
       setUserRole(role)
 
@@ -43,6 +44,9 @@ export default function ChatPage() {
       const { data: msgs } = await supabase.from('messages').select('*').eq('request_id', requestId).order('created_at', { ascending: true })
       setMessages(msgs || [])
       setLoading(false)
+
+      // Mark incoming messages as read
+      await supabase.from('messages').update({ read: true }).eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
     }
     init()
   }, [requestId, router])
@@ -50,12 +54,16 @@ export default function ChatPage() {
   useEffect(() => {
     const channel = supabase
       .channel(`messages-${requestId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `request_id=eq.${requestId}` }, (payload) => {
-        setMessages(prev => [...prev, payload.new as Msg])
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `request_id=eq.${requestId}` }, async (payload) => {
+        const newMsg = payload.new as Msg
+        setMessages(prev => [...prev, newMsg])
+        if (userId && newMsg.sender_id !== userId) {
+          await supabase.from('messages').update({ read: true }).eq('id', newMsg.id)
+        }
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [requestId])
+  }, [requestId, userId])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -98,7 +106,6 @@ export default function ChatPage() {
         </div>
 
         <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px', minHeight:'300px' }}>
-          {/* Original request message */}
           {request && (
             <div style={{ alignSelf:'flex-start', maxWidth:'80%', padding:'14px 18px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'18px 18px 18px 4px' }}>
               <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{request.message}</p>

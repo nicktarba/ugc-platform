@@ -12,6 +12,7 @@ export default function AuthorDashboard() {
   const [user, setUser] = useState<{ email?: string } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [requests, setRequests] = useState<Req[]>([])
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,6 +24,14 @@ export default function AuthorDashboard() {
       if (p) {
         const { data: r } = await supabase.from('requests').select('*').eq('author_id', p.id).order('created_at', { ascending: false })
         setRequests(r || [])
+
+        if (r && r.length > 0) {
+          const ids = r.map(req => req.id)
+          const { data: unread } = await supabase.from('messages').select('request_id').in('request_id', ids).eq('sender_role', 'business').eq('read', false)
+          const counts: Record<string, number> = {}
+          unread?.forEach(m => { counts[m.request_id] = (counts[m.request_id] || 0) + 1 })
+          setUnreadCounts(counts)
+        }
       }
       setLoading(false)
     })
@@ -34,10 +43,13 @@ export default function AuthorDashboard() {
   }
 
   const markViewed = async (id: string, status: string) => {
-    if (status !== 'new') return
-    await supabase.from('requests').update({ status: 'viewed' }).eq('id', id)
-    setRequests(requests.map(r => r.id === id ? { ...r, status: 'viewed' } : r))
+    if (status === 'new') {
+      await supabase.from('requests').update({ status: 'viewed' }).eq('id', id)
+      setRequests(requests.map(r => r.id === id ? { ...r, status: 'viewed' } : r))
+    }
   }
+
+  const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0)
 
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
@@ -46,7 +58,10 @@ export default function AuthorDashboard() {
       <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'20px 40px', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
         <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
         <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
-          <span style={{ fontSize:'14px', color:'#7a7570' }}>{user?.email}</span>
+          <span style={{ fontSize:'14px', color:'#7a7570', position:'relative' }}>
+            {user?.email}
+            {totalUnread > 0 && <span style={{ position:'absolute', top:'-6px', right:'-14px', width:'8px', height:'8px', borderRadius:'50%', background:'#c17f3e' }} />}
+          </span>
           <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
         </div>
       </nav>
@@ -87,22 +102,30 @@ export default function AuthorDashboard() {
             </div>
 
             <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-              <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>
+              <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
                 Входящие запросы {requests.length > 0 && `(${requests.length})`}
+                {totalUnread > 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'12px', fontWeight:700, color:'#fff' }}>{totalUnread} новых</span>}
               </h3>
               {requests.length === 0 ? (
                 <p style={{ fontSize:'14px', color:'#9a9590' }}>Пока запросов нет — появятся здесь когда бизнес напишет тебе.</p>
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-                  {requests.map(r => (
-                    <Link key={r.id} href={`/dashboard/chat/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: r.status === 'new' ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
-                        <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.business_email}</span>
-                        {r.status === 'new' && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff' }}>Новое</span>}
-                      </div>
-                      <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{r.message}</p>
-                    </Link>
-                  ))}
+                  {requests.map(r => {
+                    const unread = unreadCounts[r.id] || 0
+                    const isNew = r.status === 'new' || unread > 0
+                    return (
+                      <Link key={r.id} href={`/dashboard/chat/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: isNew ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
+                          <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.business_email}</span>
+                          <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
+                            {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
+                            {r.status === 'new' && unread === 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff' }}>Новое</span>}
+                          </div>
+                        </div>
+                        <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>{r.message}</p>
+                      </Link>
+                    )
+                  })}
                 </div>
               )}
             </div>
