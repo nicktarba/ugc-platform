@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import BottomNav from '@/components/BottomNav'
 
 type Profile = { id: string; name: string; city: string; instagram_url: string; followers_count: number; lifestyle: string[]; open_to_barter: boolean; status: string }
 type Req = { id: string; message: string; status: string; business_email: string; created_at: string; budget: string | null; deadline: string | null }
@@ -241,6 +242,7 @@ export default function AuthorDashboard() {
           </div>
         )}
       </div>
+      <BottomNav role="author" active="requests" unread={totalUnread} />
     </main>
   )
 }

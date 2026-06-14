@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import BottomNav from '@/components/BottomNav'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; bio:string; open_to_barter:boolean; status:string }
 
@@ -20,6 +21,7 @@ export default function FavoritesPage() {
   const [sending, setSending] = useState(false)
   const [requestMap, setRequestMap] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -38,6 +40,13 @@ export default function FavoritesPage() {
       const map: Record<string, string> = {}
       reqs?.forEach(r => { map[r.author_id] = r.id })
       setRequestMap(map)
+
+      const { data: allReqs } = await supabase.from('requests').select('id').eq('business_id', data.user.id)
+      if (allReqs && allReqs.length > 0) {
+        const ids2 = allReqs.map(r => r.id)
+        const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true }).in('request_id', ids2).eq('sender_role', 'author').eq('read', false)
+        setUnreadCount(count || 0)
+      }
 
       setLoading(false)
     })
@@ -203,6 +212,7 @@ export default function FavoritesPage() {
           </div>
         </div>
       )}
+      <BottomNav role="business" active="favorites" unread={unreadCount} />
     </main>
   )
 }

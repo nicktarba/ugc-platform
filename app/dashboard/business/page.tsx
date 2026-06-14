@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import BottomNav from '@/components/BottomNav'
 
 type Req = { id: string; message: string; status: string; created_at: string; budget: string | null; deadline: string | null; authors: { name: string; city: string } | null }
 
@@ -193,6 +194,7 @@ export default function BusinessDashboard() {
           )}
         </div>
       </div>
+      <BottomNav role="business" active="requests" unread={totalUnread} />
     </main>
   )
 }

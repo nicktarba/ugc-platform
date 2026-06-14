@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import BottomNav from '@/components/BottomNav'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean }
 
@@ -18,6 +19,7 @@ export default function CatalogPage() {
   const [userRole, setUserRole] = useState<string|null>(null)
   const [userEmail, setUserEmail] = useState<string|null>(null)
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
 
   // Modal state
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
@@ -42,6 +44,13 @@ export default function CatalogPage() {
             const map: Record<string, string> = {}
             reqs?.forEach(r => { map[r.author_id] = r.id })
             setRequestMap(map)
+          })
+          supabase.from('requests').select('id').eq('business_id', data.user.id).then(async ({ data: allReqs }) => {
+            if (allReqs && allReqs.length > 0) {
+              const ids = allReqs.map(r => r.id)
+              const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true }).in('request_id', ids).eq('sender_role', 'author').eq('read', false)
+              setUnreadCount(count || 0)
+            }
           })
         }
       }
@@ -252,6 +261,7 @@ export default function CatalogPage() {
           </div>
         </div>
       )}
+      {userRole === 'business' && <BottomNav role="business" active="catalog" unread={unreadCount} />}
     </main>
   )
 }
