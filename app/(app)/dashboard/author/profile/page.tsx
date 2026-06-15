@@ -1,42 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { getAuthorBadgeCount } from '@/lib/badges'
-import BottomNav from '@/components/BottomNav'
-import AppHeader from '@/components/AppHeader'
-
-type Profile = { id: string; name: string; city: string; instagram_url: string; followers_count: number; lifestyle: string[]; open_to_barter: boolean; status: string }
+import { useApp } from '../../../AppContext'
 
 export default function AuthorProfilePage() {
-  const router = useRouter()
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [profileChecked, setProfileChecked] = useState(false)
-  const [totalUnread, setTotalUnread] = useState(0)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.push('/login'); return }
-      const { data: p } = await supabase.from('authors').select('*').eq('user_id', data.user.id).single()
-      setProfile(p)
-      setProfileChecked(true)
-
-      if (p) {
-        const count = await getAuthorBadgeCount(p.id)
-        setTotalUnread(count)
-      }
-      setLoading(false)
-    })
-  }, [router])
-
-  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
+  const { authorProfile: profile } = useApp()
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <AppHeader />
-
       <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
         <div style={{ marginBottom:'32px' }}>
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет автора</div>
@@ -82,16 +52,15 @@ export default function AuthorProfilePage() {
               {profile.instagram_url && <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'10px 24px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Instagram →</a>}
             </div>
           </div>
-        ) : profileChecked ? (
+        ) : (
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'clamp(20px, 6vw, 40px)', textAlign:'center' }}>
             <div style={{ fontSize:'40px', marginBottom:'16px' }}>✍️</div>
             <h3 style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Заполни анкету</h3>
             <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'24px', lineHeight:1.6 }}>Чтобы бизнесы могли найти тебя в каталоге — нужно заполнить профиль.</p>
             <Link href="/become-author" style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'15px', fontWeight:600 }}>Заполнить анкету</Link>
           </div>
-        ) : null}
+        )}
       </div>
-      <BottomNav role="author" active="profile" unread={totalUnread} />
     </main>
   )
 }

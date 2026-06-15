@@ -1,18 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import BottomNav from '@/components/BottomNav'
-import AppHeader from '@/components/AppHeader'
 import LoadingScreen from '@/components/LoadingScreen'
 import { truncate, formatRelative, formatDate } from '@/lib/format'
 import { businessStatusLabel } from '@/lib/status'
 import { OPEN_STATUSES, type BusinessRequest as Req } from '@/lib/types'
+import { useApp } from '../../AppContext'
 
 export default function BusinessDashboard() {
-  const router = useRouter()
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const { userId, bumpBadge } = useApp()
   const [requests, setRequests] = useState<Req[]>([])
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [favoritesCount, setFavoritesCount] = useState(0)
@@ -20,13 +17,12 @@ export default function BusinessDashboard() {
   const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.push('/login'); return }
-      setUser(data.user)
-      const { data: r } = await supabase.from('requests').select('*, authors(name, city)').eq('business_id', data.user.id).order('created_at', { ascending: false })
+    if (!userId) return
+    ;(async () => {
+      const { data: r } = await supabase.from('requests').select('*, authors(name, city)').eq('business_id', userId).order('created_at', { ascending: false })
       setRequests((r as unknown as Req[]) || [])
 
-      const { count } = await supabase.from('favorites').select('id', { count: 'exact', head: true }).eq('business_id', data.user.id)
+      const { count } = await supabase.from('favorites').select('id', { count: 'exact', head: true }).eq('business_id', userId)
       setFavoritesCount(count || 0)
 
       if (r && r.length > 0) {
@@ -37,14 +33,14 @@ export default function BusinessDashboard() {
         setUnreadCounts(counts)
       }
       setLoading(false)
-    })
-  }, [router])
+    })()
+  }, [userId])
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!userId) return
     const channel = supabase
-      .channel(`business-requests-${user.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: `business_id=eq.${user.id}` }, (payload) => {
+      .channel(`business-requests-${userId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: `business_id=eq.${userId}` }, (payload) => {
         const updated = payload.new as { id: string; status: string }
         setRequests(prev => prev.map(r => r.id === updated.id ? { ...r, status: updated.status } : r))
       })
@@ -52,11 +48,12 @@ export default function BusinessDashboard() {
         const msg = payload.new as { request_id: string; sender_role: string }
         if (msg.sender_role === 'author') {
           setUnreadCounts(prev => ({ ...prev, [msg.request_id]: (prev[msg.request_id] || 0) + 1 }))
+          bumpBadge(1)
         }
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [user?.id])
+  }, [userId, bumpBadge])
 
   const OPEN: string[] = OPEN_STATUSES
   const activeRequests = requests.filter(r => OPEN.includes(r.status))
@@ -68,8 +65,6 @@ export default function BusinessDashboard() {
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <AppHeader />
-
       <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
         <div style={{ marginBottom:'40px' }}>
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет бизнеса</div>
@@ -161,7 +156,6 @@ export default function BusinessDashboard() {
           )}
         </div>
       </div>
-      <BottomNav role="business" active="requests" unread={totalUnread} />
     </main>
   )
 }
