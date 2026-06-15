@@ -84,7 +84,7 @@ export default function CatalogPage() {
     if (err || !inserted) { setError('Не получилось отправить. Попробуй ещё раз.'); return }
     setRequestMap({ ...requestMap, [modalAuthor.id]: inserted.id })
     setModalAuthor(null)
-    router.push(`/dashboard/chat/${inserted.id}`)
+    router.push(`/dashboard/request/${inserted.id}`)
   }
 
   const toggleFavorite = async (authorId: string) => {
@@ -164,8 +164,8 @@ export default function CatalogPage() {
                   )}
                   {userRole === 'business' && (
                     requestMap[a.id] ? (
-                      <Link href={`/dashboard/chat/${requestMap[a.id]}`} style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>
-                        Перейти в чат
+                      <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>
+                        Перейти к заявке
                       </Link>
                     ) : (
                       <button onClick={() => openModal(a)} style={{ padding:'8px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>

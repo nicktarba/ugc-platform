@@ -75,7 +75,7 @@ export default function FavoritesPage() {
     }]).select('id').single()
     setSending(false)
     if (err || !inserted) { setError('Не получилось отправить. Попробуй ещё раз.'); return }
-    router.push(`/dashboard/chat/${inserted.id}`)
+    router.push(`/dashboard/request/${inserted.id}`)
   }
 
   if (loading) return <LoadingScreen />
@@ -130,8 +130,8 @@ export default function FavoritesPage() {
                   {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
                   {a.status === 'approved' && (
                     requestMap[a.id] ? (
-                      <Link href={`/dashboard/chat/${requestMap[a.id]}`} style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>
-                        Перейти в чат
+                      <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>
+                        Перейти к заявке
                       </Link>
                     ) : (
                       <button onClick={() => openModal(a)} style={{ padding:'8px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>

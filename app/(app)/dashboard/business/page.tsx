@@ -104,7 +104,7 @@ export default function BusinessDashboard() {
                     const s = businessStatusLabel(r.status)
                     const unread = unreadCounts[r.id] || 0
                     return (
-                      <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background: unread > 0 ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
+                      <Link key={r.id} href={`/dashboard/request/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background: unread > 0 ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
                           <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.authors?.name} · {r.authors?.city}</span>
                           <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
@@ -136,7 +136,7 @@ export default function BusinessDashboard() {
                       {historyRequests.map(r => {
                         const s = businessStatusLabel(r.status)
                         return (
-                          <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
+                          <Link key={r.id} href={`/dashboard/request/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
                             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
                               <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.authors?.name} · {r.authors?.city}</span>
                               <span style={{ padding:'2px 10px', background:s.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:s.color, whiteSpace:'nowrap' }}>{s.text}</span>
