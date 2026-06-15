@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 
 export default function AppHeader() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email?: string } | null>(null)
+  const [user, setUser] = useState<{ email?: string; user_metadata?: { role?: string } } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -32,6 +32,8 @@ export default function AppHeader() {
   }
 
   const initial = user?.email?.[0]?.toUpperCase() || '?'
+  const role = user?.user_metadata?.role
+  const dashboardHref = role === 'author' ? '/dashboard/author' : role === 'admin' ? '/dashboard/admin' : '/dashboard/business'
 
   return (
     <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9', position:'sticky', top:0, zIndex:100 }}>
@@ -39,6 +41,7 @@ export default function AppHeader() {
 
       {/* Desktop: full nav */}
       <div className="app-header-desktop" style={{ gap:'12px', alignItems:'center' }}>
+        {user && <Link href={dashboardHref} style={{ padding:'8px 16px', border:'1px solid #d4d0c8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Личный кабинет</Link>}
         <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
         <Link href="/catalog" style={{ padding:'8px 16px', border:'1px solid #d4d0c8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Каталог</Link>
         {user ? (
@@ -61,6 +64,8 @@ export default function AppHeader() {
           {menuOpen && (
             <div style={{ position:'absolute', top:'48px', right:0, background:'#fff', border:'1px solid #e8e6e1', borderRadius:'14px', boxShadow:'0 8px 24px rgba(0,0,0,0.12)', minWidth:'200px', padding:'8px', zIndex:300 }}>
               <div style={{ padding:'8px 12px', fontSize:'13px', color:'#9a9590', borderBottom:'1px solid #f0ede6', marginBottom:'4px', wordBreak:'break-all' }}>{user.email}</div>
+              <Link href={dashboardHref} onClick={() => setMenuOpen(false)} style={{ display:'block', padding:'10px 12px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', borderRadius:'8px', fontWeight:600 }}>Личный кабинет</Link>
+              <Link href="/catalog" onClick={() => setMenuOpen(false)} style={{ display:'block', padding:'10px 12px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', borderRadius:'8px' }}>Каталог</Link>
               <Link href="/support" onClick={() => setMenuOpen(false)} style={{ display:'block', padding:'10px 12px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', borderRadius:'8px' }}>Поддержка</Link>
               <button onClick={handleLogout} style={{ display:'block', width:'100%', textAlign:'left', padding:'10px 12px', fontSize:'14px', color:'#dc2626', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', borderRadius:'8px' }}>Выйти</button>
             </div>

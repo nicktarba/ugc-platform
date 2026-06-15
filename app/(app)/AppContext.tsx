@@ -16,11 +16,20 @@ export type AuthorProfile = {
   status: string
 }
 
+export type BusinessProfile = {
+  company_name: string
+  website_url: string
+  niche: string
+  description: string
+}
+
 export type AppContextValue = {
   userId: string | null
   userEmail: string | null
   userRole: 'business' | 'author' | 'admin' | null
   authorProfile: AuthorProfile | null
+  businessProfile: BusinessProfile | null
+  setBusinessProfile: (p: BusinessProfile) => void
   badgeCount: number
   bumpBadge: (delta: number) => void
 }
@@ -30,6 +39,8 @@ export const AppContext = createContext<AppContextValue>({
   userEmail: null,
   userRole: null,
   authorProfile: null,
+  businessProfile: null,
+  setBusinessProfile: () => {},
   badgeCount: 0,
   bumpBadge: () => {},
 })

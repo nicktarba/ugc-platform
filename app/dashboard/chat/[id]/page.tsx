@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import AppHeader from '@/components/AppHeader'
 import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
 
 type Msg = { id: string; sender_id: string; sender_role: string; text: string; created_at: string; read: boolean }
@@ -18,6 +19,7 @@ type RequestInfo = {
   deadline: string | null
   authors: { name: string; user_id: string; status: string } | null
 }
+type BusinessProfile = { company_name: string; website_url: string; niche: string; description: string }
 
 const OPEN: string[] = OPEN_STATUSES
 const CLOSED: string[] = CLOSED_STATUSES
@@ -32,6 +34,7 @@ export default function ChatPage() {
   const [userRole, setUserRole] = useState<string|null>(null)
   const [userEmail, setUserEmail] = useState<string|null>(null)
   const [request, setRequest] = useState<RequestInfo|null>(null)
+  const [businessProfile, setBusinessProfile] = useState<BusinessProfile|null>(null)
   const [messages, setMessages] = useState<Msg[]>([])
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
@@ -52,6 +55,11 @@ export default function ChatPage() {
       const { data: req } = await supabase.from('requests').select('*, authors(name, user_id, status)').eq('id', requestId).single()
       if (!req) { router.push('/'); return }
       setRequest(req as unknown as RequestInfo)
+
+      if (role === 'author') {
+        const { data: bp } = await supabase.from('business_profiles').select('*').eq('id', (req as { business_id: string }).business_id).maybeSingle()
+        if (bp) setBusinessProfile(bp as BusinessProfile)
+      }
 
       const { data: msgs } = await supabase.from('messages').select('*').eq('request_id', requestId).order('created_at', { ascending: true })
       setMessages(msgs || [])
@@ -152,13 +160,11 @@ export default function ChatPage() {
     }
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
-
   const dashboardLink = userRole === 'author' ? '/dashboard/author' : '/dashboard/business'
-  const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
+  const otherName = userRole === 'author'
+    ? (businessProfile?.company_name || request?.business_email)
+    : request?.authors?.name
+  const hasBusinessCard = userRole === 'author' && businessProfile && (businessProfile.niche || businessProfile.description || businessProfile.website_url)
 
   const statusInfo = (status: string) => {
     if (status === 'accepted') return { text: '✓ Сделка принята', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
@@ -180,19 +186,31 @@ export default function ChatPage() {
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
-        <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
-        <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
-          <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
-          <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
-        </div>
-      </nav>
+      <AppHeader />
 
       <div style={{ maxWidth:'700px', margin:'0 auto', padding:'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
         <div style={{ marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px' }}>
           <Link href={dashboardLink} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a' }}>{otherName}</h1>
         </div>
+
+        {hasBusinessCard && (
+          <div style={{ padding:'14px 16px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', flexWrap:'wrap' }}>
+              {businessProfile?.niche && (
+                <span style={{ padding:'4px 12px', background:'#f0ede6', borderRadius:'100px', fontSize:'12px', color:'#7a7570', fontWeight:500 }}>{businessProfile.niche}</span>
+              )}
+              {businessProfile?.website_url && (
+                <a href={businessProfile.website_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'13px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>
+                  {businessProfile.website_url.replace(/^https?:\/\//, '')} →
+                </a>
+              )}
+            </div>
+            {businessProfile?.description && (
+              <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.6, marginTop:'10px', marginBottom:0 }}>{businessProfile.description}</p>
+            )}
+          </div>
+        )}
 
         {(request?.budget || request?.deadline) && (
           <div style={{ padding:'14px 16px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px' }}>

@@ -6,7 +6,7 @@ import AppHeader from '@/components/AppHeader'
 import BottomNav from '@/components/BottomNav'
 import LoadingScreen from '@/components/LoadingScreen'
 import { getBusinessBadgeCount, getAuthorBadgeCount } from '@/lib/badges'
-import { AppContext, AuthorProfile } from './AppContext'
+import { AppContext, AuthorProfile, BusinessProfile } from './AppContext'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -16,9 +16,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<'business' | 'author' | 'admin' | null>(null)
   const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null)
+  const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null)
   const [badgeCount, setBadgeCount] = useState(0)
 
-  // Один раз при входе в группу: кто авторизован, какая роль, анкета автора, бейдж
+  // Один раз при входе в группу: кто авторизован, какая роль, анкета, бейдж
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data.user
@@ -35,6 +36,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (p) setBadgeCount(await getAuthorBadgeCount(p.id))
       } else if (role === 'business') {
         setBadgeCount(await getBusinessBadgeCount(u.id))
+        const { data: bp } = await supabase.from('business_profiles').select('*').eq('id', u.id).maybeSingle()
+        setBusinessProfile({
+          company_name: bp?.company_name || '',
+          website_url: bp?.website_url || '',
+          niche: bp?.niche || '',
+          description: bp?.description || '',
+        })
       }
 
       setReady(true)
@@ -62,12 +70,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const active =
     pathname.startsWith('/dashboard/business/favorites') ? 'favorites'
+    : pathname.startsWith('/dashboard/business/profile') ? 'profile'
     : pathname.startsWith('/dashboard/author/profile') ? 'profile'
     : pathname === '/catalog' ? 'catalog'
     : 'requests'
 
   return (
-    <AppContext.Provider value={{ userId, userEmail, userRole, authorProfile, badgeCount, bumpBadge }}>
+    <AppContext.Provider value={{ userId, userEmail, userRole, authorProfile, businessProfile, setBusinessProfile, badgeCount, bumpBadge }}>
       <AppHeader />
       {children}
       {navRole && <BottomNav role={navRole} active={active} unread={badgeCount} />}
