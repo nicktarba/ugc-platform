@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 
 type Author = {
   id: string; user_id: string | null; name: string; city: string; instagram_url: string
@@ -13,6 +14,7 @@ type UserProfile = { id: string; email: string; role: string; created_at: string
 
 export default function AdminDashboard() {
   const router = useRouter()
+  const toast = useToast()
   const [user, setUser] = useState<{ email?: string } | null>(null)
   const [authors, setAuthors] = useState<Author[]>([])
   const [users, setUsers] = useState<UserProfile[]>([])
@@ -48,8 +50,10 @@ export default function AdminDashboard() {
   }
 
   const setStatus = async (id: string, status: string) => {
-    await supabase.from('authors').update({ status }).eq('id', id)
+    const { error } = await supabase.from('authors').update({ status }).eq('id', id)
+    if (error) { toast.error('Не удалось изменить статус анкеты.'); return }
     setAuthors(authors.map(a => a.id === id ? { ...a, status } : a))
+    toast.success(status === 'approved' ? 'Анкета одобрена' : 'Анкета отклонена')
   }
 
   const statusBadge = (status: string) => {

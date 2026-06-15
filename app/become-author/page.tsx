@@ -3,11 +3,13 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 
 const LIFESTYLE = ['Активный спорт','ЗОЖ и питание','Кофе и кафе','Рестораны','Путешествия','Авто','Мода и стиль','Красота и уход','Семья и дети','Технологии','Музыка','Кино и сериалы','Книги','Искусство','Бизнес']
 
 export default function BecomeAuthorPage() {
   const router = useRouter()
+  const toast = useToast()
   const [form, setForm] = useState({ name:'', city:'', instagram_url:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -75,9 +77,11 @@ export default function BecomeAuthorPage() {
 
     setLoading(false)
     if (err) { setError('Ошибка при сохранении. Попробуй ещё раз.'); return }
-    
-    if (userId) router.push('/dashboard/author/profile')
-    else setSuccess(true)
+
+    if (userId) {
+      toast.success(currentStatus === 'rejected' ? 'Анкета обновлена и отправлена на повторную проверку' : 'Профиль сохранён')
+      router.push('/dashboard/author/profile')
+    } else setSuccess(true)
   }
 
   const inp = { width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }

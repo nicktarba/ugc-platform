@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
 
 type Msg = { id: string; sender_id: string; sender_role: string; text: string; created_at: string; read: boolean }
@@ -24,6 +25,7 @@ const CLOSED: string[] = CLOSED_STATUSES
 export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
+  const toast = useToast()
   const requestId = params.id as string
 
   const [userId, setUserId] = useState<string|null>(null)
@@ -94,6 +96,8 @@ export default function ChatPage() {
     if (!error && data) {
       setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data as Msg])
       setText('')
+    } else {
+      toast.error('Не удалось отправить сообщение. Попробуй ещё раз.')
     }
   }
 
@@ -108,7 +112,18 @@ export default function ChatPage() {
     setUpdatingStatus(true)
     const { error } = await supabase.from('requests').update({ status }).eq('id', requestId)
     setUpdatingStatus(false)
-    if (!error) setRequest(prev => prev ? { ...prev, status } : prev)
+    if (!error) {
+      setRequest(prev => prev ? { ...prev, status } : prev)
+      const successText: Record<string, string> = {
+        accepted: 'Предложение принято',
+        declined: 'Заявка отклонена',
+        cancelled: 'Сделка отменена',
+        completed: 'Сделка завершена 🎉',
+      }
+      if (successText[status]) toast.success(successText[status])
+    } else {
+      toast.error('Не удалось обновить статус сделки. Попробуй ещё раз.')
+    }
   }
 
   const startNewDeal = async () => {
@@ -130,7 +145,11 @@ export default function ChatPage() {
       status: 'new',
     }]).select('id').single()
     setUpdatingStatus(false)
-    if (!error && inserted) router.push(`/dashboard/chat/${inserted.id}`)
+    if (!error && inserted) {
+      router.push(`/dashboard/chat/${inserted.id}`)
+    } else {
+      toast.error('Не удалось создать новый запрос. Попробуй ещё раз.')
+    }
   }
 
   const handleLogout = async () => {

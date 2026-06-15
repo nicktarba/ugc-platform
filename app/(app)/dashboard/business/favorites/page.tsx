@@ -4,12 +4,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import LoadingScreen from '@/components/LoadingScreen'
+import { useToast } from '@/components/Toast'
 import { useApp } from '../../../AppContext'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; bio:string; open_to_barter:boolean; status:string }
 
 export default function FavoritesPage() {
   const router = useRouter()
+  const toast = useToast()
   const { userId, userEmail } = useApp()
   const [authors, setAuthors] = useState<Author[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,7 +47,8 @@ export default function FavoritesPage() {
 
   const removeFavorite = async (authorId: string) => {
     if (!userId) return
-    await supabase.from('favorites').delete().eq('business_id', userId).eq('author_id', authorId)
+    const { error } = await supabase.from('favorites').delete().eq('business_id', userId).eq('author_id', authorId)
+    if (error) { toast.error('Не удалось убрать из избранного.'); return }
     setAuthors(authors.filter(a => a.id !== authorId))
   }
 

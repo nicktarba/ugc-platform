@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 import { useApp } from '../AppContext'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean }
 
 export default function CatalogPage() {
   const router = useRouter()
+  const toast = useToast()
   const { userId, userEmail, userRole } = useApp()
   const [authors, setAuthors] = useState<Author[]>([])
   const [filtered, setFiltered] = useState<Author[]>([])
@@ -88,10 +90,12 @@ export default function CatalogPage() {
   const toggleFavorite = async (authorId: string) => {
     if (!userId) return
     if (favoriteIds.includes(authorId)) {
-      await supabase.from('favorites').delete().eq('business_id', userId).eq('author_id', authorId)
+      const { error } = await supabase.from('favorites').delete().eq('business_id', userId).eq('author_id', authorId)
+      if (error) { toast.error('Не удалось убрать из избранного.'); return }
       setFavoriteIds(favoriteIds.filter(id => id !== authorId))
     } else {
-      await supabase.from('favorites').insert([{ business_id: userId, author_id: authorId }])
+      const { error } = await supabase.from('favorites').insert([{ business_id: userId, author_id: authorId }])
+      if (error) { toast.error('Не удалось добавить в избранное.'); return }
       setFavoriteIds([...favoriteIds, authorId])
     }
   }

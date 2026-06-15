@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import LoadingScreen from '@/components/LoadingScreen'
+import { useToast } from '@/components/Toast'
 import { truncate, formatRelative, formatDate } from '@/lib/format'
 import { authorStatusBadge } from '@/lib/status'
 import { OPEN_STATUSES, type AuthorRequest as Req } from '@/lib/types'
 import { useApp } from '../../AppContext'
 
 export default function AuthorRequestsPage() {
+  const toast = useToast()
   const { authorProfile: profile, bumpBadge } = useApp()
   const [requests, setRequests] = useState<Req[]>([])
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
@@ -58,7 +60,8 @@ export default function AuthorRequestsPage() {
 
   const markViewed = async (id: string, status: string) => {
     if (status === 'new') {
-      await supabase.from('requests').update({ status: 'viewed' }).eq('id', id)
+      const { error } = await supabase.from('requests').update({ status: 'viewed' }).eq('id', id)
+      if (error) { toast.error('Не удалось обновить статус заявки.'); return }
       setRequests(requests.map(r => r.id === id ? { ...r, status: 'viewed' } : r))
     }
   }
