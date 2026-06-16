@@ -87,6 +87,21 @@ export default function BusinessDashboard() {
           </div>
         </div>
 
+        {requests.length === 0 && favoritesCount === 0 && (
+          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', marginBottom:'16px', borderLeft:'4px solid #c17f3e' }}>
+            <div style={{ fontSize:'28px', marginBottom:'12px' }}>👋</div>
+            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Как это работает</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:'10px', fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>
+              <div>1. Открой каталог и найди подходящего автора</div>
+              <div>2. Нажми «Написать» — расскажи о задаче и бюджете</div>
+              <div>3. Автор ответит в чате — договоритесь об условиях</div>
+              <div>4. Отметьте сделку завершённой когда всё готово</div>
+            </div>
+            <Link href="/catalog" style={{ display:'inline-block', marginTop:'16px', padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Открыть каталог</Link>
+          </div>
+        )}
+
+
         <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
           <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
             Мои запросы {requests.length > 0 && `(${requests.length})`}

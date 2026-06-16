@@ -152,6 +152,7 @@ export default function CatalogPage() {
                 )}
                 <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
                   {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
+                  <Link href={`/author/${a.id}`} style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Профиль</Link>
                   {userRole === 'business' && (
                     <button onClick={() => toggleFavorite(a.id)} style={{
                       padding:'8px 16px', borderRadius:'100px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit',

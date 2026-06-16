@@ -109,7 +109,15 @@ export default function AuthorRequestsPage() {
         ) : (
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
             {requests.length === 0 ? (
-              <p style={{ fontSize:'14px', color:'#9a9590' }}>Пока запросов нет — появятся здесь когда бизнес напишет тебе.</p>
+              <div>
+                <p style={{ fontSize:'14px', color:'#9a9590', marginBottom: profile.status === 'approved' ? '16px' : 0 }}>Пока запросов нет — появятся здесь когда бизнес напишет тебе.</p>
+                {profile.status === 'approved' && (
+                  <div style={{ padding:'14px 16px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'12px', fontSize:'13px', color:'#c17f3e', lineHeight:1.6 }}>
+                    💡 Поделись ссылкой на свой профиль с брендами — это ускорит первые заявки.{' '}
+                    <Link href={`/author/${profile.id}`} style={{ fontWeight:600, color:'#c17f3e', textDecoration:'none' }}>Открыть профиль →</Link>
+                  </div>
+                )}
+              </div>
             ) : (
               <>
                 {activeRequests.length === 0 ? (

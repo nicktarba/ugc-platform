@@ -49,6 +49,9 @@ export default function AuthorProfilePage() {
             )}
             <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
               <Link href="/become-author" style={{ padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Редактировать</Link>
+              {profile.status === 'approved' && (
+                <Link href={`/author/${profile.id}`} style={{ padding:'10px 24px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Мой профиль →</Link>
+              )}
               {profile.instagram_url && <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'10px 24px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Instagram →</a>}
             </div>
           </div>

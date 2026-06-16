@@ -1,17 +1,21 @@
 'use client'
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import AppHeader from '@/components/AppHeader'
+import Link from 'next/link'
 
 const LIFESTYLE = ['Активный спорт','ЗОЖ и питание','Кофе и кафе','Рестораны','Путешествия','Авто','Мода и стиль','Красота и уход','Семья и дети','Технологии','Музыка','Кино и сериалы','Книги','Искусство','Бизнес']
 
 export default function BecomeAuthorPage() {
   const router = useRouter()
   const toast = useToast()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({ name:'', city:'', instagram_url:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
+  const [avatarUrl, setAvatarUrl] = useState<string|null>(null)
+  const [avatarFile, setAvatarFile] = useState<File|null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string|null>(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -23,7 +27,6 @@ export default function BecomeAuthorPage() {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return
       setUserId(data.user.id)
-      // Check if author already has a profile
       const { data: profile } = await supabase.from('authors').select('*').eq('user_id', data.user.id).single()
       if (profile) {
         setForm({
@@ -38,6 +41,7 @@ export default function BecomeAuthorPage() {
           bio: profile.bio || '',
           open_to_barter: profile.open_to_barter ? 'yes' : 'no',
         })
+        if (profile.avatar_url) setAvatarUrl(profile.avatar_url)
         setExisting(true)
         setCurrentStatus(profile.status)
       }
@@ -47,10 +51,31 @@ export default function BecomeAuthorPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>) => setForm({...form, [e.target.name]: e.target.value})
   const toggleLifestyle = (item: string) => setForm(prev => ({ ...prev, lifestyle: prev.lifestyle.includes(item) ? prev.lifestyle.filter(i => i !== item) : [...prev.lifestyle, item] }))
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { toast.error('Файл слишком большой. Максимум 5 МБ.'); return }
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  const uploadAvatar = async (uid: string): Promise<string|null> => {
+    if (!avatarFile) return avatarUrl
+    const ext = avatarFile.name.split('.').pop()
+    const path = `${uid}/avatar.${ext}`
+    const { error } = await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true })
+    if (error) { toast.error('Не удалось загрузить фото.'); return avatarUrl }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+    return data.publicUrl
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!userId) return
     setLoading(true)
     setError('')
+
+    const uploadedUrl = await uploadAvatar(userId)
 
     const payload = {
       name: form.name,
@@ -63,11 +88,12 @@ export default function BecomeAuthorPage() {
       hobbies: form.hobbies,
       bio: form.bio,
       open_to_barter: form.open_to_barter === 'yes',
-      ...(userId ? { user_id: userId } : {}),
+      avatar_url: uploadedUrl,
+      user_id: userId,
     }
 
     let err
-    if (existing && userId) {
+    if (existing) {
       const updatePayload = currentStatus === 'rejected' ? { ...payload, status: 'pending' } : payload
       const { error: e } = await supabase.from('authors').update(updatePayload).eq('user_id', userId)
       err = e
@@ -87,6 +113,7 @@ export default function BecomeAuthorPage() {
 
   const inp = { width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }
   const lbl = { display:'block' as const, fontSize:'14px', fontWeight:600, color:'#1a1a1a', marginBottom:'8px' }
+  const displayAvatar = avatarPreview || avatarUrl
 
   if (success) return (
     <main style={{ minHeight:'100vh', background:'#fafaf9', display:'flex', alignItems:'center', justifyContent:'center', padding:'clamp(20px, 6vw, 40px)' }}>
@@ -109,6 +136,27 @@ export default function BecomeAuthorPage() {
         <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'40px', lineHeight:1.6 }}>Заполни анкету — и бизнесы смогут найти тебя по городу, хобби и стилю жизни.</p>
         <form onSubmit={handleSubmit}>
           <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+
+            {/* Аватар */}
+            <div>
+              <label style={lbl}>Фото профиля</label>
+              <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
+                <div onClick={() => fileRef.current?.click()} style={{ width:'80px', height:'80px', borderRadius:'50%', background:'#f0ede6', border:'2px dashed #d4d0c8', cursor:'pointer', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  {displayAvatar
+                    ? <img src={displayAvatar} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : <span style={{ fontSize:'28px' }}>📷</span>
+                  }
+                </div>
+                <div>
+                  <button type="button" onClick={() => fileRef.current?.click()} style={{ padding:'8px 20px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'13px', fontWeight:500, fontFamily:'inherit', color:'#1a1a1a' }}>
+                    {displayAvatar ? 'Заменить фото' : 'Загрузить фото'}
+                  </button>
+                  <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px' }}>JPG или PNG, до 5 МБ</p>
+                </div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} style={{ display:'none' }} />
+            </div>
+
             <div><label style={lbl}>Имя / псевдоним *</label><input name="name" value={form.name} onChange={handleChange} required placeholder="Как тебя называть" style={inp} /></div>
             <div><label style={lbl}>Город *</label><input name="city" value={form.city} onChange={handleChange} required placeholder="Москва, Питер, Краснодар..." style={inp} /></div>
             <div><label style={lbl}>Ссылка на Instagram *</label><input name="instagram_url" value={form.instagram_url} onChange={handleChange} required placeholder="https://instagram.com/username" style={inp} /></div>
