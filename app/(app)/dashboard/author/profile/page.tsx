@@ -1,67 +1,240 @@
 'use client'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 import { useApp } from '../../../AppContext'
 
+const LIFESTYLE = ['Активный спорт','ЗОЖ и питание','Кофе и кафе','Рестораны','Путешествия','Авто','Мода и стиль','Красота и уход','Семья и дети','Технологии','Музыка','Кино и сериалы','Книги','Искусство','Бизнес']
+
 export default function AuthorProfilePage() {
-  const { authorProfile: profile } = useApp()
+  const toast = useToast()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const { userId, authorProfile: ctxProfile } = useApp()
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({ name:'', city:'', instagram_url:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
+  const [avatarUrl, setAvatarUrl] = useState<string|null>(null)
+  const [avatarFile, setAvatarFile] = useState<File|null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string|null>(null)
+  const [loading, setLoading] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState<string|null>(null)
+  const [authorId, setAuthorId] = useState<string|null>(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!userId) return
+    supabase.from('authors').select('*').eq('user_id', userId).single().then(({ data: p }) => {
+      if (p) {
+        setForm({
+          name: p.name || '',
+          city: p.city || '',
+          instagram_url: p.instagram_url || '',
+          followers_count: p.followers_count?.toString() || '',
+          stories_views: p.stories_views?.toString() || '',
+          occupation: p.occupation || '',
+          lifestyle: p.lifestyle || [],
+          hobbies: p.hobbies || '',
+          bio: p.bio || '',
+          open_to_barter: p.open_to_barter ? 'yes' : 'no',
+        })
+        setAvatarUrl(p.avatar_url || null)
+        setCurrentStatus(p.status)
+        setAuthorId(p.id)
+      } else {
+        setEditing(true)
+      }
+      setProfileLoaded(true)
+    })
+  }, [userId])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>) => setForm({...form, [e.target.name]: e.target.value})
+  const toggleLifestyle = (item: string) => setForm(prev => ({ ...prev, lifestyle: prev.lifestyle.includes(item) ? prev.lifestyle.filter(i => i !== item) : [...prev.lifestyle, item] }))
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { toast.error('Файл слишком большой. Максимум 5 МБ.'); return }
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  const uploadAvatar = async (): Promise<string|null> => {
+    if (!avatarFile || !userId) return avatarUrl
+    const ext = avatarFile.name.split('.').pop()
+    const path = `${userId}/avatar.${ext}`
+    const { error } = await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true })
+    if (error) { toast.error('Не удалось загрузить фото.'); return avatarUrl }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!userId) return
+    setLoading(true)
+    const uploadedUrl = await uploadAvatar()
+    const payload = {
+      name: form.name, city: form.city, instagram_url: form.instagram_url,
+      followers_count: parseInt(form.followers_count)||0,
+      stories_views: parseInt(form.stories_views)||0,
+      occupation: form.occupation, lifestyle: form.lifestyle,
+      hobbies: form.hobbies, bio: form.bio,
+      open_to_barter: form.open_to_barter === 'yes',
+      avatar_url: uploadedUrl, user_id: userId,
+    }
+    let err
+    if (authorId) {
+      const updatePayload = currentStatus === 'rejected' ? { ...payload, status: 'pending' } : payload
+      const { error: e } = await supabase.from('authors').update(updatePayload).eq('user_id', userId)
+      err = e
+    } else {
+      const { error: e } = await supabase.from('authors').insert([{ ...payload, status: 'pending' }])
+      err = e
+    }
+    setLoading(false)
+    if (err) { toast.error('Ошибка при сохранении. Попробуй ещё раз.'); return }
+    if (uploadedUrl) setAvatarUrl(uploadedUrl)
+    setAvatarFile(null)
+    setAvatarPreview(null)
+    toast.success(currentStatus === 'rejected' ? 'Анкета отправлена на повторную проверку' : 'Профиль сохранён')
+    setEditing(false)
+    if (!authorId) setCurrentStatus('pending')
+  }
+
+  const inp = { width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }
+  const lbl = { display:'block' as const, fontSize:'14px', fontWeight:600, color:'#1a1a1a', marginBottom:'8px' }
+  const displayAvatar = avatarPreview || avatarUrl
+  const profile = ctxProfile
+
+  if (!profileLoaded) return null
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
-        <div style={{ marginBottom:'32px' }}>
-          <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет автора</div>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>
-            {profile ? `Привет, ${profile.name}` : 'Профиль'}
-          </h1>
+      <div style={{ maxWidth:'680px', margin:'0 auto', padding:'clamp(24px, 6vw, 48px) clamp(16px, 5vw, 40px)' }}>
+
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'28px', flexWrap:'wrap', gap:'12px' }}>
+          <div>
+            <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'32px', fontWeight:700, color:'#1a1a1a', marginBottom:'4px' }}>
+              {editing ? (authorId ? 'Редактировать профиль' : 'Заполнить анкету') : (profile?.name || 'Профиль')}
+            </h1>
+            {!editing && currentStatus === 'pending' && <span style={{ fontSize:'13px', color:'#c17f3e', fontWeight:500 }}>⏳ На модерации</span>}
+            {!editing && currentStatus === 'approved' && <span style={{ fontSize:'13px', color:'#16a34a', fontWeight:500 }}>✓ В каталоге</span>}
+            {!editing && currentStatus === 'rejected' && <span style={{ fontSize:'13px', color:'#dc2626', fontWeight:500 }}>Не прошёл модерацию</span>}
+          </div>
+          {!editing && authorId && (
+            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+              {currentStatus === 'approved' && (
+                <Link href={`/author/${authorId}`} target="_blank" style={{ padding:'9px 18px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Открыть профиль →</Link>
+              )}
+              <button onClick={() => setEditing(true)} style={{ padding:'9px 18px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Редактировать</button>
+            </div>
+          )}
+          {editing && authorId && (
+            <button onClick={() => { setEditing(false); setAvatarFile(null); setAvatarPreview(null) }} style={{ padding:'9px 18px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', fontSize:'13px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Отмена</button>
+          )}
         </div>
 
-        {profile?.status === 'pending' && (
-          <div style={{ padding:'12px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'24px', fontSize:'14px', color:'#c17f3e', fontWeight:500 }}>
-            ⏳ Анкета на модерации — скоро появится в каталоге
+        {currentStatus === 'rejected' && (
+          <div style={{ padding:'12px 20px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'14px', marginBottom:'20px', fontSize:'14px', color:'#dc2626' }}>
+            Анкета не прошла модерацию. Отредактируй и отправь повторно.
           </div>
         )}
 
-        {profile?.status === 'rejected' && (
-          <div style={{ padding:'12px 20px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'14px', marginBottom:'24px', fontSize:'14px', color:'#dc2626', fontWeight:500 }}>
-            Анкета не прошла модерацию. Проверь данные и отредактируй профиль.
-          </div>
-        )}
-
-        {profile ? (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'16px' }}>
-              <div>
-                <h3 style={{ fontSize:'18px', fontWeight:700, color:'#1a1a1a', marginBottom:'4px' }}>{profile.name}</h3>
-                <span style={{ fontSize:'14px', color:'#9a9590' }}>📍 {profile.city}</span>
-              </div>
-              {profile.open_to_barter && <span style={{ padding:'4px 12px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'12px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
-            </div>
-            {profile.followers_count > 0 && (
-              <div style={{ marginBottom:'16px' }}>
-                <div style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a' }}>{profile.followers_count.toLocaleString('ru')}</div>
-                <div style={{ fontSize:'12px', color:'#9a9590' }}>подписчиков</div>
-              </div>
-            )}
-            {profile.lifestyle?.length > 0 && (
-              <div style={{ display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'20px' }}>
-                {profile.lifestyle.map(tag => <span key={tag} style={{ padding:'3px 10px', background:'#f0ede6', borderRadius:'100px', fontSize:'12px', color:'#7a7570', fontWeight:500 }}>{tag}</span>)}
-              </div>
-            )}
-            <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
-              <Link href="/become-author" style={{ padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Редактировать</Link>
-              {profile.status === 'approved' && (
-                <Link href={`/author/${profile.id}`} style={{ padding:'10px 24px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Мой профиль →</Link>
-              )}
-              {profile.instagram_url && <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'10px 24px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Instagram →</a>}
-            </div>
-          </div>
-        ) : (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'clamp(20px, 6vw, 40px)', textAlign:'center' }}>
+        {!editing && !authorId && (
+          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'32px', textAlign:'center' }}>
             <div style={{ fontSize:'40px', marginBottom:'16px' }}>✍️</div>
             <h3 style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Заполни анкету</h3>
             <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'24px', lineHeight:1.6 }}>Чтобы бизнесы могли найти тебя в каталоге — нужно заполнить профиль.</p>
-            <Link href="/become-author" style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'15px', fontWeight:600 }}>Заполнить анкету</Link>
+            <button onClick={() => setEditing(true)} style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', border:'none', color:'#fff', fontSize:'15px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Заполнить анкету</button>
           </div>
+        )}
+
+        {!editing && authorId && (
+          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
+            <div style={{ display:'flex', gap:'16px', alignItems:'flex-start', marginBottom:'20px' }}>
+              <div style={{ width:'72px', height:'72px', borderRadius:'50%', overflow:'hidden', background:'#f0ede6', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'28px', fontWeight:700, color:'#c17f3e' }}>
+                {avatarUrl ? <img src={avatarUrl} alt={form.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : (form.name?.[0]?.toUpperCase() || '?')}
+              </div>
+              <div>
+                <div style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'4px' }}>{form.name}</div>
+                <div style={{ fontSize:'14px', color:'#9a9590' }}>📍 {form.city}{form.occupation ? ` · ${form.occupation}` : ''}</div>
+                {form.open_to_barter === 'yes' && <span style={{ display:'inline-block', marginTop:'6px', padding:'2px 10px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
+              </div>
+            </div>
+            {(form.followers_count || form.stories_views) && (
+              <div style={{ display:'flex', gap:'20px', marginBottom:'16px', paddingBottom:'16px', borderBottom:'1px solid #f0ede6' }}>
+                {form.followers_count && <div><div style={{ fontSize:'18px', fontWeight:700 }}>{parseInt(form.followers_count).toLocaleString('ru')}</div><div style={{ fontSize:'11px', color:'#9a9590' }}>подписчиков</div></div>}
+                {form.stories_views && <div><div style={{ fontSize:'18px', fontWeight:700 }}>{parseInt(form.stories_views).toLocaleString('ru')}</div><div style={{ fontSize:'11px', color:'#9a9590' }}>сторис</div></div>}
+              </div>
+            )}
+            {form.bio && <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.6, marginBottom:'12px' }}>{form.bio}</p>}
+            {form.lifestyle?.length > 0 && (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'12px' }}>
+                {form.lifestyle.map(tag => <span key={tag} style={{ padding:'3px 10px', background:'#f0ede6', borderRadius:'100px', fontSize:'12px', color:'#7a7570', fontWeight:500 }}>{tag}</span>)}
+              </div>
+            )}
+            {form.instagram_url && <a href={form.instagram_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'13px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>Instagram →</a>}
+          </div>
+        )}
+
+        {editing && (
+          <form onSubmit={handleSubmit}>
+            <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', display:'flex', flexDirection:'column', gap:'20px' }}>
+
+              <div>
+                <label style={lbl}>Фото профиля</label>
+                <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
+                  <div onClick={() => fileRef.current?.click()} style={{ width:'72px', height:'72px', borderRadius:'50%', background:'#f0ede6', border:'2px dashed #d4d0c8', cursor:'pointer', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px' }}>
+                    {displayAvatar ? <img src={displayAvatar} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '📷'}
+                  </div>
+                  <div>
+                    <button type="button" onClick={() => fileRef.current?.click()} style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'13px', fontWeight:500, fontFamily:'inherit', color:'#1a1a1a' }}>
+                      {displayAvatar ? 'Заменить' : 'Загрузить фото'}
+                    </button>
+                    <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>JPG или PNG, до 5 МБ</p>
+                  </div>
+                </div>
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} style={{ display:'none' }} />
+              </div>
+
+              <div><label style={lbl}>Имя / псевдоним *</label><input name="name" value={form.name} onChange={handleChange} required placeholder="Как тебя называть" style={inp} /></div>
+              <div><label style={lbl}>Город *</label><input name="city" value={form.city} onChange={handleChange} required placeholder="Москва, Питер, Краснодар..." style={inp} /></div>
+              <div><label style={lbl}>Ссылка на Instagram *</label><input name="instagram_url" value={form.instagram_url} onChange={handleChange} required placeholder="https://instagram.com/username" style={inp} /></div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+                <div><label style={lbl}>Подписчиков</label><input name="followers_count" type="number" value={form.followers_count} onChange={handleChange} placeholder="1500" style={inp} /></div>
+                <div><label style={lbl}>Просмотры сторис</label><input name="stories_views" type="number" value={form.stories_views} onChange={handleChange} placeholder="300" style={inp} /></div>
+              </div>
+              <div><label style={lbl}>Кем работаешь</label><input name="occupation" value={form.occupation} onChange={handleChange} placeholder="Фитнес-тренер, студент, дизайнер..." style={inp} /></div>
+              <div>
+                <label style={lbl}>Стиль жизни</label>
+                <p style={{ fontSize:'13px', color:'#9a9590', marginBottom:'10px' }}>Выбери всё что подходит</p>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
+                  {LIFESTYLE.map(item => (
+                    <button key={item} type="button" onClick={() => toggleLifestyle(item)} style={{ padding:'7px 14px', borderRadius:'100px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: form.lifestyle.includes(item) ? '#c17f3e' : '#e0ddd8', background: form.lifestyle.includes(item) ? '#fdf3e7' : '#fff', color: form.lifestyle.includes(item) ? '#c17f3e' : '#5a5650' }}>{item}</button>
+                  ))}
+                </div>
+              </div>
+              <div><label style={lbl}>Хобби</label><input name="hobbies" value={form.hobbies} onChange={handleChange} placeholder="Серфинг, готовка, настольные игры..." style={inp} /></div>
+              <div><label style={lbl}>О себе</label><textarea name="bio" value={form.bio} onChange={handleChange} rows={4} placeholder="Пару слов о том, кто ты..." style={{ ...inp, resize:'vertical' }} /></div>
+              <div>
+                <label style={lbl}>Готов к бартеру? *</label>
+                <div style={{ display:'flex', gap:'12px' }}>
+                  {[{val:'yes',label:'Да'},{val:'no',label:'Нет'}].map(opt => (
+                    <button key={opt.val} type="button" onClick={() => setForm({...form, open_to_barter: opt.val})} style={{ padding:'10px 28px', borderRadius:'100px', fontSize:'15px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: form.open_to_barter === opt.val ? '#1a1a1a' : '#e0ddd8', background: form.open_to_barter === opt.val ? '#1a1a1a' : '#fff', color: form.open_to_barter === opt.val ? '#fff' : '#5a5650' }}>{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display:'flex', gap:'12px', paddingTop:'8px' }}>
+                <button type="submit" disabled={loading} style={{ flex:1, padding:'14px', background: loading ? '#9a9590' : '#1a1a1a', borderRadius:'100px', border:'none', color:'#fff', fontSize:'15px', fontWeight:600, cursor: loading ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
+                  {loading ? 'Сохраняем...' : authorId ? 'Сохранить' : 'Отправить анкету'}
+                </button>
+                {authorId && (
+                  <button type="button" onClick={() => { setEditing(false); setAvatarFile(null); setAvatarPreview(null) }} style={{ padding:'14px 24px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', fontSize:'15px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Отмена</button>
+                )}
+              </div>
+            </div>
+          </form>
         )}
       </div>
     </main>

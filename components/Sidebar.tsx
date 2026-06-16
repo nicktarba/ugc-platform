@@ -42,8 +42,7 @@ export default function Sidebar({ role, email, badgeCount = 0, authorId }: Props
   const authorNav = () => (<>
     {navItem('/dashboard/author', '💬', 'Запросы', badgeCount || undefined)}
     {navItem('/catalog', '🔍', 'Каталог')}
-    {authorId && navItem(`/author/${authorId}`, '👤', 'Мой профиль')}
-    {navItem('/dashboard/author/profile', '✏️', 'Редактировать')}
+    {navItem('/dashboard/author/profile', '👤', 'Профиль')}
   </>)
 
   const adminNav = () => (<>
