@@ -36,6 +36,11 @@ export default function RequestDetailPage() {
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile|null>(null)
   const [loading, setLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [reviewModal, setReviewModal] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [hasReview, setHasReview] = useState(false)
+  const [submittingReview, setSubmittingReview] = useState(false)
 
   useEffect(() => {
     const init = async () => {
@@ -51,6 +56,11 @@ export default function RequestDetailPage() {
       if (!req) { router.push('/'); return }
       setRequest(req as unknown as RequestInfo)
 
+      if (role === 'business' && req.status === 'completed') {
+        const { data: rev } = await supabase.from('reviews').select('id').eq('request_id', requestId).maybeSingle()
+        if (rev) setHasReview(true)
+      }
+
       if (role === 'author') {
         const { data: bp } = await supabase.from('business_profiles').select('*').eq('id', (req as { business_id: string }).business_id).maybeSingle()
         if (bp) setBusinessProfile(bp as BusinessProfile)
@@ -61,10 +71,15 @@ export default function RequestDetailPage() {
   }, [requestId, router])
 
   const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
+    // Завершение сделки бизнесом — показываем модалку с оценкой вместо confirm
+    if (status === 'completed' && userRole === 'business') {
+      setReviewModal(true)
+      return
+    }
+
     const confirmText: Record<string, string> = {
       declined: 'Сделка будет отклонена, переписка закроется (история останется). Продолжить?',
       cancelled: 'Сделка будет отменена, переписка закроется (история останется). Продолжить?',
-      completed: 'Отметить сделку как завершённую? Переписка закроется (история останется).',
     }
     if (confirmText[status] && !confirm(confirmText[status])) return
 
@@ -77,12 +92,35 @@ export default function RequestDetailPage() {
         accepted: 'Предложение принято',
         declined: 'Заявка отклонена',
         cancelled: 'Сделка отменена',
-        completed: 'Сделка завершена 🎉',
       }
       if (successText[status]) toast.success(successText[status])
     } else {
       toast.error('Не удалось обновить статус сделки. Попробуй ещё раз.')
     }
+  }
+
+  const submitReview = async (skipRating = false) => {
+    if (!request || !userId) return
+    setSubmittingReview(true)
+
+    const { error: statusErr } = await supabase.from('requests').update({ status: 'completed' }).eq('id', requestId)
+    if (statusErr) { toast.error('Не удалось завершить сделку.'); setSubmittingReview(false); return }
+
+    if (!skipRating && rating > 0) {
+      await supabase.from('reviews').insert([{
+        request_id: requestId,
+        author_id: request.author_id,
+        business_id: userId,
+        rating,
+        comment: reviewComment.trim() || null,
+      }])
+      setHasReview(true)
+    }
+
+    setSubmittingReview(false)
+    setReviewModal(false)
+    setRequest(prev => prev ? { ...prev, status: 'completed' } : prev)
+    toast.success('Сделка завершена 🎉')
   }
 
   const startNewDeal = async () => {
@@ -201,6 +239,14 @@ export default function RequestDetailPage() {
             <div style={{ fontSize:'13px', color:'#7a7570', marginBottom: userRole === 'business' ? '12px' : 0 }}>
               Сделка закрыта — переписка доступна только для просмотра.
             </div>
+            {userRole === 'business' && request?.status === 'completed' && !hasReview && (
+              <button onClick={() => setReviewModal(true)} style={{ padding:'10px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', color:'#c17f3e', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit', marginBottom:'8px', display:'block' }}>
+                ★ Оценить сотрудничество
+              </button>
+            )}
+            {userRole === 'business' && hasReview && (
+              <div style={{ fontSize:'13px', color:'#16a34a', fontWeight:500, marginBottom:'8px' }}>✓ Отзыв оставлен</div>
+            )}
             {userRole === 'business' && (
               <button onClick={startNewDeal} disabled={updatingStatus} style={{ padding:'10px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:updatingStatus?'not-allowed':'pointer', fontFamily:'inherit' }}>
                 Начать новую сделку
@@ -243,6 +289,48 @@ export default function RequestDetailPage() {
           Перейти в переписку →
         </Link>
       </div>
+
+      {reviewModal && (
+        <div onClick={() => setReviewModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'32px', maxWidth:'440px', width:'100%' }}>
+            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Завершить сделку</h3>
+            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>Оцени сотрудничество с автором — это поможет другим бизнесам выбрать лучших.</p>
+
+            <div style={{ display:'flex', gap:'8px', marginBottom:'16px', justifyContent:'center' }}>
+              {[1,2,3,4,5].map(n => (
+                <button key={n} onClick={() => setRating(n)} style={{ fontSize:'28px', background:'none', border:'none', cursor:'pointer', opacity: rating >= n ? 1 : 0.3, transition:'opacity 0.1s' }}>★</button>
+              ))}
+            </div>
+
+            {rating > 0 && (
+              <textarea
+                value={reviewComment}
+                onChange={e => setReviewComment(e.target.value)}
+                rows={3}
+                placeholder="Комментарий (необязательно)..."
+                style={{ width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'none', marginBottom:'16px' }}
+              />
+            )}
+
+            <div style={{ display:'flex', gap:'10px', flexDirection:'column' }}>
+              <button
+                onClick={() => submitReview(false)}
+                disabled={submittingReview || rating === 0}
+                style={{ padding:'12px', border:'none', borderRadius:'100px', background: rating === 0 ? '#9a9590' : '#1a1a1a', color:'#fff', fontSize:'14px', fontWeight:600, cursor: rating === 0 ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}
+              >
+                {submittingReview ? 'Сохраняем...' : rating === 0 ? 'Выбери оценку' : `Завершить со оценкой ${rating}/5`}
+              </button>
+              <button
+                onClick={() => submitReview(true)}
+                disabled={submittingReview}
+                style={{ padding:'10px', border:'none', background:'none', color:'#9a9590', fontSize:'13px', cursor:'pointer', fontFamily:'inherit' }}
+              >
+                Завершить без оценки
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

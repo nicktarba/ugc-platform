@@ -7,6 +7,7 @@ export type AuthorProfile = {
   city: string
   instagram_url: string
   telegram_url: string | null
+  telegram_followers: number
   followers_count: number
   stories_views?: number
   occupation?: string
@@ -16,6 +17,8 @@ export type AuthorProfile = {
   open_to_barter: boolean
   status: string
   completed_deals_count?: number
+  avg_rating?: number | null
+  reviews_count?: number
 }
 
 export type BusinessProfile = {

@@ -9,10 +9,10 @@ import { useApp } from '../../AppContext'
 type Author = {
   id: string; name: string; city: string
   instagram_url: string; telegram_url: string | null
-  followers_count: number; stories_views: number
+  followers_count: number; telegram_followers: number; stories_views: number
   occupation: string; lifestyle: string[]; hobbies: string; bio: string
   open_to_barter: boolean; avatar_url: string | null
-  completed_deals_count: number
+  completed_deals_count: number; avg_rating: number | null; reviews_count: number
 }
 
 const AVATAR_BG   = ['#fdf3e7','#e8f4fd','#f0fdf4','#fdf4ff','#fff0f0']
@@ -87,7 +87,8 @@ export default function AuthorPublicPage() {
                 <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'6px' }}>
                   <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', margin:0 }}>{author.name}</h1>
                   {author.open_to_barter && <span style={{ padding:'2px 8px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
-                  {deals > 0 && <span style={{ padding:'2px 8px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#c17f3e' }}>★ {deals} {deals === 1 ? 'сделка' : deals < 5 ? 'сделки' : 'сделок'}</span>}
+                  {author.avg_rating && <span style={{ padding:'2px 8px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#c17f3e' }}>★ {author.avg_rating} · {author.reviews_count} отз.</span>}
+                  {!author.avg_rating && author.completed_deals_count > 0 && <span style={{ padding:'2px 8px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#c17f3e' }}>★ {author.completed_deals_count} {author.completed_deals_count === 1 ? 'сделка' : author.completed_deals_count < 5 ? 'сделки' : 'сделок'}</span>}
                 </div>
                 <div style={{ fontSize:'13px', color:'#9a9590', marginBottom:'10px' }}>
                   {author.city && <>📍 {author.city}</>}{author.occupation && <> · {author.occupation}</>}
@@ -127,27 +128,38 @@ export default function AuthorPublicPage() {
           </div>
 
           {/* Статистика */}
-          {(author.followers_count > 0 || author.stories_views > 0 || deals > 0) && (
-            <div style={{ padding:'0', borderBottom:'1px solid #f0ede6', display:'flex' }}>
+          {(author.followers_count > 0 || author.telegram_followers > 0 || author.stories_views > 0 || author.completed_deals_count > 0) && (
+            <div style={{ padding:'0', borderBottom:'1px solid #f0ede6', display:'flex', flexWrap:'wrap' }}>
               {author.followers_count > 0 && (
-                <div style={{ flex:1, padding:'16px 20px', borderRight:'1px solid #f0ede6' }}>
+                <div style={{ flex:'1 1 100px', padding:'14px 20px', borderRight:'1px solid #f0ede6' }}>
                   <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Instagram</div>
                   <div style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a' }}>{author.followers_count.toLocaleString('ru')}</div>
                   <div style={{ fontSize:'12px', color:'#9a9590' }}>подписчиков</div>
                 </div>
               )}
+              {author.telegram_followers > 0 && (
+                <div style={{ flex:'1 1 100px', padding:'14px 20px', borderRight:'1px solid #f0ede6' }}>
+                  <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Telegram</div>
+                  <div style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a' }}>{author.telegram_followers.toLocaleString('ru')}</div>
+                  <div style={{ fontSize:'12px', color:'#9a9590' }}>подписчиков</div>
+                </div>
+              )}
               {author.stories_views > 0 && (
-                <div style={{ flex:1, padding:'16px 20px', borderRight: deals > 0 ? '1px solid #f0ede6' : 'none' }}>
+                <div style={{ flex:'1 1 100px', padding:'14px 20px', borderRight: author.completed_deals_count > 0 ? '1px solid #f0ede6' : 'none' }}>
                   <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Сторис</div>
                   <div style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a' }}>{author.stories_views.toLocaleString('ru')}</div>
                   <div style={{ fontSize:'12px', color:'#9a9590' }}>просм. в среднем</div>
                 </div>
               )}
-              {deals > 0 && (
-                <div style={{ flex:1, padding:'16px 20px' }}>
+              {author.completed_deals_count > 0 && (
+                <div style={{ flex:'1 1 100px', padding:'14px 20px' }}>
                   <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Сделки</div>
-                  <div style={{ fontSize:'20px', fontWeight:700, color:'#c17f3e' }}>{deals}</div>
-                  <div style={{ fontSize:'12px', color:'#9a9590' }}>завершено</div>
+                  <div style={{ fontSize:'20px', fontWeight:700, color:'#c17f3e' }}>
+                    {author.avg_rating ? `★ ${author.avg_rating}` : author.completed_deals_count}
+                  </div>
+                  <div style={{ fontSize:'12px', color:'#9a9590' }}>
+                    {author.avg_rating ? `${author.completed_deals_count} завершено` : 'завершено'}
+                  </div>
                 </div>
               )}
             </div>

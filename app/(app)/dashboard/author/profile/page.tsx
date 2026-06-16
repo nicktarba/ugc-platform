@@ -12,7 +12,7 @@ export default function AuthorProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const { userId, authorProfile: ctxProfile } = useApp()
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({ name:'', city:'', instagram_url:'', telegram_url:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
+  const [form, setForm] = useState({ name:'', city:'', instagram_url:'', telegram_url:'', telegram_followers:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
   const [avatarUrl, setAvatarUrl] = useState<string|null>(null)
   const [avatarFile, setAvatarFile] = useState<File|null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string|null>(null)
@@ -30,6 +30,7 @@ export default function AuthorProfilePage() {
           city: p.city || '',
           instagram_url: p.instagram_url || '',
           telegram_url: p.telegram_url || '',
+          telegram_followers: p.telegram_followers?.toString() || '',
           followers_count: p.followers_count?.toString() || '',
           stories_views: p.stories_views?.toString() || '',
           occupation: p.occupation || '',
@@ -77,6 +78,7 @@ export default function AuthorProfilePage() {
     const payload = {
       name: form.name, city: form.city, instagram_url: form.instagram_url,
       telegram_url: form.telegram_url || null,
+      telegram_followers: parseInt(form.telegram_followers)||0,
       followers_count: parseInt(form.followers_count)||0,
       stories_views: parseInt(form.stories_views)||0,
       occupation: form.occupation, lifestyle: form.lifestyle,
@@ -204,7 +206,10 @@ export default function AuthorProfilePage() {
               <div><label style={lbl}>Ссылка на Instagram *</label><input name="instagram_url" value={form.instagram_url} onChange={handleChange} required placeholder="https://instagram.com/username" style={inp} /></div>
               <div><label style={lbl}>Telegram</label><input name="telegram_url" value={form.telegram_url} onChange={handleChange} placeholder="https://t.me/username" style={inp} /></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
-                <div><label style={lbl}>Подписчиков</label><input name="followers_count" type="number" value={form.followers_count} onChange={handleChange} placeholder="1500" style={inp} /></div>
+                <div><label style={lbl}>Подписчиков Instagram</label><input name="followers_count" type="number" value={form.followers_count} onChange={handleChange} placeholder="1500" style={inp} /></div>
+                <div><label style={lbl}>Подписчиков Telegram</label><input name="telegram_followers" type="number" value={form.telegram_followers} onChange={handleChange} placeholder="500" style={inp} /></div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
                 <div><label style={lbl}>Просмотры сторис</label><input name="stories_views" type="number" value={form.stories_views} onChange={handleChange} placeholder="300" style={inp} /></div>
               </div>
               <div><label style={lbl}>Кем работаешь</label><input name="occupation" value={form.occupation} onChange={handleChange} placeholder="Фитнес-тренер, студент, дизайнер..." style={inp} /></div>

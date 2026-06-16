@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../AppContext'
 
-type Author = { id:string; name:string; city:string; instagram_url:string; telegram_url:string|null; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean; avatar_url:string|null; completed_deals_count:number }
+type Author = { id:string; name:string; city:string; instagram_url:string; telegram_url:string|null; telegram_followers:number; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean; avatar_url:string|null; completed_deals_count:number; avg_rating:number|null; reviews_count:number }
 
 export default function CatalogPage() {
   const router = useRouter()
@@ -141,7 +141,7 @@ export default function CatalogPage() {
 
                     {/* Аватар */}
                     <Link href={`/author/${a.id}`} style={{ flexShrink:0, textDecoration:'none' }}>
-                      <div style={{ width:'56px', height:'56px', borderRadius:'50%', overflow:'hidden', background:AVATAR_COLORS[ci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'22px', fontWeight:700, color:AVATAR_TEXT[ci] }}>
+                      <div style={{ width:'52px', height:'52px', borderRadius:'50%', overflow:'hidden', background:AVATAR_COLORS[ci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px', fontWeight:700, color:AVATAR_TEXT[ci] }}>
                         {a.avatar_url
                           ? <img src={a.avatar_url} alt={a.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           : initial}
@@ -151,51 +151,72 @@ export default function CatalogPage() {
                     {/* Контент */}
                     <div style={{ flex:1, minWidth:0 }}>
 
-                      {/* Строка 1: имя + бейджи */}
-                      <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'3px' }}>
-                        <Link href={`/author/${a.id}`} style={{ textDecoration:'none' }}>
-                          <span style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a' }}>{a.name}</span>
-                        </Link>
-                        {a.open_to_barter && <span style={{ padding:'2px 8px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
+                      {/* Строка 1: имя + бейджи + кнопка написать */}
+                      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'8px', marginBottom:'3px' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', minWidth:0 }}>
+                          <Link href={`/author/${a.id}`} style={{ textDecoration:'none' }}>
+                            <span style={{ fontSize:'15px', fontWeight:700, color:'#1a1a1a' }}>{a.name}</span>
+                          </Link>
+                          {a.open_to_barter && <span style={{ padding:'2px 7px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
+                          {(a.avg_rating || a.completed_deals_count > 0) && (
+                            <span style={{ padding:'2px 7px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#c17f3e' }}>
+                              {a.avg_rating ? `★ ${a.avg_rating}` : `★ ${a.completed_deals_count} сд.`}
+                            </span>
+                          )}
+                        </div>
+                        {userRole === 'business' && (
+                          requestMap[a.id] ? (
+                            <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ flexShrink:0, padding:'5px 14px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'12px', fontWeight:600, whiteSpace:'nowrap' }}>К заявке</Link>
+                          ) : (
+                            <button onClick={() => openModal(a)} style={{ flexShrink:0, padding:'5px 14px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'12px', fontWeight:600, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Написать</button>
+                          )
+                        )}
+                        {!userEmail && <Link href="/register" style={{ flexShrink:0, padding:'5px 14px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#7a7570', fontSize:'12px', fontWeight:500, whiteSpace:'nowrap' }}>Войти</Link>}
                       </div>
 
                       {/* Строка 2: город · профессия */}
-                      <div style={{ fontSize:'13px', color:'#9a9590', marginBottom:'10px' }}>
-                        📍 {a.city}{a.occupation ? ` · ${a.occupation}` : ''}
+                      <div style={{ fontSize:'12px', color:'#9a9590', marginBottom:'8px' }}>
+                        {a.city}{a.occupation ? ` · ${a.occupation}` : ''}
                       </div>
 
                       {/* Строка 3: статистика */}
-                      {(a.followers_count > 0 || a.stories_views > 0) && (
-                        <div style={{ display:'flex', gap:'16px', marginBottom:'10px' }}>
-                          {a.followers_count > 0 && <span style={{ fontSize:'13px', color:'#1a1a1a' }}><strong style={{ fontWeight:700 }}>{a.followers_count.toLocaleString('ru')}</strong> <span style={{ color:'#9a9590' }}>подп.</span></span>}
-                          {a.stories_views > 0 && <span style={{ fontSize:'13px', color:'#1a1a1a' }}><strong style={{ fontWeight:700 }}>{a.stories_views.toLocaleString('ru')}</strong> <span style={{ color:'#9a9590' }}>сторис</span></span>}
+                      {(a.followers_count > 0 || a.telegram_followers > 0 || a.stories_views > 0) && (
+                        <div style={{ display:'flex', gap:'12px', marginBottom:'8px', flexWrap:'wrap' }}>
+                          {a.followers_count > 0 && (
+                            <span style={{ fontSize:'13px', color:'#1a1a1a' }}>
+                              <strong style={{ fontWeight:700 }}>{a.followers_count.toLocaleString('ru')}</strong>
+                              <span style={{ fontSize:'11px', color:'#9a9590', marginLeft:'3px' }}>inst</span>
+                            </span>
+                          )}
+                          {a.telegram_followers > 0 && (
+                            <span style={{ fontSize:'13px', color:'#1a1a1a' }}>
+                              <strong style={{ fontWeight:700 }}>{a.telegram_followers.toLocaleString('ru')}</strong>
+                              <span style={{ fontSize:'11px', color:'#9a9590', marginLeft:'3px' }}>tg</span>
+                            </span>
+                          )}
+                          {a.stories_views > 0 && (
+                            <span style={{ fontSize:'13px', color:'#9a9590' }}>
+                              сторис <strong style={{ fontWeight:700, color:'#1a1a1a' }}>{a.stories_views.toLocaleString('ru')}</strong>
+                            </span>
+                          )}
                         </div>
                       )}
 
                       {/* Строка 4: теги */}
                       {a.lifestyle?.length > 0 && (
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'14px' }}>
-                          {a.lifestyle.slice(0, 4).map(tag => <span key={tag} style={{ padding:'3px 9px', background:'#f0ede6', borderRadius:'100px', fontSize:'11px', color:'#7a7570', fontWeight:500 }}>{tag}</span>)}
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:'4px', marginBottom:'10px' }}>
+                          {a.lifestyle.slice(0, 4).map(tag => <span key={tag} style={{ padding:'3px 8px', background:'#f0ede6', borderRadius:'100px', fontSize:'11px', color:'#7a7570', fontWeight:500 }}>{tag}</span>)}
                           {a.lifestyle.length > 4 && <span style={{ fontSize:'11px', color:'#9a9590', padding:'3px 6px' }}>+{a.lifestyle.length - 4}</span>}
                         </div>
                       )}
 
-                      {/* Строка 5: кнопки */}
-                      <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-                        <Link href={`/author/${a.id}`} style={{ padding:'7px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Профиль</Link>
-                        {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'7px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px' }} title="Instagram">📸</a>}
-                        {a.telegram_url && <a href={a.telegram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'7px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px' }} title="Telegram">✈️</a>}
-                        {a.completed_deals_count > 0 && <span style={{ fontSize:'12px', color:'#c17f3e', fontWeight:600 }}>★ {a.completed_deals_count}</span>}
+                      {/* Строка 5: ссылки + избранное */}
+                      <div style={{ display:'flex', gap:'6px', alignItems:'center', flexWrap:'wrap' }}>
+                        <Link href={`/author/${a.id}`} style={{ padding:'5px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#5a5650', fontSize:'12px', fontWeight:500 }}>Профиль</Link>
+                        {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'5px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#5a5650', fontSize:'12px', fontWeight:500 }}>Instagram</a>}
+                        {a.telegram_url && <a href={a.telegram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'5px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#5a5650', fontSize:'12px', fontWeight:500 }}>Telegram</a>}
                         {userRole === 'business' && (
-                          requestMap[a.id] ? (
-                            <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ padding:'7px 18px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>К заявке</Link>
-                          ) : (
-                            <button onClick={() => openModal(a)} style={{ padding:'7px 18px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Написать</button>
-                          )
-                        )}
-                        {!userEmail && <Link href="/register" style={{ padding:'7px 18px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#7a7570', fontSize:'13px', fontWeight:500 }}>Войти чтобы написать</Link>}
-                        {userRole === 'business' && (
-                          <button onClick={() => toggleFavorite(a.id)} title={isFav ? 'Убрать из избранного' : 'В избранное'} style={{ padding:'7px 10px', border: isFav ? '1.5px solid #f5dcb8' : '1.5px solid #e0ddd8', borderRadius:'100px', background: isFav ? '#fdf3e7' : '#fff', color: isFav ? '#c17f3e' : '#9a9590', fontSize:'16px', cursor:'pointer', lineHeight:1, fontFamily:'inherit' }}>
+                          <button onClick={() => toggleFavorite(a.id)} title={isFav ? 'Убрать' : 'В избранное'} style={{ marginLeft:'auto', padding:'5px 10px', border: isFav ? '1.5px solid #f5dcb8' : '1.5px solid #e0ddd8', borderRadius:'100px', background: isFav ? '#fdf3e7' : '#fff', color: isFav ? '#c17f3e' : '#9a9590', fontSize:'15px', cursor:'pointer', lineHeight:1, fontFamily:'inherit' }}>
                             {isFav ? '★' : '☆'}
                           </button>
                         )}
