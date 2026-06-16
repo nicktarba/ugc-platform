@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import AppHeader from '@/components/AppHeader'
+import Sidebar from '@/components/Sidebar'
 import BottomNav from '@/components/BottomNav'
 import LoadingScreen from '@/components/LoadingScreen'
 import { getBusinessBadgeCount, getAuthorBadgeCount } from '@/lib/badges'
@@ -19,7 +19,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null)
   const [badgeCount, setBadgeCount] = useState(0)
 
-  // Один раз при входе в группу: кто авторизован, какая роль, анкета, бейдж
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data.user
@@ -44,12 +43,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           description: bp?.description || '',
         })
       }
-
       setReady(true)
     })
   }, [])
 
-  // Гостя на закрытые страницы — на /login. Каталог доступен без авторизации.
   useEffect(() => {
     if (ready && !userId && pathname !== '/catalog') {
       router.replace('/login')
@@ -61,13 +58,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!ready) return <LoadingScreen />
   if (!userId && pathname !== '/catalog') return <LoadingScreen />
 
-  const navRole: 'business' | 'author' | null =
-    pathname.startsWith('/dashboard/author') ? 'author'
-    : pathname.startsWith('/dashboard/business') ? 'business'
-    : pathname === '/catalog'
-      ? (userRole === 'author' ? 'author' : userRole === 'business' ? 'business' : null)
-      : null
-
+  // BottomNav active tab
   const active =
     pathname.startsWith('/dashboard/business/favorites') ? 'favorites'
     : pathname.startsWith('/dashboard/business/profile') ? 'profile'
@@ -75,11 +66,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     : pathname === '/catalog' ? 'catalog'
     : 'requests'
 
+  const navRole: 'business' | 'author' | null =
+    (userRole === 'business') ? 'business'
+    : (userRole === 'author') ? 'author'
+    : null
+
   return (
     <AppContext.Provider value={{ userId, userEmail, userRole, authorProfile, businessProfile, setBusinessProfile, badgeCount, bumpBadge }}>
-      <AppHeader />
-      {children}
-      {navRole && <BottomNav role={navRole} active={active} unread={badgeCount} />}
+      <div className="sidebar-layout">
+        <Sidebar
+          role={userRole}
+          email={userEmail}
+          badgeCount={badgeCount}
+          authorId={authorProfile?.id || null}
+        />
+        <div className="sidebar-content">
+          {children}
+          {navRole && <BottomNav role={navRole} active={active} unread={badgeCount} />}
+        </div>
+      </div>
     </AppContext.Provider>
   )
 }

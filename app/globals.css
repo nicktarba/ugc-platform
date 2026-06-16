@@ -23,3 +23,15 @@ input, textarea, select { font-size: 16px !important; }
   .bottom-tab-bar { display:flex; position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e8e6e1; padding:6px 4px calc(6px + env(safe-area-inset-bottom)); z-index:200; }
   .bottom-tab-spacer { display:block; height:calc(54px + env(safe-area-inset-bottom)); }
 }
+
+/* Sidebar layout */
+.sidebar-layout { display:flex; min-height:100vh; }
+.sidebar { width:220px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:#fff; border-right:1px solid #e8e6e1; display:flex; flex-direction:column; }
+.sidebar-content { flex:1; min-width:0; overflow-x:hidden; }
+.sidebar-nav-item { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:10px; font-size:14px; color:#5a5650; text-decoration:none; cursor:pointer; border:none; background:none; font-family:inherit; width:100%; text-align:left; }
+.sidebar-nav-item:hover { background:#f5f3ef; color:#1a1a1a; }
+.sidebar-nav-item.active { background:#f0ede6; color:#1a1a1a; font-weight:600; }
+@media (max-width: 768px) {
+  .sidebar { display:none; }
+  .sidebar-layout { display:block; }
+}

@@ -36,47 +36,31 @@ export default function AppHeader() {
   const dashboardHref = role === 'author' ? '/dashboard/author' : role === 'admin' ? '/dashboard/admin' : '/dashboard/business'
 
   return (
-    <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9', position:'sticky', top:0, zIndex:100 }}>
+    <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fff', position:'sticky', top:0, zIndex:100 }}>
       <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
 
-      {/* Desktop: full nav */}
-      <div className="app-header-desktop" style={{ gap:'12px', alignItems:'center' }}>
-        {user && <Link href={dashboardHref} style={{ padding:'8px 16px', border:'1px solid #d4d0c8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Личный кабинет</Link>}
-        <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
-        <Link href="/catalog" style={{ padding:'8px 16px', border:'1px solid #d4d0c8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:500 }}>Каталог</Link>
+      <div style={{ display:'flex', gap:'20px', alignItems:'center' }}>
+        <Link href="/catalog" style={{ fontSize:'14px', color:'#5a5650', textDecoration:'none' }}>Каталог</Link>
+        <Link href="/support" style={{ fontSize:'14px', color:'#5a5650', textDecoration:'none' }}>Поддержка</Link>
+
         {user ? (
-          <>
-            <span style={{ fontSize:'14px', color:'#7a7570' }}>{user.email}</span>
-            <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
-          </>
+          <div ref={menuRef} style={{ position:'relative' }}>
+            <button onClick={() => setMenuOpen(o => !o)} aria-label="Меню аккаунта" style={{ width:'36px', height:'36px', borderRadius:'50%', background:'#f0ede6', border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', fontSize:'14px', fontWeight:700, color:'#1a1a1a' }}>{initial}</button>
+            {menuOpen && (
+              <div style={{ position:'absolute', top:'44px', right:0, background:'#fff', border:'1px solid #e8e6e1', borderRadius:'14px', boxShadow:'0 8px 24px rgba(0,0,0,0.10)', minWidth:'200px', padding:'8px', zIndex:300 }}>
+                <div style={{ padding:'8px 12px', fontSize:'12px', color:'#9a9590', borderBottom:'1px solid #f0ede6', marginBottom:'4px', wordBreak:'break-all' }}>{user.email}</div>
+                <Link href={dashboardHref} onClick={() => setMenuOpen(false)} style={{ display:'block', padding:'9px 12px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', borderRadius:'8px', fontWeight:600 }}>Личный кабинет</Link>
+                <button onClick={handleLogout} style={{ display:'block', width:'100%', textAlign:'left', padding:'9px 12px', fontSize:'14px', color:'#dc2626', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', borderRadius:'8px' }}>Выйти</button>
+              </div>
+            )}
+          </div>
         ) : (
-          <>
+          <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
             <Link href="/login" style={{ padding:'8px 16px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>Войти</Link>
             <Link href="/register" style={{ padding:'8px 20px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:500 }}>Регистрация</Link>
-          </>
+          </div>
         )}
       </div>
-
-      {/* Mobile: avatar + dropdown */}
-      {user ? (
-        <div ref={menuRef} className="app-header-mobile" style={{ position:'relative' }}>
-          <button onClick={() => setMenuOpen(o => !o)} aria-label="Меню аккаунта" style={{ width:'40px', height:'40px', borderRadius:'50%', background:'#f0ede6', border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', fontSize:'15px', fontWeight:700, color:'#1a1a1a' }}>{initial}</button>
-          {menuOpen && (
-            <div style={{ position:'absolute', top:'48px', right:0, background:'#fff', border:'1px solid #e8e6e1', borderRadius:'14px', boxShadow:'0 8px 24px rgba(0,0,0,0.12)', minWidth:'200px', padding:'8px', zIndex:300 }}>
-              <div style={{ padding:'8px 12px', fontSize:'13px', color:'#9a9590', borderBottom:'1px solid #f0ede6', marginBottom:'4px', wordBreak:'break-all' }}>{user.email}</div>
-              <Link href={dashboardHref} onClick={() => setMenuOpen(false)} style={{ display:'block', padding:'10px 12px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', borderRadius:'8px', fontWeight:600 }}>Личный кабинет</Link>
-              <Link href="/catalog" onClick={() => setMenuOpen(false)} style={{ display:'block', padding:'10px 12px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', borderRadius:'8px' }}>Каталог</Link>
-              <Link href="/support" onClick={() => setMenuOpen(false)} style={{ display:'block', padding:'10px 12px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', borderRadius:'8px' }}>Поддержка</Link>
-              <button onClick={handleLogout} style={{ display:'block', width:'100%', textAlign:'left', padding:'10px 12px', fontSize:'14px', color:'#dc2626', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', borderRadius:'8px' }}>Выйти</button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="app-header-mobile" style={{ gap:'8px', alignItems:'center' }}>
-          <Link href="/login" style={{ padding:'8px 14px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>Войти</Link>
-          <Link href="/register" style={{ padding:'8px 16px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:500, whiteSpace:'nowrap' }}>Регистрация</Link>
-        </div>
-      )}
     </nav>
   )
 }
