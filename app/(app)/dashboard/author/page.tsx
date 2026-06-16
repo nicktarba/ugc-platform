@@ -100,11 +100,18 @@ export default function AuthorRequestsPage() {
         )}
 
         {!profile ? (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'clamp(20px, 6vw, 40px)', textAlign:'center' }}>
-            <div style={{ fontSize:'40px', marginBottom:'16px' }}>✍️</div>
-            <h3 style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Заполни анкету</h3>
-            <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'24px', lineHeight:1.6 }}>Чтобы бизнесы могли найти тебя в каталоге — нужно заполнить профиль.</p>
-            <Link href="/become-author" style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'15px', fontWeight:600 }}>Заполнить анкету</Link>
+          <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+            <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', borderLeft:'4px solid #c17f3e' }}>
+              <div style={{ fontSize:'28px', marginBottom:'12px' }}>👋</div>
+              <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Как это работает</h3>
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px', fontSize:'14px', color:'#5a5650', lineHeight:1.6, marginBottom:'20px' }}>
+                <div>1. Заполни анкету — расскажи о себе, хобби, стиле жизни</div>
+                <div>2. Пройди модерацию — обычно это быстро</div>
+                <div>3. Появишься в каталоге — бизнесы найдут тебя по фильтрам</div>
+                <div>4. Получай входящие заявки и общайся в чате</div>
+              </div>
+              <Link href="/dashboard/author/profile" style={{ display:'inline-block', padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Заполнить анкету →</Link>
+            </div>
           </div>
         ) : (
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
