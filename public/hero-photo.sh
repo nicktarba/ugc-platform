@@ -1,3 +1,13 @@
+#!/bin/bash
+set -e
+echo "== Hero с фото =="
+
+# Копируем фото в public
+cp "$1" public/hero-author.png 2>/dev/null || true
+
+echo "-> app/page.tsx"
+mkdir -p "$(dirname "app/page.tsx")"
+cat > "app/page.tsx" << 'CLAUDE_EOF_MARKER'
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -234,3 +244,6 @@ export default function HomePage() {
     </main>
   )
 }
+CLAUDE_EOF_MARKER
+
+echo "== Готово =="
