@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../AppContext'
 
-type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean }
+type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean; avatar_url:string|null }
 
 export default function CatalogPage() {
   const router = useRouter()
@@ -128,58 +128,81 @@ export default function CatalogPage() {
             <p style={{ color:'#7a7570', fontSize:'16px' }}>Авторов с такими параметрами пока нет</p>
           </div>
         ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'16px' }}>
-            {filtered.map(a => (
-              <div key={a.id} style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px' }}>
-                  <div>
-                    <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'4px' }}>{a.name}</h3>
-                    <span style={{ fontSize:'13px', color:'#9a9590' }}>📍 {a.city}</span>
+          <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+            {filtered.map(a => {
+              const isFav = favoriteIds.includes(a.id)
+              const initial = a.name?.[0]?.toUpperCase() || '?'
+              const AVATAR_COLORS = ['#e8f4fd','#fdf3e7','#f0fdf4','#fdf4ff','#fff0f0']
+              const AVATAR_TEXT = ['#1a6fa8','#c17f3e','#16a34a','#7c3aed','#dc2626']
+              const ci = a.id.charCodeAt(0) % 5
+              return (
+                <div key={a.id} style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'20px 24px' }}>
+                  <div style={{ display:'flex', gap:'16px', alignItems:'flex-start' }}>
+
+                    {/* Аватар */}
+                    <Link href={`/author/${a.id}`} style={{ flexShrink:0, textDecoration:'none' }}>
+                      <div style={{ width:'56px', height:'56px', borderRadius:'50%', overflow:'hidden', background:AVATAR_COLORS[ci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'22px', fontWeight:700, color:AVATAR_TEXT[ci] }}>
+                        {a.avatar_url
+                          ? <img src={a.avatar_url} alt={a.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          : initial}
+                      </div>
+                    </Link>
+
+                    {/* Контент */}
+                    <div style={{ flex:1, minWidth:0 }}>
+
+                      {/* Строка 1: имя + бейджи */}
+                      <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'3px' }}>
+                        <Link href={`/author/${a.id}`} style={{ textDecoration:'none' }}>
+                          <span style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a' }}>{a.name}</span>
+                        </Link>
+                        {a.open_to_barter && <span style={{ padding:'2px 8px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
+                      </div>
+
+                      {/* Строка 2: город · профессия */}
+                      <div style={{ fontSize:'13px', color:'#9a9590', marginBottom:'10px' }}>
+                        📍 {a.city}{a.occupation ? ` · ${a.occupation}` : ''}
+                      </div>
+
+                      {/* Строка 3: статистика */}
+                      {(a.followers_count > 0 || a.stories_views > 0) && (
+                        <div style={{ display:'flex', gap:'16px', marginBottom:'10px' }}>
+                          {a.followers_count > 0 && <span style={{ fontSize:'13px', color:'#1a1a1a' }}><strong style={{ fontWeight:700 }}>{a.followers_count.toLocaleString('ru')}</strong> <span style={{ color:'#9a9590' }}>подп.</span></span>}
+                          {a.stories_views > 0 && <span style={{ fontSize:'13px', color:'#1a1a1a' }}><strong style={{ fontWeight:700 }}>{a.stories_views.toLocaleString('ru')}</strong> <span style={{ color:'#9a9590' }}>сторис</span></span>}
+                        </div>
+                      )}
+
+                      {/* Строка 4: теги */}
+                      {a.lifestyle?.length > 0 && (
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:'5px', marginBottom:'14px' }}>
+                          {a.lifestyle.slice(0, 4).map(tag => <span key={tag} style={{ padding:'3px 9px', background:'#f0ede6', borderRadius:'100px', fontSize:'11px', color:'#7a7570', fontWeight:500 }}>{tag}</span>)}
+                          {a.lifestyle.length > 4 && <span style={{ fontSize:'11px', color:'#9a9590', padding:'3px 6px' }}>+{a.lifestyle.length - 4}</span>}
+                        </div>
+                      )}
+
+                      {/* Строка 5: кнопки */}
+                      <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
+                        <Link href={`/author/${a.id}`} style={{ padding:'7px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Профиль</Link>
+                        {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'7px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
+                        {userRole === 'business' && (
+                          requestMap[a.id] ? (
+                            <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ padding:'7px 18px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>К заявке</Link>
+                          ) : (
+                            <button onClick={() => openModal(a)} style={{ padding:'7px 18px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Написать</button>
+                          )
+                        )}
+                        {!userEmail && <Link href="/register" style={{ padding:'7px 18px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#7a7570', fontSize:'13px', fontWeight:500 }}>Войти чтобы написать</Link>}
+                        {userRole === 'business' && (
+                          <button onClick={() => toggleFavorite(a.id)} title={isFav ? 'Убрать из избранного' : 'В избранное'} style={{ padding:'7px 10px', border: isFav ? '1.5px solid #f5dcb8' : '1.5px solid #e0ddd8', borderRadius:'100px', background: isFav ? '#fdf3e7' : '#fff', color: isFav ? '#c17f3e' : '#9a9590', fontSize:'16px', cursor:'pointer', lineHeight:1, fontFamily:'inherit' }}>
+                            {isFav ? '★' : '☆'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  {a.open_to_barter && <span style={{ padding:'4px 10px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
                 </div>
-                <div style={{ display:'flex', gap:'16px', marginBottom:'14px' }}>
-                  {a.followers_count>0 && <div><div style={{ fontSize:'16px', fontWeight:700 }}>{a.followers_count.toLocaleString('ru')}</div><div style={{ fontSize:'11px', color:'#9a9590' }}>подписчиков</div></div>}
-                  {a.stories_views>0 && <div><div style={{ fontSize:'16px', fontWeight:700 }}>{a.stories_views.toLocaleString('ru')}</div><div style={{ fontSize:'11px', color:'#9a9590' }}>просм. сторис</div></div>}
-                </div>
-                {a.occupation && <div style={{ fontSize:'13px', color:'#5a5650', marginBottom:'10px', fontWeight:500 }}>💼 {a.occupation}</div>}
-                {a.bio && <p style={{ fontSize:'13px', color:'#7a7570', marginBottom:'14px', lineHeight:1.6 }}>{a.bio.length>100?a.bio.slice(0,100)+'...':a.bio}</p>}
-                {a.lifestyle?.length>0 && (
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'16px' }}>
-                    {a.lifestyle.slice(0,4).map(tag => <span key={tag} style={{ padding:'3px 10px', background:'#f0ede6', borderRadius:'100px', fontSize:'11px', color:'#7a7570', fontWeight:500 }}>{tag}</span>)}
-                    {a.lifestyle.length>4 && <span style={{ fontSize:'11px', color:'#9a9590', padding:'3px 6px' }}>+{a.lifestyle.length-4}</span>}
-                  </div>
-                )}
-                <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
-                  {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
-                  <Link href={`/author/${a.id}`} style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Профиль</Link>
-                  {userRole === 'business' && (
-                    <button onClick={() => toggleFavorite(a.id)} style={{
-                      padding:'8px 16px', borderRadius:'100px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit',
-                      border: favoriteIds.includes(a.id) ? '1.5px solid #f5dcb8' : '1.5px solid #e0ddd8',
-                      background: favoriteIds.includes(a.id) ? '#fdf3e7' : '#fff',
-                      color: favoriteIds.includes(a.id) ? '#c17f3e' : '#1a1a1a',
-                    }}>
-                      {favoriteIds.includes(a.id) ? '★ В избранном' : '☆ В избранное'}
-                    </button>
-                  )}
-                  {userRole === 'business' && (
-                    requestMap[a.id] ? (
-                      <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>
-                        Перейти к заявке
-                      </Link>
-                    ) : (
-                      <button onClick={() => openModal(a)} style={{ padding:'8px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-                        Написать
-                      </button>
-                    )
-                  )}
-                  {!userEmail && (
-                    <Link href="/register" style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#7a7570', fontSize:'13px', fontWeight:500 }}>Войти чтобы написать</Link>
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
