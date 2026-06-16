@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
-import AppHeader from '@/components/AppHeader'
 import Link from 'next/link'
 
 const LIFESTYLE = ['Активный спорт','ЗОЖ и питание','Кофе и кафе','Рестораны','Путешествия','Авто','Мода и стиль','Красота и уход','Семья и дети','Технологии','Музыка','Кино и сериалы','Книги','Искусство','Бизнес']
@@ -128,7 +127,6 @@ export default function BecomeAuthorPage() {
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <AppHeader />
       <div style={{ maxWidth:'600px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
         <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'40px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px', lineHeight:1.1 }}>
           {existing ? 'Редактировать профиль' : 'Стать автором'}
