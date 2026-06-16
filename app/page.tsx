@@ -45,7 +45,7 @@ export default function HomePage() {
           <div style={{ display: 'inline-block', padding: '5px 16px', background: '#f0ede6', borderRadius: '100px', fontSize: '13px', color: '#7a7570', marginBottom: '24px', fontWeight: 500, width: 'fit-content' }}>
             Площадка микро-авторов · от 300 до 30 000 подписчиков
           </div>
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(38px, 5.5vw, 68px)', fontWeight: 700, lineHeight: 1.0, color: '#1a1a1a', marginBottom: '24px', letterSpacing: '-2px' }}>
+          <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(38px, 5.5vw, 68px)', fontWeight: 700, lineHeight: 0.95, color: '#1a1a1a', marginBottom: '24px', letterSpacing: '-1px' }}>
             Живые люди<br />с <span style={{ fontStyle: 'italic', color: '#c17f3e' }}>тёплой</span><br />аудиторией
           </h1>
           <p style={{ fontSize: '16px', color: '#5a5650', maxWidth: '420px', marginBottom: '12px', lineHeight: 1.75 }}>
