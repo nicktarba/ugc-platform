@@ -23,13 +23,5 @@ export type AuthorRequest = {
   deadline: string | null
 }
 
-export type AuthorProfile = {
-  id: string
-  name: string
-  city: string
-  instagram_url: string
-  followers_count: number
-  lifestyle: string[]
-  open_to_barter: boolean
-  status: string
-}
+// AuthorProfile — актуальный тип в app/(app)/AppContext.tsx
+// Здесь не дублируем во избежание рассинхронизации
