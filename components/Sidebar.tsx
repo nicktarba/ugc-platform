@@ -23,8 +23,13 @@ export default function Sidebar({ role, email, badgeCount = 0, authorId }: Props
   const initial = email?.[0]?.toUpperCase() || '?'
 
   const isActive = (href: string) => {
+    // Публичный профиль автора
     if (href.startsWith('/author/')) return pathname.startsWith('/author/')
-    return pathname === href || pathname.startsWith(href + '/')
+    // Чат и карточка заявки — подсвечиваем "Сделки" / "Запросы"
+    if (href === '/dashboard/business' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
+    if (href === '/dashboard/author' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
+    // Точное совпадение для всего остального
+    return pathname === href
   }
 
   const navItem = (href: string, icon: string, label: string, badge?: number) => (
