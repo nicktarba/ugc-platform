@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../AppContext'
 
-type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean; avatar_url:string|null }
+type Author = { id:string; name:string; city:string; instagram_url:string; telegram_url:string|null; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean; avatar_url:string|null; completed_deals_count:number }
 
 export default function CatalogPage() {
   const router = useRouter()
@@ -183,7 +183,9 @@ export default function CatalogPage() {
                       {/* Строка 5: кнопки */}
                       <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
                         <Link href={`/author/${a.id}`} style={{ padding:'7px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Профиль</Link>
-                        {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'7px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
+                        {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'7px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px' }} title="Instagram">📸</a>}
+                        {a.telegram_url && <a href={a.telegram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'7px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px' }} title="Telegram">✈️</a>}
+                        {a.completed_deals_count > 0 && <span style={{ fontSize:'12px', color:'#c17f3e', fontWeight:600 }}>★ {a.completed_deals_count}</span>}
                         {userRole === 'business' && (
                           requestMap[a.id] ? (
                             <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ padding:'7px 18px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>К заявке</Link>

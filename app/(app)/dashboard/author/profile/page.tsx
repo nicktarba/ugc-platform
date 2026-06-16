@@ -12,7 +12,7 @@ export default function AuthorProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const { userId, authorProfile: ctxProfile } = useApp()
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({ name:'', city:'', instagram_url:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
+  const [form, setForm] = useState({ name:'', city:'', instagram_url:'', telegram_url:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
   const [avatarUrl, setAvatarUrl] = useState<string|null>(null)
   const [avatarFile, setAvatarFile] = useState<File|null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string|null>(null)
@@ -29,6 +29,7 @@ export default function AuthorProfilePage() {
           name: p.name || '',
           city: p.city || '',
           instagram_url: p.instagram_url || '',
+          telegram_url: p.telegram_url || '',
           followers_count: p.followers_count?.toString() || '',
           stories_views: p.stories_views?.toString() || '',
           occupation: p.occupation || '',
@@ -75,6 +76,7 @@ export default function AuthorProfilePage() {
     const uploadedUrl = await uploadAvatar()
     const payload = {
       name: form.name, city: form.city, instagram_url: form.instagram_url,
+      telegram_url: form.telegram_url || null,
       followers_count: parseInt(form.followers_count)||0,
       stories_views: parseInt(form.stories_views)||0,
       occupation: form.occupation, lifestyle: form.lifestyle,
@@ -200,6 +202,7 @@ export default function AuthorProfilePage() {
               <div><label style={lbl}>Имя / псевдоним *</label><input name="name" value={form.name} onChange={handleChange} required placeholder="Как тебя называть" style={inp} /></div>
               <div><label style={lbl}>Город *</label><input name="city" value={form.city} onChange={handleChange} required placeholder="Москва, Питер, Краснодар..." style={inp} /></div>
               <div><label style={lbl}>Ссылка на Instagram *</label><input name="instagram_url" value={form.instagram_url} onChange={handleChange} required placeholder="https://instagram.com/username" style={inp} /></div>
+              <div><label style={lbl}>Telegram</label><input name="telegram_url" value={form.telegram_url} onChange={handleChange} placeholder="https://t.me/username" style={inp} /></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
                 <div><label style={lbl}>Подписчиков</label><input name="followers_count" type="number" value={form.followers_count} onChange={handleChange} placeholder="1500" style={inp} /></div>
                 <div><label style={lbl}>Просмотры сторис</label><input name="stories_views" type="number" value={form.stories_views} onChange={handleChange} placeholder="300" style={inp} /></div>
