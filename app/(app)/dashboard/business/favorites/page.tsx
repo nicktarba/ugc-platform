@@ -7,7 +7,7 @@ import LoadingScreen from '@/components/LoadingScreen'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../../../AppContext'
 
-type Author = { id:string; name:string; city:string; instagram_url:string; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; bio:string; open_to_barter:boolean; status:string }
+type Author = { id:string; name:string; city:string; instagram_url:string; telegram_url:string|null; followers_count:number; telegram_followers:number; stories_views:number; occupation:string; lifestyle:string[]; bio:string; open_to_barter:boolean; status:string; avg_rating:number|null; completed_deals_count:number }
 
 export default function FavoritesPage() {
   const router = useRouter()
@@ -100,16 +100,18 @@ export default function FavoritesPage() {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'16px' }}>
             {authors.map(a => (
               <div key={a.id} style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px' }}>
-                  <div>
-                    <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'4px' }}>{a.name}</h3>
-                    <span style={{ fontSize:'13px', color:'#9a9590' }}>📍 {a.city}</span>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }}>
+                    <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a' }}>{a.name}</h3>
+                    {a.open_to_barter && <span style={{ padding:'2px 7px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
+                    {(a.avg_rating || a.completed_deals_count > 0) && <span style={{ padding:'2px 7px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#c17f3e' }}>{a.avg_rating ? `★ ${a.avg_rating}` : `★ ${a.completed_deals_count}`}</span>}
                   </div>
-                  {a.open_to_barter && <span style={{ padding:'4px 10px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
                 </div>
-                <div style={{ display:'flex', gap:'16px', marginBottom:'14px' }}>
-                  {a.followers_count>0 && <div><div style={{ fontSize:'16px', fontWeight:700 }}>{a.followers_count.toLocaleString('ru')}</div><div style={{ fontSize:'11px', color:'#9a9590' }}>подписчиков</div></div>}
-                  {a.stories_views>0 && <div><div style={{ fontSize:'16px', fontWeight:700 }}>{a.stories_views.toLocaleString('ru')}</div><div style={{ fontSize:'11px', color:'#9a9590' }}>просм. сторис</div></div>}
+                <div style={{ fontSize:'12px', color:'#9a9590', marginBottom:'10px' }}>📍 {a.city}</div>
+                <div style={{ display:'flex', gap:'12px', marginBottom:'10px', flexWrap:'wrap' }}>
+                  {a.followers_count > 0 && <span style={{ fontSize:'13px' }}><strong>{a.followers_count.toLocaleString('ru')}</strong> <span style={{ fontSize:'11px', color:'#9a9590' }}>inst</span></span>}
+                  {a.telegram_followers > 0 && <span style={{ fontSize:'13px' }}><strong>{a.telegram_followers.toLocaleString('ru')}</strong> <span style={{ fontSize:'11px', color:'#9a9590' }}>tg</span></span>}
+                  {a.stories_views > 0 && <span style={{ fontSize:'13px', color:'#9a9590' }}>сторис <strong style={{ color:'#1a1a1a' }}>{a.stories_views.toLocaleString('ru')}</strong></span>}
                 </div>
                 {a.occupation && <div style={{ fontSize:'13px', color:'#5a5650', marginBottom:'10px', fontWeight:500 }}>💼 {a.occupation}</div>}
                 {a.bio && <p style={{ fontSize:'13px', color:'#7a7570', marginBottom:'14px', lineHeight:1.6 }}>{a.bio.length>100?a.bio.slice(0,100)+'...':a.bio}</p>}
@@ -127,7 +129,8 @@ export default function FavoritesPage() {
                 )}
 
                 <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
-                  {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:500 }}>Instagram →</a>}
+                  {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'7px 14px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#5a5650', fontSize:'12px', fontWeight:500 }}>Instagram</a>}
+                  {a.telegram_url && <a href={a.telegram_url} target="_blank" rel="noopener noreferrer" style={{ padding:'7px 14px', border:'1.5px solid #e0ddd8', borderRadius:'100px', textDecoration:'none', color:'#5a5650', fontSize:'12px', fontWeight:500 }}>Telegram</a>}
                   {a.status === 'approved' && (
                     requestMap[a.id] ? (
                       <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ padding:'8px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>

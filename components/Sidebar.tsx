@@ -22,7 +22,10 @@ export default function Sidebar({ role, email, badgeCount = 0, authorId }: Props
 
   const initial = email?.[0]?.toUpperCase() || '?'
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const isActive = (href: string) => {
+    if (href.startsWith('/author/')) return pathname.startsWith('/author/')
+    return pathname === href || pathname.startsWith(href + '/')
+  }
 
   const navItem = (href: string, icon: string, label: string, badge?: number) => (
     <Link href={href} className={`sidebar-nav-item${isActive(href) ? ' active' : ''}`}>

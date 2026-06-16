@@ -36,6 +36,7 @@ export default function RequestDetailPage() {
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile|null>(null)
   const [loading, setLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<'declined'|'cancelled'|null>(null)
   const [reviewModal, setReviewModal] = useState(false)
   const [rating, setRating] = useState(0)
   const [reviewComment, setReviewComment] = useState('')
@@ -71,31 +72,32 @@ export default function RequestDetailPage() {
   }, [requestId, router])
 
   const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
-    // Завершение сделки бизнесом — показываем модалку с оценкой вместо confirm
-    if (status === 'completed' && userRole === 'business') {
-      setReviewModal(true)
-      return
-    }
-
-    const confirmText: Record<string, string> = {
-      declined: 'Сделка будет отклонена, переписка закроется (история останется). Продолжить?',
-      cancelled: 'Сделка будет отменена, переписка закроется (история останется). Продолжить?',
-    }
-    if (confirmText[status] && !confirm(confirmText[status])) return
+    if (status === 'completed' && userRole === 'business') { setReviewModal(true); return }
+    if (status === 'declined' || status === 'cancelled') { setConfirmAction(status); return }
 
     setUpdatingStatus(true)
     const { error } = await supabase.from('requests').update({ status }).eq('id', requestId)
     setUpdatingStatus(false)
     if (!error) {
       setRequest(prev => prev ? { ...prev, status } : prev)
-      const successText: Record<string, string> = {
-        accepted: 'Предложение принято',
-        declined: 'Заявка отклонена',
-        cancelled: 'Сделка отменена',
-      }
+      const successText: Record<string, string> = { accepted: 'Предложение принято' }
       if (successText[status]) toast.success(successText[status])
     } else {
       toast.error('Не удалось обновить статус сделки. Попробуй ещё раз.')
+    }
+  }
+
+  const confirmStatusUpdate = async () => {
+    if (!confirmAction) return
+    setUpdatingStatus(true)
+    const { error } = await supabase.from('requests').update({ status: confirmAction }).eq('id', requestId)
+    setUpdatingStatus(false)
+    setConfirmAction(null)
+    if (!error) {
+      setRequest(prev => prev ? { ...prev, status: confirmAction } : prev)
+      toast.success(confirmAction === 'declined' ? 'Заявка отклонена' : 'Сделка отменена')
+    } else {
+      toast.error('Не удалось обновить статус. Попробуй ещё раз.')
     }
   }
 
@@ -289,6 +291,25 @@ export default function RequestDetailPage() {
           Перейти в переписку →
         </Link>
       </div>
+
+      {confirmAction && (
+        <div onClick={() => setConfirmAction(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'380px', width:'100%' }}>
+            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px' }}>
+              {confirmAction === 'declined' ? 'Отклонить заявку?' : 'Отменить сделку?'}
+            </h3>
+            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>
+              Переписка закроется. История сообщений останется доступна для просмотра.
+            </p>
+            <div style={{ display:'flex', gap:'10px' }}>
+              <button onClick={() => setConfirmAction(null)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Назад</button>
+              <button onClick={confirmStatusUpdate} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#dc2626', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+                {updatingStatus ? '...' : confirmAction === 'declined' ? 'Отклонить' : 'Отменить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reviewModal && (
         <div onClick={() => setReviewModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>

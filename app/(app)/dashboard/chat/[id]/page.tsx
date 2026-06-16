@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
-
+import { useApp } from '../../../AppContext'
 import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
 import { truncate } from '@/lib/format'
 
@@ -28,6 +28,7 @@ export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
   const toast = useToast()
+  const { bumpBadge } = useApp()
   const requestId = params.id as string
 
   const [userId, setUserId] = useState<string|null>(null)
@@ -59,7 +60,10 @@ export default function ChatPage() {
       setMessages(msgs || [])
       setLoading(false)
 
+      const { data: unreadMsgs } = await supabase.from('messages').select('id').eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
+      const unreadCount = unreadMsgs?.length || 0
       await supabase.from('messages').update({ read: true }).eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
+      if (unreadCount > 0) bumpBadge(-unreadCount)
     }
     init()
   }, [requestId, router])
@@ -72,6 +76,7 @@ export default function ChatPage() {
         setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
         if (userId && newMsg.sender_id !== userId) {
           await supabase.from('messages').update({ read: true }).eq('id', newMsg.id)
+          // не декрементируем — сообщение пришло пока открыт чат, бейдж не рос
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: `id=eq.${requestId}` }, (payload) => {
@@ -103,28 +108,35 @@ export default function ChatPage() {
     }
   }
 
-  const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
-    const confirmText: Record<string, string> = {
-      declined: 'Сделка будет отклонена, переписка закроется (история останется). Продолжить?',
-      cancelled: 'Сделка будет отменена, переписка закроется (история останется). Продолжить?',
-      completed: 'Отметить сделку как завершённую? Переписка закроется (история останется).',
-    }
-    if (confirmText[status] && !confirm(confirmText[status])) return
+  const [confirmAction, setConfirmAction] = useState<'declined'|'cancelled'|'completed'|null>(null)
 
+  const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
+    if (status === 'declined' || status === 'cancelled' || status === 'completed') {
+      setConfirmAction(status); return
+    }
     setUpdatingStatus(true)
     const { error } = await supabase.from('requests').update({ status }).eq('id', requestId)
     setUpdatingStatus(false)
     if (!error) {
       setRequest(prev => prev ? { ...prev, status } : prev)
-      const successText: Record<string, string> = {
-        accepted: 'Предложение принято',
-        declined: 'Заявка отклонена',
-        cancelled: 'Сделка отменена',
-        completed: 'Сделка завершена 🎉',
-      }
-      if (successText[status]) toast.success(successText[status])
+      toast.success('Предложение принято')
     } else {
       toast.error('Не удалось обновить статус сделки. Попробуй ещё раз.')
+    }
+  }
+
+  const confirmStatusUpdate = async () => {
+    if (!confirmAction) return
+    setUpdatingStatus(true)
+    const { error } = await supabase.from('requests').update({ status: confirmAction }).eq('id', requestId)
+    setUpdatingStatus(false)
+    setConfirmAction(null)
+    if (!error) {
+      setRequest(prev => prev ? { ...prev, status: confirmAction } : prev)
+      const labels: Record<string, string> = { declined:'Заявка отклонена', cancelled:'Сделка отменена', completed:'Сделка завершена 🎉' }
+      toast.success(labels[confirmAction])
+    } else {
+      toast.error('Не удалось обновить статус. Попробуй ещё раз.')
     }
   }
 
@@ -296,6 +308,25 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+
+      {confirmAction && (
+        <div onClick={() => setConfirmAction(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'380px', width:'100%' }}>
+            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px' }}>
+              {confirmAction === 'declined' ? 'Отклонить заявку?' : confirmAction === 'cancelled' ? 'Отменить сделку?' : 'Завершить сделку?'}
+            </h3>
+            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>
+              {confirmAction === 'completed' ? 'Сделка будет отмечена как завершённая. Переписка закроется.' : 'Переписка закроется. История сообщений останется доступна.'}
+            </p>
+            <div style={{ display:'flex', gap:'10px' }}>
+              <button onClick={() => setConfirmAction(null)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Назад</button>
+              <button onClick={confirmStatusUpdate} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: confirmAction === 'completed' ? '#16a34a' : '#dc2626', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+                {updatingStatus ? '...' : confirmAction === 'declined' ? 'Отклонить' : confirmAction === 'cancelled' ? 'Отменить' : 'Завершить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

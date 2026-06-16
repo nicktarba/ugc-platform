@@ -37,7 +37,7 @@ export default function HomePage() {
           Выбирайте авторов по городу, Instagram, профессии, хобби и темам, в которых они органичны.
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/become-author" style={{ padding: '14px 32px', background: '#1a1a1a', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '16px', fontWeight: 600 }}>Стать автором</Link>
+          <Link href="/register" style={{ padding: '14px 32px', background: '#1a1a1a', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '16px', fontWeight: 600 }}>Стать автором</Link>
           <Link href="/catalog" style={{ padding: '14px 32px', border: '1.5px solid #d4d0c8', borderRadius: '100px', textDecoration: 'none', color: '#1a1a1a', fontSize: '16px', fontWeight: 500 }}>Смотреть каталог</Link>
         </div>
       </section>
@@ -70,7 +70,7 @@ export default function HomePage() {
       <section style={{ padding:'clamp(40px, 10vw, 80px) clamp(16px, 5vw, 40px)', textAlign: 'center' }}>
         <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '16px' }}>Ты микро-автор?</h2>
         <p style={{ fontSize: '16px', color: '#7a7570', marginBottom: '32px' }}>Заполни анкету — и бизнесы сами найдут тебя.</p>
-        <Link href="/become-author" style={{ padding: '14px 40px', background: '#c17f3e', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '16px', fontWeight: 600 }}>Заполнить анкету</Link>
+        <Link href="/register" style={{ padding: '14px 40px', background: '#c17f3e', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '16px', fontWeight: 600 }}>Заполнить анкету</Link>
       </section>
 
       <footer style={{ borderTop: '1px solid #e8e6e1', padding:'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#9a9590' }}>
