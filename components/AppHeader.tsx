@@ -40,8 +40,10 @@ export default function AppHeader() {
       <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
 
       <div style={{ display:'flex', gap:'20px', alignItems:'center' }}>
-        <Link href="/catalog" style={{ fontSize:'14px', color:'#5a5650', textDecoration:'none' }}>Каталог</Link>
-        <Link href="/support" style={{ fontSize:'14px', color:'#5a5650', textDecoration:'none' }}>Поддержка</Link>
+        <span className="nav-links" style={{ display:'contents' }}>
+          <Link href="/catalog" style={{ fontSize:'14px', color:'#5a5650', textDecoration:'none' }}>Каталог</Link>
+          <Link href="/support" style={{ fontSize:'14px', color:'#5a5650', textDecoration:'none' }}>Поддержка</Link>
+        </span>
 
         {user ? (
           <div ref={menuRef} style={{ position:'relative' }}>

@@ -42,7 +42,7 @@ export default function HomePage() {
       <section className="hero-section" style={{ position: 'relative', overflow: 'hidden', minHeight: '600px', display: 'flex', alignItems: 'stretch' }}>
         {/* Левая колонка — текст */}
         <div className="hero-text" style={{ flex: '0 0 52%', padding: 'clamp(48px, 8vw, 80px) clamp(24px, 5vw, 60px) clamp(48px, 8vw, 80px) clamp(24px, 5vw, 80px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 1 }}>
-          <div style={{ display: 'inline-block', padding: '5px 16px', background: '#f0ede6', borderRadius: '100px', fontSize: '13px', color: '#7a7570', marginBottom: '24px', fontWeight: 500, width: 'fit-content' }}>
+          <div className="hero-pill" style={{ display: 'inline-block', padding: '5px 16px', background: '#f0ede6', borderRadius: '100px', fontSize: '13px', color: '#7a7570', marginBottom: '24px', fontWeight: 500, width: 'fit-content' }}>
             Площадка микро-авторов · от 300 до 30 000 подписчиков
           </div>
           <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(38px, 5.5vw, 68px)', fontWeight: 700, lineHeight: 0.95, color: '#1a1a1a', marginBottom: '24px', letterSpacing: '-1px' }}>
@@ -54,7 +54,7 @@ export default function HomePage() {
           <p style={{ fontSize: '14px', color: '#9a9590', maxWidth: '380px', marginBottom: '36px', lineHeight: 1.65 }}>
             Выбирайте авторов по городу, Instagram, профессии, хобби и темам, в которых они органичны.
           </p>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div className="hero-btns" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <Link href="/register" style={btnDark}>Стать автором — бесплатно</Link>
             <Link href="/catalog" style={btnOutline}>Смотреть каталог</Link>
           </div>
