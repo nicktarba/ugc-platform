@@ -39,9 +39,9 @@ export default function HomePage() {
       <AppHeader />
 
       {/* ═══ HERO ═══ */}
-      <section style={{ position: 'relative', overflow: 'hidden', minHeight: '600px', display: 'flex', alignItems: 'stretch' }}>
+      <section className="hero-section" style={{ position: 'relative', overflow: 'hidden', minHeight: '600px', display: 'flex', alignItems: 'stretch' }}>
         {/* Левая колонка — текст */}
-        <div style={{ flex: '0 0 52%', padding: 'clamp(48px, 8vw, 80px) clamp(24px, 5vw, 60px) clamp(48px, 8vw, 80px) clamp(24px, 5vw, 80px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 1 }}>
+        <div className="hero-text" style={{ flex: '0 0 52%', padding: 'clamp(48px, 8vw, 80px) clamp(24px, 5vw, 60px) clamp(48px, 8vw, 80px) clamp(24px, 5vw, 80px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 1 }}>
           <div style={{ display: 'inline-block', padding: '5px 16px', background: '#f0ede6', borderRadius: '100px', fontSize: '13px', color: '#7a7570', marginBottom: '24px', fontWeight: 500, width: 'fit-content' }}>
             Площадка микро-авторов · от 300 до 30 000 подписчиков
           </div>
@@ -62,7 +62,7 @@ export default function HomePage() {
         </div>
 
         {/* Правая колонка — фото + карточки */}
-        <div style={{ flex: '0 0 48%', position: 'relative', minHeight: '600px' }}>
+        <div className="hero-photo" style={{ flex: '0 0 48%', position: 'relative', minHeight: '600px' }}>
           {/* Фото */}
           <img
             src="/hero-author.png"

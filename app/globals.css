@@ -20,7 +20,15 @@ nav > div { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
   .bottom-tab-spacer { display:block; height:calc(54px + env(safe-area-inset-bottom)); }
 }
 
-/* Sidebar layout */
+/* Hero mobile */
+@media (max-width: 768px) {
+  .hero-section { display: block !important; min-height: auto !important; }
+  .hero-text { flex: none !important; padding: clamp(40px, 10vw, 60px) 20px !important; text-align: center; }
+  .hero-text .pill-wrap { justify-content: center; display: flex; }
+  .hero-text .btns { justify-content: center !important; }
+  .hero-text .hint { text-align: center; }
+  .hero-photo { display: none !important; }
+}
 .sidebar-layout { display:flex; min-height:100vh; }
 .sidebar { width:220px; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; background:#fff; border-right:1px solid #e8e6e1; display:flex; flex-direction:column; }
 .sidebar-content { flex:1; min-width:0; overflow-x:hidden; }
