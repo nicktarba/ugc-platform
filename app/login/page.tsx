@@ -1,14 +1,23 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const toast = useToast()
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (searchParams.get('reset') === 'success') {
+      toast.success('Пароль успешно обновлён — войди с новым паролем')
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,7 +55,10 @@ export default function LoginPage() {
               <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required placeholder="you@example.com" style={inp} />
             </div>
             <div>
-              <label style={lbl}>Пароль *</label>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
+                <label style={lbl}>Пароль *</label>
+                <Link href="/forgot-password" style={{ fontSize:'13px', color:'#7a7570', textDecoration:'none' }}>Забыл пароль?</Link>
+              </div>
               <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required placeholder="Твой пароль" style={inp} />
             </div>
 
@@ -59,5 +71,13 @@ export default function LoginPage() {
         </form>
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
