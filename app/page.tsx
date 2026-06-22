@@ -48,6 +48,18 @@ function HeroSlider() {
     setTimeout(() => { setI(((idx % n) + n) % n); setAnim(true) }, 50)
   }
 
+  // Автопереключение каждые 4 секунды
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAnim(false)
+      setTimeout(() => {
+        setI(prev => (prev + 1) % CASES.length)
+        setAnim(true)
+      }, 50)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [])
+
   const c = CASES[i]
 
   return (
@@ -170,7 +182,7 @@ export default function HomePage() {
     <main style={{ background: '#FBF7F0', minHeight: '100vh', fontFamily: "'Manrope', system-ui, sans-serif" }}>
 
       {/* ═══ HEADER ═══ */}
-      <header style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '26px 64px', borderBottom: '1px solid rgba(42,39,35,.06)', background: '#FBF7F0' }}>
+      <header style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 64px', borderBottom: '1px solid rgba(42,39,35,.06)', background: '#FBF7F0' }}>
         <Link href="/" style={{ fontSize: '23px', fontWeight: 800, letterSpacing: '-0.02em', color: '#2A2723', textDecoration: 'none' }}>
           ugc<span style={{ color: '#C56A43' }}>market</span>
         </Link>
@@ -185,7 +197,7 @@ export default function HomePage() {
       {/* ═══ HERO ═══ */}
       <section style={{ position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: '-120px', right: '-80px', width: '620px', height: '620px', borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(197,106,67,.10), rgba(197,106,67,0))', pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 472px', gap: '60px', padding: '68px 64px 80px' }}>
+        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 472px', gap: '60px', padding: '44px 64px 52px' }}>
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingTop: '22px' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', padding: '9px 15px', background: '#F2E7D7', border: '1px solid #E7D7BF', borderRadius: '100px', fontSize: '13.5px', fontWeight: 600, color: '#7a5a3f' }}>
@@ -193,21 +205,21 @@ export default function HomePage() {
               Площадка микро-авторов · от 300 до 30 000 подписчиков
             </div>
 
-            <h1 style={{ margin: '28px 0 0', fontSize: '70px', fontWeight: 800, lineHeight: 1.0, letterSpacing: '-0.025em', color: '#2A2723' }}>
+            <h1 style={{ margin: '20px 0 0', fontSize: '64px', fontWeight: 800, lineHeight: 1.0, letterSpacing: '-0.025em', color: '#2A2723' }}>
               Живые люди<br />
               с{' '}
               <span style={{ fontFamily: "'Pacifico', cursive", fontWeight: 400, fontSize: '1.04em', color: '#C56A43', display: 'inline-block', transform: 'rotate(-4deg)', lineHeight: 0.8, padding: '0 0.06em 0 0.02em' }}>тёплой</span>
               <br />аудиторией
             </h1>
 
-            <p style={{ margin: '32px 0 0', maxWidth: '540px', fontSize: '18.5px', fontWeight: 500, lineHeight: 1.55, color: '#4a443c' }}>
+            <p style={{ margin: '20px 0 0', maxWidth: '540px', fontSize: '17px', fontWeight: 500, lineHeight: 1.55, color: '#4a443c' }}>
               Ценность автора определяется не количеством подписчиков, а совпадением его стиля жизни, аудитории и контекста с задачами бизнеса.
             </p>
-            <p style={{ margin: '16px 0 0', maxWidth: '540px', fontSize: '15.5px', fontWeight: 500, lineHeight: 1.55, color: '#8a8175' }}>
+            <p style={{ margin: '10px 0 0', maxWidth: '540px', fontSize: '14px', fontWeight: 500, lineHeight: 1.55, color: '#8a8175' }}>
               Выбирайте авторов по городу, профессии, хобби, темам и стилю жизни
             </p>
 
-            <div style={{ display: 'flex', gap: '14px', marginTop: '38px' }}>
+            <div style={{ display: 'flex', gap: '14px', marginTop: '28px' }}>
               <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '16px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '17px 28px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 8px 22px rgba(197,106,67,.28)' }}>Стать автором — бесплатно</Link>
               <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '16px', fontWeight: 700, color: '#2A2723', padding: '17px 26px', borderRadius: '14px', border: '1.5px solid #DCCDB6', textDecoration: 'none' }}>Смотреть каталог</Link>
             </div>
