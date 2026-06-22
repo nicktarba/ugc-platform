@@ -3,7 +3,31 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import AppHeader from '@/components/AppHeader'
+
+const CASES = [
+  {
+    brandInitial: 'B', brand: 'Botanica', brandKind: 'натуральная косметика',
+    request: 'Ищем автора под бьюти-аудиторию для крема на натуральных маслах',
+    tags: ['Москва', 'Бьюти', 'Женщины 22–35'],
+    author: 'Алина', role: 'Москва · бьюти-мастер', followers: '600 подписчиков',
+    snippet: 'Снимает свою работу и делится полезными лайфхаками по уходу и косметике',
+    audienceLabel: 'Её аудитория',
+    audience: 'Женщины 22–35 лет · уход за собой, косметика и lifestyle-контент',
+    matchPct: 94,
+    status: 'Подходит — её аудитория совпадает с задачей, а контент органичен для рекламы натурального бьюти-продукта',
+  },
+  {
+    brandInitial: 'D', brand: 'DRIVE Шины', brandKind: 'магазин шин и автотоваров',
+    request: 'Ищем автора под мужскую автомобильную аудиторию',
+    tags: ['Владивосток', 'Авто', 'Мужчины 18–27'],
+    author: 'Артём', role: 'Владивосток · автоэнтузиаст, 21 год', followers: '850 подписчиков',
+    snippet: 'Снимает доработки, сборку и развитие своего автопроекта',
+    audienceLabel: 'Его аудитория',
+    audience: 'Мужчины 18–27 лет, Владивосток · авто, тюнинг и доработки',
+    matchPct: 91,
+    status: 'Подходит — релевантный микро-автор с понятным контекстом, а не крупный автоблогер',
+  },
+]
 
 const AUTHORS = [
   { initial: 'М', bg: '#fdf3e7', color: '#c17f3e', name: 'Михаил Т.', city: 'Краснодар', role: 'Автолюбитель · строит гоночный корч', desc: 'Снимает процесс сборки машины, тест-драйвы и покатушки. Аудитория — мужчины 22–35, любители авто и механики.', inst: '7 200', tg: '4 100', tags: ['Автосервис', 'Детейлинг', 'Шины'], extra: '★ 3 сделки', extraStyle: { background: '#fdf3e7', border: '1px solid #f5dcb8', color: '#c17f3e' } },
@@ -13,6 +37,115 @@ const AUTHORS = [
 ]
 
 const TAG = { padding: '3px 9px', background: '#f0ede6', borderRadius: '100px', fontSize: '11px', color: '#7a7570', fontWeight: 500 } as const
+
+function HeroSlider() {
+  const [i, setI] = useState(0)
+  const [anim, setAnim] = useState(true)
+
+  const go = (idx: number) => {
+    const n = CASES.length
+    setAnim(false)
+    setTimeout(() => { setI(((idx % n) + n) % n); setAnim(true) }, 50)
+  }
+
+  const c = CASES[i]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ animation: anim ? 'ugcRise .45s ease both' : 'none' }}>
+        {/* Запрос бренда */}
+        <div style={{ background: '#2A2723', borderRadius: '22px', padding: '19px 21px', boxShadow: '0 16px 38px rgba(42,39,35,.16)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', fontWeight: 600, letterSpacing: '0.06em', color: '#b7a690', textTransform: 'uppercase' as const }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C56A43' }} />
+            Запрос бренда
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginTop: '13px' }}>
+            <span style={{ flexShrink: 0, width: '38px', height: '38px', borderRadius: '11px', background: '#C56A43', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 800 }}>{c.brandInitial}</span>
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: 800, color: '#F6EEE2' }}>{c.brand}</div>
+              <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#b7a690', marginTop: '1px' }}>{c.brandKind}</div>
+            </div>
+          </div>
+          <p style={{ margin: '14px 0 13px', fontSize: '15.5px', fontWeight: 600, lineHeight: 1.4, color: '#ece2d4' }}>{c.request}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+            {c.tags.map(tag => (
+              <span key={tag} style={{ fontSize: '12.5px', fontWeight: 600, color: '#e7dccd', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.10)', padding: '6px 12px', borderRadius: '9px' }}>{tag}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Коннектор */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '13px 0' }}>
+          {[0, 0.2, 0.4].map((delay, idx) => (
+            <span key={idx} style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#C56A43', animation: `ugcPulse 1.4s ease-in-out infinite ${delay}s` }} />
+          ))}
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#8a8175', marginLeft: '4px' }}>Платформа подобрала автора</span>
+        </div>
+
+        {/* Карточка автора */}
+        <div style={{ background: '#FFFFFF', border: '1px solid #EFE4D3', borderRadius: '22px', padding: '19px', boxShadow: '0 20px 46px rgba(42,39,35,.13)' }}>
+          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+            <div style={{ width: '68px', height: '68px', borderRadius: '17px', flexShrink: 0, background: 'repeating-linear-gradient(135deg, #ECDFCB 0 7px, #F4EADA 7px 14px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+              <span style={{ fontSize: '8px', color: '#b09a7e', paddingBottom: '5px', fontFamily: 'monospace' }}>фото</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '19px', fontWeight: 800, color: '#2A2723' }}>{c.author}</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#7a5a3f', background: '#F2E7D7', padding: '3px 9px', borderRadius: '7px' }}>Телеграм</span>
+              </div>
+              <div style={{ marginTop: '4px', fontSize: '14px', fontWeight: 600, color: '#6b6358' }}>{c.role}</div>
+              <div style={{ marginTop: '2px', fontSize: '14px', fontWeight: 700, color: '#C56A43' }}>{c.followers}</div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '13px', fontSize: '13.5px', fontWeight: 600, lineHeight: 1.4, color: '#5e574d' }}>{c.snippet}</div>
+
+          <div style={{ display: 'flex', gap: '8px', marginTop: '13px' }}>
+            {['Reels', '', ''].map((label, idx) => (
+              <div key={idx} style={{ flex: 1, height: '56px', borderRadius: '11px', background: 'repeating-linear-gradient(135deg, #ECDFCB 0 7px, #F4EADA 7px 14px)', display: 'flex', alignItems: 'flex-end', padding: '6px' }}>
+                {label && <span style={{ fontSize: '8px', color: '#b09a7e', fontFamily: 'monospace' }}>{label}</span>}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '15px', padding: '14px', background: '#FBF6EE', borderRadius: '14px' }}>
+            <div style={{ fontSize: '11.5px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' as const, color: '#9a8f7e' }}>{c.audienceLabel}</div>
+            <div style={{ marginTop: '6px', fontSize: '14.5px', fontWeight: 600, lineHeight: 1.45, color: '#463f37' }}>{c.audience}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#6b6358' }}>Совпадение с задачей бренда</span>
+              <span style={{ fontSize: '15px', fontWeight: 800, color: '#C56A43' }}>{c.matchPct}%</span>
+            </div>
+            <div style={{ marginTop: '8px', height: '7px', borderRadius: '99px', background: '#EEE2D0', overflow: 'hidden' }}>
+              <div style={{ width: `${c.matchPct}%`, height: '100%', borderRadius: '99px', background: 'linear-gradient(90deg, #D88A52, #C56A43)' }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '15px', padding: '13px 15px', background: '#EEF1E2', border: '1px solid #DDE2C7', borderRadius: '14px' }}>
+            <span style={{ flexShrink: 0, width: '22px', height: '22px', borderRadius: '50%', background: '#7E8B4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, marginTop: '1px' }}>✓</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.4, color: '#4d5234' }}>{c.status}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Контролы слайдера */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '18px', padding: '0 2px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          {CASES.map((_, idx) => (
+            <span key={idx} onClick={() => go(idx)} style={{ height: '8px', borderRadius: '99px', cursor: 'pointer', transition: 'width .3s ease, background .3s ease', width: idx === i ? '22px' : '8px', background: idx === i ? '#C56A43' : '#D8C9B4', display: 'inline-block' }} />
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '13px' }}>
+          <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#9a8f7e', letterSpacing: '0.02em' }}>Кейс {i + 1} / {CASES.length}</span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {[['‹', i - 1], ['›', i + 1]].map(([label, idx]) => (
+              <button key={label as string} onClick={() => go(idx as number)} style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1.5px solid #DCCDB6', background: '#FBF7F0', color: '#2A2723', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, fontFamily: 'inherit' }}>{label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function HomePage() {
   const router = useRouter()
@@ -28,150 +161,118 @@ export default function HomePage() {
     })
   }, [router])
 
-  if (checking) return <div style={{ minHeight: '100vh', background: '#fafaf9' }} />
+  if (checking) return <div style={{ minHeight: '100vh', background: '#FBF7F0' }} />
 
-  const btnDark = { padding: '13px 28px', background: '#1a1a1a', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '15px', fontWeight: 600, display: 'inline-block' } as const
-  const btnOutline = { padding: '13px 28px', border: '1.5px solid #d4d0c8', borderRadius: '100px', textDecoration: 'none', color: '#1a1a1a', fontSize: '15px', fontWeight: 500, display: 'inline-block', background: '#fff' } as const
   const btnAmber = { padding: '13px 28px', background: '#c17f3e', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '15px', fontWeight: 600, display: 'inline-block' } as const
+  const btnOutlineSmall = { padding: '13px 28px', border: '1.5px solid #DCCDB6', borderRadius: '100px', textDecoration: 'none', color: '#2A2723', fontSize: '15px', fontWeight: 600, display: 'inline-block', background: 'transparent' } as const
 
   return (
-    <main style={{ background: '#fafaf9', minHeight: '100vh' }}>
-      <AppHeader />
+    <main style={{ background: '#FBF7F0', minHeight: '100vh', fontFamily: "'Manrope', system-ui, sans-serif" }}>
+
+      {/* ═══ HEADER ═══ */}
+      <header style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '26px 64px', borderBottom: '1px solid rgba(42,39,35,.06)', background: '#FBF7F0' }}>
+        <Link href="/" style={{ fontSize: '23px', fontWeight: 800, letterSpacing: '-0.02em', color: '#2A2723', textDecoration: 'none' }}>
+          ugc<span style={{ color: '#C56A43' }}>market</span>
+        </Link>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
+          <Link href="/catalog" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Каталог</Link>
+          <Link href="/support" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Поддержка</Link>
+          <Link href="/login" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Войти</Link>
+          <Link href="/register" style={{ fontSize: '15px', fontWeight: 700, color: '#2A2723', textDecoration: 'none', padding: '11px 20px', border: '1.5px solid #E0D2BC', borderRadius: '12px' }}>Регистрация</Link>
+        </nav>
+      </header>
 
       {/* ═══ HERO ═══ */}
-      <section className="hero-section" style={{ position: 'relative', overflow: 'hidden', minHeight: '600px', display: 'flex', alignItems: 'stretch' }}>
-        {/* Левая колонка — текст */}
-        <div className="hero-text" style={{ flex: '0 0 52%', padding: 'clamp(48px, 8vw, 80px) clamp(24px, 5vw, 60px) clamp(48px, 8vw, 80px) clamp(24px, 5vw, 80px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', zIndex: 1 }}>
-          <div className="hero-pill" style={{ display: 'inline-block', padding: '5px 16px', background: '#f0ede6', borderRadius: '100px', fontSize: '13px', color: '#7a7570', marginBottom: '24px', fontWeight: 500, width: 'fit-content' }}>
-            Площадка микро-авторов · от 300 до 30 000 подписчиков
-          </div>
-          <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(38px, 5.5vw, 68px)', fontWeight: 700, lineHeight: 0.95, color: '#1a1a1a', marginBottom: '24px', letterSpacing: '-1px' }}>
-            Живые люди<br />с <span style={{ fontStyle: 'italic', color: '#c17f3e' }}>тёплой</span><br />аудиторией
-          </h1>
-          <p style={{ fontSize: '16px', color: '#5a5650', maxWidth: '420px', marginBottom: '12px', lineHeight: 1.75 }}>
-            Ценность автора определяется не количеством подписчиков, а совпадением его стиля жизни, аудитории и контекста с задачами бизнеса.
-          </p>
-          <p style={{ fontSize: '14px', color: '#9a9590', maxWidth: '380px', marginBottom: '36px', lineHeight: 1.65 }}>
-            Выбирайте авторов по городу, Instagram, профессии, хобби и темам, в которых они органичны.
-          </p>
-          <div className="hero-btns" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Link href="/register" style={btnDark}>Стать автором — бесплатно</Link>
-            <Link href="/catalog" style={btnOutline}>Смотреть каталог</Link>
-          </div>
-          <p style={{ fontSize: '12px', color: '#b0ada8', marginTop: '16px' }}>Уже 200+ авторов · Москва, Питер, регионы</p>
-        </div>
+      <section style={{ position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '-120px', right: '-80px', width: '620px', height: '620px', borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(197,106,67,.10), rgba(197,106,67,0))', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 472px', gap: '60px', padding: '68px 64px 80px' }}>
 
-        {/* Правая колонка — фото + карточки */}
-        <div className="hero-photo" style={{ flex: '0 0 48%', position: 'relative', minHeight: '600px' }}>
-          {/* Фото */}
-          <img
-            src="/hero-author.png"
-            alt=""
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: '30% top' }}
-          />
-          {/* Лёгкий градиент слева чтобы фото плавно переходило */}
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, #fafaf9 0%, transparent 18%)' }} />
-
-          {/* Карточка — запрос от бизнеса */}
-          <div style={{ position: 'absolute', top: '10%', left: '4%', background: '#fff', borderRadius: '16px', padding: '16px 20px', boxShadow: '0 4px 24px rgba(0,0,0,0.10)', minWidth: '220px', zIndex: 2 }}>
-            <div style={{ fontSize: '12px', fontWeight: 600, color: '#9a9590', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Запрос от бизнеса</div>
-            {[
-              ['Город', 'Москва'],
-              ['Ниша', 'Косметика'],
-              ['Бюджет', '7 000 ₽ или бартер'],
-              ['Аудитория', 'Женщины 22–35'],
-              ['Формат', 'Reels / Фото'],
-            ].map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', fontSize: '13px', marginBottom: '6px' }}>
-                <span style={{ color: '#9a9590' }}>{k}</span>
-                <span style={{ color: '#1a1a1a', fontWeight: 500 }}>{v}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Карточка — автор */}
-          <div style={{ position: 'absolute', bottom: '8%', right: '4%', background: '#fff', borderRadius: '16px', padding: '16px 20px', boxShadow: '0 4px 24px rgba(0,0,0,0.10)', minWidth: '220px', zIndex: 2 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#fdf3e7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, color: '#c17f3e', flexShrink: 0 }}>А</div>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a1a1a' }}>Алина · Москва</div>
-                <div style={{ fontSize: '12px', color: '#9a9590' }}>Бьюти-мастер · 600 подп.</div>
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingTop: '22px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', padding: '9px 15px', background: '#F2E7D7', border: '1px solid #E7D7BF', borderRadius: '100px', fontSize: '13.5px', fontWeight: 600, color: '#7a5a3f' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#C56A43', flexShrink: 0 }} />
+              Площадка микро-авторов · от 300 до 30 000 подписчиков
             </div>
-            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '10px' }}>
-              {['бьюти', 'уход', 'lifestyle'].map(t => (
-                <span key={t} style={{ padding: '3px 9px', background: '#f0ede6', borderRadius: '100px', fontSize: '11px', color: '#7a7570', fontWeight: 500 }}>{t}</span>
-              ))}
-            </div>
-            <div style={{ padding: '8px 12px', background: '#fdf3e7', borderRadius: '10px', fontSize: '13px', color: '#c17f3e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>✓</span> Подходит для задачи
+
+            <h1 style={{ margin: '28px 0 0', fontSize: '70px', fontWeight: 800, lineHeight: 1.0, letterSpacing: '-0.025em', color: '#2A2723' }}>
+              Живые люди<br />
+              с{' '}
+              <span style={{ fontFamily: "'Pacifico', cursive", fontWeight: 400, fontSize: '1.04em', color: '#C56A43', display: 'inline-block', transform: 'rotate(-4deg)', lineHeight: 0.8, padding: '0 0.06em 0 0.02em' }}>тёплой</span>
+              <br />аудиторией
+            </h1>
+
+            <p style={{ margin: '32px 0 0', maxWidth: '540px', fontSize: '18.5px', fontWeight: 500, lineHeight: 1.55, color: '#4a443c' }}>
+              Ценность автора определяется не количеством подписчиков, а совпадением его стиля жизни, аудитории и контекста с задачами бизнеса.
+            </p>
+            <p style={{ margin: '16px 0 0', maxWidth: '540px', fontSize: '15.5px', fontWeight: 500, lineHeight: 1.55, color: '#8a8175' }}>
+              Выбирайте авторов по городу, профессии, хобби, темам и стилю жизни
+            </p>
+
+            <div style={{ display: 'flex', gap: '14px', marginTop: '38px' }}>
+              <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '16px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '17px 28px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 8px 22px rgba(197,106,67,.28)' }}>Стать автором — бесплатно</Link>
+              <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '16px', fontWeight: 700, color: '#2A2723', padding: '17px 26px', borderRadius: '14px', border: '1.5px solid #DCCDB6', textDecoration: 'none' }}>Смотреть каталог</Link>
             </div>
           </div>
 
-          {/* Бейдж совпадения */}
-          <div style={{ position: 'absolute', bottom: '36%', left: '8%', background: '#fff', borderRadius: '50%', width: '90px', height: '90px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.10)', zIndex: 2 }}>
-            <div style={{ fontSize: '11px', color: '#9a9590', textAlign: 'center', lineHeight: 1.3, marginBottom: '2px' }}>Попадание<br />в ЦА</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: '#c17f3e' }}>97%</div>
-          </div>
+          <HeroSlider />
         </div>
       </section>
 
       {/* ═══ ДЛЯ АВТОРОВ ═══ */}
-      <section style={{ padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 40px)', maxWidth: '960px', margin: '0 auto' }}>
+      <section style={{ padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 64px)', maxWidth: '1200px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <div style={{ display: 'inline-block', padding: '5px 14px', background: '#f0ede6', borderRadius: '100px', fontSize: '12px', color: '#7a7570', fontWeight: 500, marginBottom: '14px' }}>Для авторов</div>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(26px, 5vw, 36px)', fontWeight: 700, marginBottom: '12px', lineHeight: 1.2 }}>
+          <div style={{ display: 'inline-block', padding: '5px 14px', background: '#F2E7D7', border: '1px solid #E7D7BF', borderRadius: '100px', fontSize: '12px', color: '#7a5a3f', fontWeight: 600, marginBottom: '14px' }}>Для авторов</div>
+          <h2 style={{ fontSize: 'clamp(26px, 5vw, 36px)', fontWeight: 800, marginBottom: '12px', lineHeight: 1.15, color: '#2A2723' }}>
             У тебя 500 подписчиков?<br />
-            <span style={{ color: '#c17f3e' }}>Это уже аудитория для бизнеса.</span>
+            <span style={{ color: '#C56A43' }}>Это уже аудитория для бизнеса.</span>
           </h2>
-          <p style={{ fontSize: '15px', color: '#7a7570', maxWidth: '500px', margin: '0 auto', lineHeight: 1.7 }}>
+          <p style={{ fontSize: '15px', fontWeight: 500, color: '#8a8175', maxWidth: '500px', margin: '0 auto', lineHeight: 1.7 }}>
             Мы работаем с авторами от 300 до 30 000 подписчиков — бизнес ищёт живых людей, а не миллионников.
           </p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(420px, 100%), 1fr))', gap: '12px', marginBottom: '28px' }}>
           {AUTHORS.map(a => (
-            <div key={a.name} style={{ background: '#fff', border: '1px solid #e8e6e1', borderRadius: '18px', padding: '20px', display: 'flex', gap: '14px' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: a.bg, color: a.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '17px', fontWeight: 700, flexShrink: 0, alignSelf: 'flex-start', marginTop: '2px' }}>{a.initial}</div>
+            <div key={a.name} style={{ background: '#fff', border: '1px solid #EFE4D3', borderRadius: '18px', padding: '20px', display: 'flex', gap: '14px' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: a.bg, color: a.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '17px', fontWeight: 800, flexShrink: 0, alignSelf: 'flex-start', marginTop: '2px' }}>{a.initial}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#1a1a1a', marginBottom: '2px' }}>{a.name} · {a.city}</div>
-                <div style={{ fontSize: '12px', color: '#9a9590', marginBottom: '8px' }}>{a.role}</div>
-                <p style={{ fontSize: '13px', color: '#5a5650', lineHeight: 1.6, marginBottom: '10px' }}>{a.desc}</p>
-                <div style={{ fontSize: '12px', color: '#9a9590', marginBottom: '8px' }}>
-                  {a.inst && <><strong style={{ color: '#1a1a1a' }}>{a.inst}</strong> inst</>}
-                  {a.tg && <> · <strong style={{ color: '#1a1a1a' }}>{a.tg}</strong> tg</>}
-                  {a.stories && <> · сторис <strong style={{ color: '#1a1a1a' }}>{a.stories}</strong></>}
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#2A2723', marginBottom: '2px' }}>{a.name} · {a.city}</div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#9a8f7e', marginBottom: '8px' }}>{a.role}</div>
+                <p style={{ fontSize: '13px', fontWeight: 500, color: '#5e574d', lineHeight: 1.6, marginBottom: '10px' }}>{a.desc}</p>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#9a8f7e', marginBottom: '8px' }}>
+                  {a.inst && <><strong style={{ color: '#2A2723' }}>{a.inst}</strong> inst</>}
+                  {(a as any).tg && <> · <strong style={{ color: '#2A2723' }}>{(a as any).tg}</strong> tg</>}
+                  {(a as any).stories && <> · сторис <strong style={{ color: '#2A2723' }}>{(a as any).stories}</strong></>}
                 </div>
                 <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                  {a.tags.map(t => <span key={t} style={TAG}>{t}</span>)}
-                  {a.extra && <span style={{ ...TAG, ...a.extraStyle }}>{a.extra}</span>}
+                  {a.tags.map(t => <span key={t} style={{ padding: '3px 9px', background: '#F2E7D7', borderRadius: '100px', fontSize: '11px', color: '#7a5a3f', fontWeight: 600 }}>{t}</span>)}
+                  {a.extra && <span style={{ padding: '3px 9px', borderRadius: '100px', fontSize: '11px', fontWeight: 600, ...a.extraStyle }}>{a.extra}</span>}
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        <div style={{ textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/register" style={btnDark}>Заполнить анкету бесплатно</Link>
-          <Link href="/catalog" style={btnOutline}>Смотреть всех в каталоге</Link>
+        <div style={{ textAlign: 'center', display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '14px 28px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 6px 18px rgba(197,106,67,.22)' }}>Заполнить анкету бесплатно</Link>
+          <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#2A2723', padding: '14px 26px', borderRadius: '14px', border: '1.5px solid #DCCDB6', textDecoration: 'none' }}>Смотреть всех в каталоге</Link>
         </div>
       </section>
 
       {/* ═══ ДЛЯ БИЗНЕСА ═══ */}
-      <section style={{ background: '#1a1a1a', padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 40px)' }}>
-        <div style={{ maxWidth: '960px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '48px', alignItems: 'center' }}>
+      <section style={{ background: '#2A2723', padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 64px)' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '48px', alignItems: 'center' }}>
           <div>
-            <div style={{ display: 'inline-block', padding: '5px 14px', background: 'rgba(255,255,255,.1)', borderRadius: '100px', fontSize: '12px', color: '#c0bdb8', fontWeight: 500, marginBottom: '18px' }}>Для бизнеса</div>
-            <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(26px, 5vw, 34px)', fontWeight: 700, color: '#fff', marginBottom: '14px', lineHeight: 1.2 }}>
+            <div style={{ display: 'inline-block', padding: '5px 14px', background: 'rgba(255,255,255,.1)', borderRadius: '100px', fontSize: '12px', color: '#b7a690', fontWeight: 600, marginBottom: '18px' }}>Для бизнеса</div>
+            <h2 style={{ fontSize: 'clamp(26px, 5vw, 34px)', fontWeight: 800, color: '#F6EEE2', marginBottom: '14px', lineHeight: 1.2 }}>
               Микро-блогер продаёт лучше, чем миллионник
             </h2>
-            <p style={{ fontSize: '15px', color: '#9a9590', lineHeight: 1.75, marginBottom: '10px' }}>
+            <p style={{ fontSize: '15px', fontWeight: 500, color: '#b7a690', lineHeight: 1.75, marginBottom: '10px' }}>
               Аудитория от 300 до 30 000 — живая, лояльная, доверяет автору. Реклама выглядит как рекомендация друга, а не интеграция.
             </p>
-            <p style={{ fontSize: '14px', color: '#7a7570', lineHeight: 1.65, marginBottom: '28px' }}>
-              Найдите автора по нише, городу и аудитории — и договоритесь напрямую без агентств.
+            <p style={{ fontSize: '14px', fontWeight: 500, color: '#8a8175', lineHeight: 1.65, marginBottom: '28px' }}>
+              Найдите автора по нише, городу и аудитории — договоритесь напрямую без агентств.
             </p>
-            <Link href="/catalog" style={btnAmber}>Открыть каталог авторов →</Link>
+            <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '15px 26px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 8px 22px rgba(197,106,67,.28)' }}>Открыть каталог авторов →</Link>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {[
@@ -179,11 +280,11 @@ export default function HomePage() {
               { icon: '💬', title: 'Напрямую, без посредников', text: 'Пишете сами, договариваетесь в чате, никаких агентств' },
               { icon: '💰', title: 'Бюджет от 1 000 ₽ или бартер', text: 'Микро-авторы открыты к гибким условиям' },
             ].map(item => (
-              <div key={item.title} style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '14px', padding: '16px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+              <div key={item.title} style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.10)', borderRadius: '14px', padding: '16px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: '22px', flexShrink: 0 }}>{item.icon}</div>
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>{item.title}</div>
-                  <div style={{ fontSize: '13px', color: '#9a9590', lineHeight: 1.5 }}>{item.text}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#F6EEE2', marginBottom: '4px' }}>{item.title}</div>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: '#9a8f7e', lineHeight: 1.5 }}>{item.text}</div>
                 </div>
               </div>
             ))}
@@ -192,11 +293,11 @@ export default function HomePage() {
       </section>
 
       {/* ═══ КАК РАБОТАЕТ ═══ */}
-      <section style={{ background: '#fff', borderTop: '1px solid #e8e6e1', borderBottom: '1px solid #e8e6e1', padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 40px)' }}>
+      <section style={{ background: '#fff', borderTop: '1px solid #EFE4D3', borderBottom: '1px solid #EFE4D3', padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 64px)' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-            <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(24px, 5vw, 32px)', fontWeight: 700, marginBottom: '10px' }}>Как это работает</h2>
-            <p style={{ fontSize: '15px', color: '#7a7570' }}>От регистрации до первого предложения — за несколько минут</p>
+            <h2 style={{ fontSize: 'clamp(24px, 5vw, 32px)', fontWeight: 800, marginBottom: '10px', color: '#2A2723' }}>Как это работает</h2>
+            <p style={{ fontSize: '15px', fontWeight: 500, color: '#8a8175' }}>От регистрации до первого предложения — за несколько минут</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
             {[
@@ -206,31 +307,32 @@ export default function HomePage() {
               { n: '4', title: 'Договорись в чате', text: 'Условия, бюджет, сроки' },
             ].map(s => (
               <div key={s.n} style={{ textAlign: 'center', padding: '18px 12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ede6', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontFamily: 'Fraunces, serif', fontSize: '17px', fontWeight: 700, color: '#c17f3e' }}>{s.n}</div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a1a', marginBottom: '5px' }}>{s.title}</div>
-                <div style={{ fontSize: '12px', color: '#9a9590', lineHeight: 1.5 }}>{s.text}</div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#F2E7D7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '17px', fontWeight: 800, color: '#C56A43' }}>{s.n}</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#2A2723', marginBottom: '5px' }}>{s.title}</div>
+                <div style={{ fontSize: '12px', fontWeight: 500, color: '#9a8f7e', lineHeight: 1.5 }}>{s.text}</div>
               </div>
             ))}
           </div>
           <div style={{ textAlign: 'center', marginTop: '28px' }}>
-            <Link href="/register" style={btnDark}>Зарегистрироваться сейчас →</Link>
+            <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '14px 28px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 6px 18px rgba(197,106,67,.22)' }}>Зарегистрироваться сейчас →</Link>
           </div>
         </div>
       </section>
 
       {/* ═══ ФИНАЛЬНЫЙ CTA ═══ */}
-      <section style={{ padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 40px)', textAlign: 'center' }}>
+      <section style={{ padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 64px)', textAlign: 'center' }}>
         <div style={{ maxWidth: '480px', margin: '0 auto' }}>
-          <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(24px, 5vw, 32px)', fontWeight: 700, color: '#1a1a1a', marginBottom: '10px' }}>Ты микро-автор?</h2>
-          <p style={{ fontSize: '15px', color: '#7a7570', marginBottom: '26px', lineHeight: 1.7 }}>Заполни анкету — бизнесы сами найдут тебя. Бесплатно, без скрытых условий.</p>
-          <Link href="/register" style={{ ...btnAmber, fontSize: '16px', padding: '14px 40px' }}>Заполнить анкету</Link>
+          <h2 style={{ fontSize: 'clamp(24px, 5vw, 32px)', fontWeight: 800, color: '#2A2723', marginBottom: '10px' }}>Ты микро-автор?</h2>
+          <p style={{ fontSize: '15px', fontWeight: 500, color: '#8a8175', marginBottom: '26px', lineHeight: 1.7 }}>Заполни анкету — бизнесы сами найдут тебя. Бесплатно, без скрытых условий.</p>
+          <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '16px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '16px 40px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 8px 22px rgba(197,106,67,.28)' }}>Заполнить анкету</Link>
         </div>
       </section>
 
-      <footer style={{ borderTop: '1px solid #e8e6e1', padding: 'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#9a9590' }}>
-        <span style={{ fontFamily: 'Fraunces, serif', fontWeight: 700, color: '#1a1a1a' }}>ugcmarket</span>
+      <footer style={{ borderTop: '1px solid #EFE4D3', padding: 'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 64px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: 600, color: '#9a8f7e' }}>
+        <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em', color: '#2A2723' }}>ugc<span style={{ color: '#C56A43' }}>market</span></span>
         <span>Площадка микро-авторов</span>
       </footer>
+
     </main>
   )
 }
