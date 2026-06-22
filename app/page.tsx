@@ -208,7 +208,7 @@ export default function HomePage() {
             <h1 style={{ margin: '20px 0 0', fontSize: '64px', fontWeight: 800, lineHeight: 1.0, letterSpacing: '-0.025em', color: '#2A2723' }}>
               Живые люди<br />
               с{' '}
-              <span style={{ fontFamily: "'Pacifico', cursive", fontWeight: 400, fontSize: '1.04em', color: '#C56A43', display: 'inline-block', transform: 'rotate(-4deg)', lineHeight: 0.8, padding: '0 0.06em 0 0.02em' }}>тёплой</span>
+              <span style={{ fontFamily: "'Great Vibes', cursive", fontWeight: 400, fontSize: '1.2em', color: '#C56A43', display: 'inline-block', transform: 'rotate(-2deg)', lineHeight: 0.8, padding: '0 0.06em 0 0.02em' }}>тёплой</span>
               <br />аудиторией
             </h1>
 
