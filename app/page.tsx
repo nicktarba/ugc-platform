@@ -53,84 +53,78 @@ function HeroSlider() {
   const c = cases[i]
 
   return (
-    <div style={{ position: 'relative' }}>
-      {/* Декоративные мини-карточки вокруг слайдера */}
-      <div style={{ position: 'absolute', top: '-18px', right: '-12px', width: '72px', height: '96px', borderRadius: '12px', background: 'repeating-linear-gradient(135deg, #E8D9C4 0 8px, #F0E5D4 8px 16px)', boxShadow: '0 6px 16px rgba(42,39,35,.10)', transform: 'rotate(4deg)', zIndex: 1, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '5px 6px', background: 'linear-gradient(transparent, rgba(42,39,35,.5))' }}>
-          <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: '7px', fontWeight: 700, color: '#fff' }}>▶ Reels</span>
+    <div style={{ position: 'relative', background: '#F2E9DC', borderRadius: '24px', padding: '24px', border: '1px solid #E7D7BF' }}>
+
+      {/* Декоративные мини-карточки — внутри контейнера, в углах */}
+      <div style={{ position: 'absolute', top: '12px', right: '12px', width: '52px', height: '72px', borderRadius: '10px', background: 'repeating-linear-gradient(135deg, #E8D9C4 0 7px, #F0E5D4 7px 14px)', overflow: 'hidden', opacity: 0.7 }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 5px', background: 'rgba(42,39,35,.35)' }}>
+          <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: '6px', fontWeight: 700, color: '#fff' }}>▶ Reels</span>
         </div>
       </div>
-      <div style={{ position: 'absolute', top: '12px', left: '-18px', width: '64px', height: '64px', borderRadius: '10px', background: 'repeating-linear-gradient(45deg, #DDD0BB 0 7px, #EAE0CE 7px 14px)', boxShadow: '0 4px 14px rgba(42,39,35,.08)', transform: 'rotate(-5deg)', zIndex: 1 }} />
-      <div style={{ position: 'absolute', bottom: '80px', left: '-22px', width: '52px', height: '52px', borderRadius: '50%', background: 'repeating-linear-gradient(135deg, #ECDFCB 0 6px, #F4EADA 6px 12px)', border: '2.5px solid #C56A43', boxShadow: '0 4px 12px rgba(42,39,35,.08)', zIndex: 1 }} />
-      <div style={{ position: 'absolute', bottom: '60px', right: '-16px', width: '60px', height: '78px', borderRadius: '10px', background: 'repeating-linear-gradient(135deg, #D8CCBA 0 7px, #E8DECE 7px 14px)', boxShadow: '0 5px 14px rgba(42,39,35,.08)', transform: 'rotate(-3deg)', zIndex: 1, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 5px', background: 'linear-gradient(transparent, rgba(42,39,35,.4))' }}>
-          <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: '7px', fontWeight: 700, color: '#fff' }}>обзор</span>
-        </div>
-      </div>
+      <div style={{ position: 'absolute', bottom: '60px', right: '12px', width: '44px', height: '58px', borderRadius: '8px', background: 'repeating-linear-gradient(135deg, #D8CCBA 0 6px, #E8DECE 6px 12px)', opacity: 0.6 }} />
 
-      {/* Основной слайдер */}
-      <div style={{ position: 'relative', zIndex: 2, animation: anim ? 'ugcRise .35s ease both' : 'none', display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Контент слайдера */}
+      <div style={{ animation: anim ? 'ugcRise .35s ease both' : 'none', display: 'flex', flexDirection: 'column', gap: 0 }}>
 
-        {/* Метка */}
-        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b49a7a', marginBottom: '7px', marginLeft: '4px', letterSpacing: '.02em' }}>Бренд ищет автора</div>
+        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b49a7a', marginBottom: '8px', letterSpacing: '.04em', textTransform: 'uppercase' as const }}>Бренд ищет автора</div>
 
         {/* Пузырь бренда */}
-        <div style={{ alignSelf: 'flex-start', padding: '12px 16px', background: '#2A2723', borderRadius: '16px 16px 16px 4px', transform: 'rotate(-0.8deg)', maxWidth: '88%', boxShadow: '0 6px 18px rgba(42,39,35,.10)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-            <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '8px', background: '#C56A43', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800 }}>{c.brandInitial}</span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#F2E7D7' }}>{c.brand}</div>
+        <div style={{ padding: '14px 16px', background: '#2A2723', borderRadius: '16px 16px 16px 4px', boxShadow: '0 4px 14px rgba(42,39,35,.15)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+            <span style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '9px', background: '#C56A43', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 800 }}>{c.brandInitial}</span>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#F2E7D7' }}>{c.brand}</div>
               <div style={{ fontSize: '12px', fontWeight: 500, color: '#9e917f', marginTop: '1px' }}>{c.request}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
             {c.tags.map(tag => (
-              <span key={tag} style={{ fontSize: '10.5px', fontWeight: 600, color: '#ddd0be', background: 'rgba(255,255,255,.07)', padding: '4px 9px', borderRadius: '20px' }}>{tag}</span>
+              <span key={tag} style={{ fontSize: '11px', fontWeight: 600, color: '#ddd0be', background: 'rgba(255,255,255,.08)', padding: '4px 10px', borderRadius: '20px' }}>{tag}</span>
             ))}
           </div>
         </div>
 
         {/* Коннектор */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '4px 0', marginLeft: '20px' }}>
-          <svg width="24" height="32" viewBox="0 0 24 32" fill="none" style={{ flexShrink: 0 }}>
-            <path d="M12 0 C12 12, 12 12, 20 28" stroke="#C56A43" strokeWidth="1.5" strokeDasharray="3 3" fill="none" strokeLinecap="round" />
-            <path d="M16 25 L20 28 L15 28" fill="#C56A43" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 4px', marginLeft: '8px' }}>
+          <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
+            <path d="M10 0 C10 10, 10 10, 16 22" stroke="#C56A43" strokeWidth="1.5" strokeDasharray="3 2.5" fill="none" strokeLinecap="round" />
+            <path d="M13 19.5 L16 22 L12 22" fill="#C56A43" />
           </svg>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: '#C56A43', marginLeft: '4px' }}>ugcmarket подобрал</span>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: '#C56A43' }}>ugcmarket подобрал</span>
         </div>
 
         {/* Карточка автора */}
-        <div style={{ alignSelf: 'flex-end', marginRight: '4px', background: '#fff', border: '1px solid #EDE3D3', borderRadius: '4px 16px 16px 16px', padding: '14px 15px', transform: 'rotate(0.4deg)', boxShadow: '0 8px 22px rgba(42,39,35,.08)', maxWidth: '92%' }}>
-          <div style={{ display: 'flex', gap: '11px', alignItems: 'center' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0, background: 'repeating-linear-gradient(135deg, #ECDFCB 0 7px, #F4EADA 7px 14px)' }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ background: '#fff', border: '1px solid #EDE3D3', borderRadius: '4px 16px 16px 16px', padding: '14px 16px', boxShadow: '0 4px 16px rgba(42,39,35,.08)' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, background: 'repeating-linear-gradient(135deg, #ECDFCB 0 6px, #F4EADA 6px 12px)' }} />
+            <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '15px', fontWeight: 800, color: '#2A2723' }}>{c.author}</span>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#C56A43' }}>{c.followers}</span>
               </div>
-              <div style={{ fontSize: '12px', fontWeight: 500, color: '#7a6f60', marginTop: '2px' }}>{c.role}</div>
+              <div style={{ fontSize: '12px', fontWeight: 500, color: '#7a6f60', marginTop: '1px' }}>{c.role}</div>
             </div>
           </div>
 
-          <div style={{ marginTop: '10px', fontSize: '12px', fontWeight: 500, lineHeight: 1.35, color: '#6b6358', background: '#FBF6EE', padding: '6px 10px', borderRadius: '20px', display: 'inline-block' }}>{c.audience}</div>
+          <div style={{ fontSize: '12px', fontWeight: 500, lineHeight: 1.4, color: '#6b6358', background: '#FBF6EE', padding: '7px 11px', borderRadius: '20px', display: 'inline-block', marginBottom: '10px' }}>{c.audience}</div>
 
-          <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px', background: '#EEF1E2', borderRadius: '20px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 11px', background: '#EEF1E2', borderRadius: '20px' }}>
             <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#7E8B4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>✓</span>
             <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#4d5234' }}>Совпадение {c.matchLabel}</span>
           </div>
         </div>
       </div>
 
-      {/* Контролы */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '18px', zIndex: 2, position: 'relative' }}>
+      {/* Контролы — прибиты к низу */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {cases.map((_, idx) => (
-            <span key={idx} onClick={() => go(idx)} style={{ height: '6px', borderRadius: '99px', cursor: 'pointer', transition: 'width .3s ease, background .3s ease', width: idx === i ? '18px' : '6px', background: idx === i ? '#C56A43' : '#D8C9B4', display: 'inline-block' }} />
+            <span key={idx} onClick={() => go(idx)} style={{ height: '5px', borderRadius: '99px', cursor: 'pointer', transition: 'width .3s, background .3s', width: idx === i ? '16px' : '5px', background: idx === i ? '#C56A43' : '#D8C9B4', display: 'inline-block' }} />
           ))}
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
           {[['‹', i - 1], ['›', i + 1]].map(([label, idx]) => (
-            <button key={label as string} onClick={() => go(idx as number)} style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1.5px solid #DCCDB6', background: '#FBF7F0', color: '#2A2723', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>{label}</button>
+            <button key={label as string} onClick={() => go(idx as number)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #DCCDB6', background: '#FBF7F0', color: '#2A2723', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>{label}</button>
           ))}
         </div>
       </div>
@@ -174,36 +168,39 @@ export default function HomePage() {
       </header>
 
       {/* ═══ HERO ═══ */}
-      <section style={{ position: 'relative', overflow: 'hidden' }}>
+      <section style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid rgba(42,39,35,.06)' }}>
         <div style={{ position: 'absolute', top: '-120px', right: '-80px', width: '620px', height: '620px', borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(197,106,67,.10), rgba(197,106,67,0))', pointerEvents: 'none' }} />
-        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 472px', gap: '60px', padding: '44px 64px 52px' }}>
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingTop: '22px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', padding: '9px 15px', background: '#F2E7D7', border: '1px solid #E7D7BF', borderRadius: '100px', fontSize: '13.5px', fontWeight: 600, color: '#7a5a3f' }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#C56A43', flexShrink: 0 }} />
+        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 440px', gap: '48px', padding: '52px 64px 56px', alignItems: 'center' }}>
+
+          {/* ── Левая колонка ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', background: '#F2E7D7', border: '1px solid #E7D7BF', borderRadius: '100px', fontSize: '13px', fontWeight: 600, color: '#7a5a3f' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C56A43', flexShrink: 0 }} />
               Площадка микро-авторов · от 300 до 30 000 подписчиков
             </div>
 
-            <h1 style={{ margin: '20px 0 0', fontSize: '64px', fontWeight: 800, lineHeight: 1.0, letterSpacing: '-0.025em', color: '#2A2723' }}>
+            <h1 style={{ margin: '22px 0 0', fontSize: '62px', fontWeight: 800, lineHeight: 1.0, letterSpacing: '-0.025em', color: '#2A2723' }}>
               Живые люди<br />
               с{' '}
-              <span style={{ fontFamily: "'Great Vibes', cursive", fontWeight: 400, fontSize: '1.2em', color: '#C56A43', display: 'inline-block', transform: 'rotate(-2deg)', lineHeight: 0.8, padding: '0 0.06em 0 0.02em' }}>тёплой</span>
+              <span style={{ fontFamily: "'Great Vibes', cursive", fontWeight: 400, fontSize: '1.2em', color: '#C56A43', display: 'inline-block', transform: 'rotate(-2deg)', lineHeight: 0.85, padding: '0 0.04em' }}>тёплой</span>
               <br />аудиторией
             </h1>
 
-            <p style={{ margin: '20px 0 0', maxWidth: '540px', fontSize: '17px', fontWeight: 500, lineHeight: 1.55, color: '#4a443c' }}>
+            <p style={{ margin: '22px 0 0', maxWidth: '500px', fontSize: '17px', fontWeight: 500, lineHeight: 1.6, color: '#4a443c' }}>
               Ценность автора определяется не количеством подписчиков, а совпадением его стиля жизни, аудитории и контекста с задачами бизнеса.
             </p>
-            <p style={{ margin: '10px 0 0', maxWidth: '540px', fontSize: '14px', fontWeight: 500, lineHeight: 1.55, color: '#8a8175' }}>
+            <p style={{ margin: '10px 0 0', maxWidth: '500px', fontSize: '14px', fontWeight: 500, lineHeight: 1.6, color: '#9a8f7e' }}>
               Выбирайте авторов по городу, профессии, хобби, темам и стилю жизни
             </p>
 
-            <div style={{ display: 'flex', gap: '14px', marginTop: '28px' }}>
-              <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '16px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '17px 28px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 8px 22px rgba(197,106,67,.28)' }}>Стать автором — бесплатно</Link>
-              <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '16px', fontWeight: 700, color: '#2A2723', padding: '17px 26px', borderRadius: '14px', border: '1.5px solid #DCCDB6', textDecoration: 'none' }}>Смотреть каталог</Link>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '30px' }}>
+              <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '15px 26px', borderRadius: '13px', textDecoration: 'none', boxShadow: '0 6px 18px rgba(197,106,67,.28)' }}>Стать автором — бесплатно</Link>
+              <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#2A2723', padding: '15px 24px', borderRadius: '13px', border: '1.5px solid #DCCDB6', textDecoration: 'none', background: 'rgba(255,255,255,.6)' }}>Смотреть каталог</Link>
             </div>
           </div>
 
+          {/* ── Правая колонка ── */}
           <HeroSlider />
         </div>
       </section>
