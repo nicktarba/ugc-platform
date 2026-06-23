@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../../AppContext'
+import ReviewsList from '@/components/ReviewsList'
 
 type Author = {
   id: string; name: string; city: string
@@ -191,6 +192,21 @@ export default function AuthorPublicPage() {
         <div style={{ textAlign:'center', paddingTop:'4px' }}>
           <Link href="/catalog" style={{ fontSize:'13px', color:'#9a9590', textDecoration:'none' }}>← Вернуться в каталог</Link>
         </div>
+
+        {/* Отзывы — публичные */}
+        {(author.reviews_count > 0) && (
+          <div style={{ marginTop: '24px' }}>
+            <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>
+              Отзывы
+            </h2>
+            <ReviewsList
+              authorId={author.id}
+              avgRating={author.avg_rating}
+              reviewsCount={author.reviews_count}
+              currentUserId={userId}
+            />
+          </div>
+        )}
       </div>
 
       {modalOpen && (

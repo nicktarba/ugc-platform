@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../../../AppContext'
+import ReviewsList from '@/components/ReviewsList'
 
 const LIFESTYLE = ['Активный спорт','ЗОЖ и питание','Кофе и кафе','Рестораны','Путешествия','Авто','Мода и стиль','Красота и уход','Семья и дети','Технологии','Музыка','Кино и сериалы','Книги','Искусство','Бизнес']
 
@@ -178,6 +179,22 @@ export default function AuthorProfilePage() {
               </div>
             )}
             {form.instagram_url && <a href={form.instagram_url} target="_blank" rel="noopener noreferrer" style={{ fontSize:'13px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>Instagram →</a>}
+          </div>
+        )}
+
+        {/* Отзывы в кабинете */}
+        {!editing && authorId && currentStatus === 'approved' && (
+          <div style={{ marginTop: '0' }}>
+            <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>
+              Отзывы
+              {ctxProfile?.avg_rating && <span style={{ fontFamily:'inherit', fontSize:'16px', fontWeight:500, color:'#c17f3e', marginLeft:'10px' }}>★ {ctxProfile.avg_rating}</span>}
+            </h2>
+            <ReviewsList
+              authorId={authorId}
+              avgRating={ctxProfile?.avg_rating || null}
+              reviewsCount={ctxProfile?.reviews_count || 0}
+              currentUserId={userId}
+            />
           </div>
         )}
 
