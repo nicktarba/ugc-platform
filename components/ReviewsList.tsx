@@ -43,7 +43,9 @@ export default function ReviewsList({ authorId, avgRating, reviewsCount, current
       .select('id, rating, comment, created_at, business_id, business_profiles(company_name)')
       .eq('author_id', authorId)
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('ReviewsList error:', error)
+        console.log('ReviewsList data:', data)
         setReviews((data || []) as unknown as Review[])
         setLoading(false)
       })
