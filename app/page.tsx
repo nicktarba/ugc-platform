@@ -4,31 +4,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-const CASES = [
-  {
-    brandInitial: 'B', brand: 'Botanica', brandKind: 'натуральная косметика',
-    request: 'Ищем автора под бьюти-аудиторию для крема на натуральных маслах',
-    tags: ['Москва', 'Бьюти', 'Женщины 22–35'],
-    author: 'Алина', role: 'Москва · бьюти-мастер', followers: '600 подписчиков',
-    snippet: 'Снимает свою работу и делится полезными лайфхаками по уходу и косметике',
-    audienceLabel: 'Её аудитория',
-    audience: 'Женщины 22–35 лет · уход за собой, косметика и lifestyle-контент',
-    matchPct: 94,
-    status: 'Подходит — её аудитория совпадает с задачей, а контент органичен для рекламы натурального бьюти-продукта',
-  },
-  {
-    brandInitial: 'D', brand: 'DRIVE Шины', brandKind: 'магазин шин и автотоваров',
-    request: 'Ищем автора под мужскую автомобильную аудиторию',
-    tags: ['Владивосток', 'Авто', 'Мужчины 18–27'],
-    author: 'Артём', role: 'Владивосток · автоэнтузиаст, 21 год', followers: '850 подписчиков',
-    snippet: 'Снимает доработки, сборку и развитие своего автопроекта',
-    audienceLabel: 'Его аудитория',
-    audience: 'Мужчины 18–27 лет, Владивосток · авто, тюнинг и доработки',
-    matchPct: 91,
-    status: 'Подходит — релевантный микро-автор с понятным контекстом, а не крупный автоблогер',
-  },
-]
-
 const AUTHORS = [
   { initial: 'М', bg: '#fdf3e7', color: '#c17f3e', name: 'Михаил Т.', city: 'Краснодар', role: 'Автолюбитель · строит гоночный корч', desc: 'Снимает процесс сборки машины, тест-драйвы и покатушки. Аудитория — мужчины 22–35, любители авто и механики.', inst: '7 200', tg: '4 100', tags: ['Автосервис', 'Детейлинг', 'Шины'], extra: '★ 3 сделки', extraStyle: { background: '#fdf3e7', border: '1px solid #f5dcb8', color: '#c17f3e' } },
   { initial: 'С', bg: '#f0fdf4', color: '#16a34a', name: 'Соня В.', city: 'Москва', role: 'Мастер красоты · блог о процедурах', desc: 'Пишет честно про косметику, показывает процедуры в салоне и домашний уход. Аудитория — девушки 20–34, интересуются красотой.', inst: '5 700', stories: '920', tags: ['Косметика', 'Салоны', 'Уход'], extra: 'Бартер', extraStyle: { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a' } },
@@ -42,117 +17,121 @@ function HeroSlider() {
   const [i, setI] = useState(0)
   const [anim, setAnim] = useState(true)
 
+  const cases = [
+    {
+      brandInitial: 'B', brand: 'Botanica',
+      request: 'Ищем автора для крема на натуральных маслах',
+      tags: ['Москва', 'Бьюти', 'Женщины 22–35'],
+      author: 'Алина', role: 'Москва · бьюти-мастер', followers: '600 подп.',
+      audience: 'Женщины 22–35 · уход, косметика, lifestyle',
+      matchLabel: '94%',
+    },
+    {
+      brandInitial: 'D', brand: 'DRIVE Шины',
+      request: 'Ищем автора под автомобильную аудиторию',
+      tags: ['Владивосток', 'Авто', 'Мужчины 18–27'],
+      author: 'Артём', role: 'Владивосток · 21 год', followers: '850 подп.',
+      audience: 'Мужчины 18–27 · авто, тюнинг, доработки',
+      matchLabel: '91%',
+    },
+  ]
+
   const go = (idx: number) => {
-    const n = CASES.length
+    const n = cases.length
     setAnim(false)
     setTimeout(() => { setI(((idx % n) + n) % n); setAnim(true) }, 50)
   }
 
-  // Автопереключение каждые 4 секунды
   useEffect(() => {
     const timer = setInterval(() => {
       setAnim(false)
-      setTimeout(() => {
-        setI(prev => (prev + 1) % CASES.length)
-        setAnim(true)
-      }, 50)
+      setTimeout(() => { setI(prev => (prev + 1) % cases.length); setAnim(true) }, 50)
     }, 4000)
     return () => clearInterval(timer)
   }, [])
 
-  const c = CASES[i]
+  const c = cases[i]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <div style={{ animation: anim ? 'ugcRise .45s ease both' : 'none' }}>
-        {/* Запрос бренда */}
-        <div style={{ background: '#2A2723', borderRadius: '22px', padding: '19px 21px', boxShadow: '0 16px 38px rgba(42,39,35,.16)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', fontWeight: 600, letterSpacing: '0.06em', color: '#b7a690', textTransform: 'uppercase' as const }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C56A43' }} />
-            Запрос бренда
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '11px', marginTop: '13px' }}>
-            <span style={{ flexShrink: 0, width: '38px', height: '38px', borderRadius: '11px', background: '#C56A43', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 800 }}>{c.brandInitial}</span>
-            <div>
-              <div style={{ fontSize: '16px', fontWeight: 800, color: '#F6EEE2' }}>{c.brand}</div>
-              <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#b7a690', marginTop: '1px' }}>{c.brandKind}</div>
+    <div style={{ position: 'relative' }}>
+      {/* Декоративные мини-карточки вокруг слайдера */}
+      <div style={{ position: 'absolute', top: '-18px', right: '-12px', width: '72px', height: '96px', borderRadius: '12px', background: 'repeating-linear-gradient(135deg, #E8D9C4 0 8px, #F0E5D4 8px 16px)', boxShadow: '0 6px 16px rgba(42,39,35,.10)', transform: 'rotate(4deg)', zIndex: 1, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '5px 6px', background: 'linear-gradient(transparent, rgba(42,39,35,.5))' }}>
+          <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: '7px', fontWeight: 700, color: '#fff' }}>▶ Reels</span>
+        </div>
+      </div>
+      <div style={{ position: 'absolute', top: '12px', left: '-18px', width: '64px', height: '64px', borderRadius: '10px', background: 'repeating-linear-gradient(45deg, #DDD0BB 0 7px, #EAE0CE 7px 14px)', boxShadow: '0 4px 14px rgba(42,39,35,.08)', transform: 'rotate(-5deg)', zIndex: 1 }} />
+      <div style={{ position: 'absolute', bottom: '80px', left: '-22px', width: '52px', height: '52px', borderRadius: '50%', background: 'repeating-linear-gradient(135deg, #ECDFCB 0 6px, #F4EADA 6px 12px)', border: '2.5px solid #C56A43', boxShadow: '0 4px 12px rgba(42,39,35,.08)', zIndex: 1 }} />
+      <div style={{ position: 'absolute', bottom: '60px', right: '-16px', width: '60px', height: '78px', borderRadius: '10px', background: 'repeating-linear-gradient(135deg, #D8CCBA 0 7px, #E8DECE 7px 14px)', boxShadow: '0 5px 14px rgba(42,39,35,.08)', transform: 'rotate(-3deg)', zIndex: 1, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 5px', background: 'linear-gradient(transparent, rgba(42,39,35,.4))' }}>
+          <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: '7px', fontWeight: 700, color: '#fff' }}>обзор</span>
+        </div>
+      </div>
+
+      {/* Основной слайдер */}
+      <div style={{ position: 'relative', zIndex: 2, animation: anim ? 'ugcRise .35s ease both' : 'none', display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+        {/* Метка */}
+        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b49a7a', marginBottom: '7px', marginLeft: '4px', letterSpacing: '.02em' }}>Бренд ищет автора</div>
+
+        {/* Пузырь бренда */}
+        <div style={{ alignSelf: 'flex-start', padding: '12px 16px', background: '#2A2723', borderRadius: '16px 16px 16px 4px', transform: 'rotate(-0.8deg)', maxWidth: '88%', boxShadow: '0 6px 18px rgba(42,39,35,.10)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+            <span style={{ flexShrink: 0, width: '28px', height: '28px', borderRadius: '8px', background: '#C56A43', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800 }}>{c.brandInitial}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#F2E7D7' }}>{c.brand}</div>
+              <div style={{ fontSize: '12px', fontWeight: 500, color: '#9e917f', marginTop: '1px' }}>{c.request}</div>
             </div>
           </div>
-          <p style={{ margin: '14px 0 13px', fontSize: '15.5px', fontWeight: 600, lineHeight: 1.4, color: '#ece2d4' }}>{c.request}</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
             {c.tags.map(tag => (
-              <span key={tag} style={{ fontSize: '12.5px', fontWeight: 600, color: '#e7dccd', background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.10)', padding: '6px 12px', borderRadius: '9px' }}>{tag}</span>
+              <span key={tag} style={{ fontSize: '10.5px', fontWeight: 600, color: '#ddd0be', background: 'rgba(255,255,255,.07)', padding: '4px 9px', borderRadius: '20px' }}>{tag}</span>
             ))}
           </div>
         </div>
 
         {/* Коннектор */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '13px 0' }}>
-          {[0, 0.2, 0.4].map((delay, idx) => (
-            <span key={idx} style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#C56A43', animation: `ugcPulse 1.4s ease-in-out infinite ${delay}s` }} />
-          ))}
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#8a8175', marginLeft: '4px' }}>Платформа подобрала автора</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '4px 0', marginLeft: '20px' }}>
+          <svg width="24" height="32" viewBox="0 0 24 32" fill="none" style={{ flexShrink: 0 }}>
+            <path d="M12 0 C12 12, 12 12, 20 28" stroke="#C56A43" strokeWidth="1.5" strokeDasharray="3 3" fill="none" strokeLinecap="round" />
+            <path d="M16 25 L20 28 L15 28" fill="#C56A43" />
+          </svg>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: '#C56A43', marginLeft: '4px' }}>ugcmarket подобрал</span>
         </div>
 
         {/* Карточка автора */}
-        <div style={{ background: '#FFFFFF', border: '1px solid #EFE4D3', borderRadius: '22px', padding: '19px', boxShadow: '0 20px 46px rgba(42,39,35,.13)' }}>
-          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-            <div style={{ width: '68px', height: '68px', borderRadius: '17px', flexShrink: 0, background: 'repeating-linear-gradient(135deg, #ECDFCB 0 7px, #F4EADA 7px 14px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-              <span style={{ fontSize: '8px', color: '#b09a7e', paddingBottom: '5px', fontFamily: 'monospace' }}>фото</span>
-            </div>
+        <div style={{ alignSelf: 'flex-end', marginRight: '4px', background: '#fff', border: '1px solid #EDE3D3', borderRadius: '4px 16px 16px 16px', padding: '14px 15px', transform: 'rotate(0.4deg)', boxShadow: '0 8px 22px rgba(42,39,35,.08)', maxWidth: '92%' }}>
+          <div style={{ display: 'flex', gap: '11px', alignItems: 'center' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0, background: 'repeating-linear-gradient(135deg, #ECDFCB 0 7px, #F4EADA 7px 14px)' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '19px', fontWeight: 800, color: '#2A2723' }}>{c.author}</span>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#7a5a3f', background: '#F2E7D7', padding: '3px 9px', borderRadius: '7px' }}>Телеграм</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '15px', fontWeight: 800, color: '#2A2723' }}>{c.author}</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#C56A43' }}>{c.followers}</span>
               </div>
-              <div style={{ marginTop: '4px', fontSize: '14px', fontWeight: 600, color: '#6b6358' }}>{c.role}</div>
-              <div style={{ marginTop: '2px', fontSize: '14px', fontWeight: 700, color: '#C56A43' }}>{c.followers}</div>
+              <div style={{ fontSize: '12px', fontWeight: 500, color: '#7a6f60', marginTop: '2px' }}>{c.role}</div>
             </div>
           </div>
 
-          <div style={{ marginTop: '13px', fontSize: '13.5px', fontWeight: 600, lineHeight: 1.4, color: '#5e574d' }}>{c.snippet}</div>
+          <div style={{ marginTop: '10px', fontSize: '12px', fontWeight: 500, lineHeight: 1.35, color: '#6b6358', background: '#FBF6EE', padding: '6px 10px', borderRadius: '20px', display: 'inline-block' }}>{c.audience}</div>
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '13px' }}>
-            {['Reels', '', ''].map((label, idx) => (
-              <div key={idx} style={{ flex: 1, height: '56px', borderRadius: '11px', background: 'repeating-linear-gradient(135deg, #ECDFCB 0 7px, #F4EADA 7px 14px)', display: 'flex', alignItems: 'flex-end', padding: '6px' }}>
-                {label && <span style={{ fontSize: '8px', color: '#b09a7e', fontFamily: 'monospace' }}>{label}</span>}
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginTop: '15px', padding: '14px', background: '#FBF6EE', borderRadius: '14px' }}>
-            <div style={{ fontSize: '11.5px', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' as const, color: '#9a8f7e' }}>{c.audienceLabel}</div>
-            <div style={{ marginTop: '6px', fontSize: '14.5px', fontWeight: 600, lineHeight: 1.45, color: '#463f37' }}>{c.audience}</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#6b6358' }}>Совпадение с задачей бренда</span>
-              <span style={{ fontSize: '15px', fontWeight: 800, color: '#C56A43' }}>{c.matchPct}%</span>
-            </div>
-            <div style={{ marginTop: '8px', height: '7px', borderRadius: '99px', background: '#EEE2D0', overflow: 'hidden' }}>
-              <div style={{ width: `${c.matchPct}%`, height: '100%', borderRadius: '99px', background: 'linear-gradient(90deg, #D88A52, #C56A43)' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '15px', padding: '13px 15px', background: '#EEF1E2', border: '1px solid #DDE2C7', borderRadius: '14px' }}>
-            <span style={{ flexShrink: 0, width: '22px', height: '22px', borderRadius: '50%', background: '#7E8B4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, marginTop: '1px' }}>✓</span>
-            <span style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.4, color: '#4d5234' }}>{c.status}</span>
+          <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 10px', background: '#EEF1E2', borderRadius: '20px' }}>
+            <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#7E8B4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>✓</span>
+            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#4d5234' }}>Совпадение {c.matchLabel}</span>
           </div>
         </div>
       </div>
 
-      {/* Контролы слайдера */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '18px', padding: '0 2px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-          {CASES.map((_, idx) => (
-            <span key={idx} onClick={() => go(idx)} style={{ height: '8px', borderRadius: '99px', cursor: 'pointer', transition: 'width .3s ease, background .3s ease', width: idx === i ? '22px' : '8px', background: idx === i ? '#C56A43' : '#D8C9B4', display: 'inline-block' }} />
+      {/* Контролы */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '18px', zIndex: 2, position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {cases.map((_, idx) => (
+            <span key={idx} onClick={() => go(idx)} style={{ height: '6px', borderRadius: '99px', cursor: 'pointer', transition: 'width .3s ease, background .3s ease', width: idx === i ? '18px' : '6px', background: idx === i ? '#C56A43' : '#D8C9B4', display: 'inline-block' }} />
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '13px' }}>
-          <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#9a8f7e', letterSpacing: '0.02em' }}>Кейс {i + 1} / {CASES.length}</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {[['‹', i - 1], ['›', i + 1]].map(([label, idx]) => (
-              <button key={label as string} onClick={() => go(idx as number)} style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1.5px solid #DCCDB6', background: '#FBF7F0', color: '#2A2723', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, fontFamily: 'inherit' }}>{label}</button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {[['‹', i - 1], ['›', i + 1]].map(([label, idx]) => (
+            <button key={label as string} onClick={() => go(idx as number)} style={{ width: '30px', height: '30px', borderRadius: '50%', border: '1.5px solid #DCCDB6', background: '#FBF7F0', color: '#2A2723', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>{label}</button>
+          ))}
         </div>
       </div>
     </div>
