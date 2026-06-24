@@ -193,6 +193,7 @@ export default function CatalogPage() {
             <p style={{ color:'#7a7570', fontSize:'16px' }}>Авторов с такими параметрами пока нет</p>
           </div>
         ) : (
+          <>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap:'16px' }}>
             {filtered.slice(0, visibleCount).map(a => {
               const isFav = favoriteIds.includes(a.id)
@@ -309,6 +310,7 @@ export default function CatalogPage() {
               </button>
             </div>
           )}
+          </>
         )}
       </div>
 
