@@ -48,6 +48,7 @@ export default function CatalogPage() {
   const [barter, setBarter] = useState<'all'|'yes'|'no'>((searchParams.get('barter') as 'all'|'yes'|'no') || 'all')
   const [search, setSearch] = useState(searchParams.get('q') || '')
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
+  const [visibleCount, setVisibleCount] = useState(12)
 
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
   const [message, setMessage] = useState('')
@@ -81,6 +82,7 @@ export default function CatalogPage() {
     if (barter === 'yes') f = f.filter(a => a.open_to_barter)
     if (barter === 'no') f = f.filter(a => !a.open_to_barter)
     setFiltered(f)
+    setVisibleCount(12)
   }, [authors, search, city, barter])
 
   useEffect(() => {
@@ -159,7 +161,7 @@ export default function CatalogPage() {
           </div>
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap:'16px' }}>
-            {filtered.map(a => {
+            {filtered.slice(0, visibleCount).map(a => {
               const isFav = favoriteIds.includes(a.id)
               const initial = a.name?.[0]?.toUpperCase() || '?'
               const ci = a.id.charCodeAt(0) % 5
@@ -267,6 +269,13 @@ export default function CatalogPage() {
               )
             })}
           </div>
+          {visibleCount < filtered.length && (
+            <div style={{ textAlign:'center', paddingTop:'24px' }}>
+              <button onClick={() => setVisibleCount(prev => prev + 12)} style={{ padding:'12px 32px', background:'#fff', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', fontWeight:600, color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
+                Показать ещё ({filtered.length - visibleCount})
+              </button>
+            </div>
+          )}
         )}
       </div>
 
