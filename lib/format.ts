@@ -17,3 +17,12 @@ export const formatRelative = (iso: string) => {
 
 export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('ru', { day:'numeric', month:'short' })
+
+export const parseStatusError = (error: { message?: string } | null): string => {
+  if (!error?.message) return 'Не удалось обновить статус. Попробуй ещё раз.'
+  const msg = error.message
+  if (msg.includes('Invalid status transition')) return 'Статус уже изменился. Обнови страницу.'
+  if (msg.includes('Слишком много')) return msg
+  return 'Не удалось обновить статус. Попробуй ещё раз.'
+}
+

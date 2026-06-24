@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { parseStatusError } from '@/lib/format'
 import { useApp } from '../../../AppContext'
 
 import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
@@ -92,7 +93,7 @@ export default function RequestDetailPage() {
       const successText: Record<string, string> = { accepted: 'Предложение принято' }
       if (successText[status]) toast.success(successText[status])
     } else {
-      toast.error('Не удалось обновить статус сделки. Попробуй ещё раз.')
+      toast.error(parseStatusError(error))
     }
   }
 
@@ -106,7 +107,7 @@ export default function RequestDetailPage() {
       setRequest(prev => prev ? { ...prev, status: confirmAction } : prev)
       toast.success(confirmAction === 'declined' ? 'Заявка отклонена' : 'Сделка отменена')
     } else {
-      toast.error('Не удалось обновить статус. Попробуй ещё раз.')
+      toast.error(parseStatusError(error))
     }
   }
 
@@ -115,7 +116,7 @@ export default function RequestDetailPage() {
     setSubmittingReview(true)
 
     const { error: statusErr } = await supabase.from('requests').update({ status: 'completed' }).eq('id', requestId)
-    if (statusErr) { toast.error('Не удалось завершить сделку.'); setSubmittingReview(false); return }
+    if (statusErr) { toast.error(parseStatusError(statusErr)); setSubmittingReview(false); return }
 
     if (!skipRating && rating > 0) {
       await supabase.from('reviews').insert([{

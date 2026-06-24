@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../../../AppContext'
 import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
-import { truncate } from '@/lib/format'
+import { truncate, parseStatusError } from '@/lib/format'
 
 type Msg = { id: string; sender_id: string; sender_role: string; text: string; created_at: string; read: boolean }
 type RequestInfo = {
@@ -121,7 +121,7 @@ export default function ChatPage() {
       setRequest(prev => prev ? { ...prev, status } : prev)
       toast.success('Предложение принято')
     } else {
-      toast.error('Не удалось обновить статус сделки. Попробуй ещё раз.')
+      toast.error(parseStatusError(error))
     }
   }
 
@@ -136,7 +136,7 @@ export default function ChatPage() {
       const labels: Record<string, string> = { declined:'Заявка отклонена', cancelled:'Сделка отменена', completed:'Сделка завершена 🎉' }
       toast.success(labels[confirmAction])
     } else {
-      toast.error('Не удалось обновить статус. Попробуй ещё раз.')
+      toast.error(parseStatusError(error))
     }
   }
 
