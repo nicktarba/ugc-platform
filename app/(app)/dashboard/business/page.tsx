@@ -19,7 +19,7 @@ export default function BusinessDashboard() {
   useEffect(() => {
     if (!userId) return
     ;(async () => {
-      const { data: r } = await supabase.from('requests').select('*, authors(name, city)').eq('business_id', userId).order('created_at', { ascending: false })
+      const { data: r } = await supabase.from('requests').select('id, business_id, business_email, author_id, message, budget, deadline, status, created_at, authors(name, city)').eq('business_id', userId).order('created_at', { ascending: false })
       setRequests((r as unknown as Req[]) || [])
 
       const { count } = await supabase.from('favorites').select('id', { count: 'exact', head: true }).eq('business_id', userId)
@@ -68,7 +68,7 @@ export default function BusinessDashboard() {
       <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
         <div style={{ marginBottom:'40px' }}>
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет бизнеса</div>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>Добро пожаловать</h1>
+          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>{businessProfile?.company_name || 'Добро пожаловать'}</h1>
         </div>
 
         {businessProfile && (!businessProfile.company_name || !businessProfile.inn) && (

@@ -16,6 +16,7 @@ export type AuthorProfile = {
   lifestyle: string[]
   open_to_barter: boolean
   status: string
+  avatar_url?: string | null
   completed_deals_count?: number
   avg_rating?: number | null
   reviews_count?: number
@@ -34,6 +35,7 @@ export type AppContextValue = {
   userEmail: string | null
   userRole: 'business' | 'author' | 'admin' | null
   authorProfile: AuthorProfile | null
+  setAuthorProfile: (p: AuthorProfile | null) => void
   businessProfile: BusinessProfile | null
   setBusinessProfile: (p: BusinessProfile) => void
   badgeCount: number
@@ -45,6 +47,7 @@ export const AppContext = createContext<AppContextValue>({
   userEmail: null,
   userRole: null,
   authorProfile: null,
+  setAuthorProfile: () => {},
   businessProfile: null,
   setBusinessProfile: () => {},
   badgeCount: 0,

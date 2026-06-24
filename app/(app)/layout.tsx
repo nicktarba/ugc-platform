@@ -67,7 +67,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (ready && !userId && pathname !== '/catalog') {
       router.replace('/login')
     }
-  }, [ready, userId, pathname, router])
+    if (ready && userId && userRole) {
+      if (userRole === 'business' && pathname.startsWith('/dashboard/author')) {
+        router.replace('/dashboard/business')
+      }
+      if (userRole === 'author' && pathname.startsWith('/dashboard/business')) {
+        router.replace('/dashboard/author')
+      }
+    }
+  }, [ready, userId, userRole, pathname, router])
 
   const bumpBadge = (delta: number) => setBadgeCount(prev => Math.max(0, prev + delta))
 
@@ -88,7 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     : null
 
   return (
-    <AppContext.Provider value={{ userId, userEmail, userRole, authorProfile, businessProfile, setBusinessProfile, badgeCount, bumpBadge }}>
+    <AppContext.Provider value={{ userId, userEmail, userRole, authorProfile, setAuthorProfile, businessProfile, setBusinessProfile, badgeCount, bumpBadge }}>
       <div className="sidebar-layout">
         <Sidebar
           role={userRole}

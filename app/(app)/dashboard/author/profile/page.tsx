@@ -12,7 +12,7 @@ const LIFESTYLE = ['Активный спорт','ЗОЖ и питание','К�
 export default function AuthorProfilePage() {
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
-  const { userId, authorProfile: ctxProfile } = useApp()
+  const { userId, authorProfile: ctxProfile, setAuthorProfile } = useApp()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ name:'', city:'', instagram_url:'', telegram_url:'', telegram_followers:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
   const [avatarUrl, setAvatarUrl] = useState<string|null>(null)
@@ -91,6 +91,26 @@ export default function AuthorProfilePage() {
     if (uploadedUrl) setAvatarUrl(uploadedUrl)
     setAvatarFile(null); setAvatarPreview(null)
     toast.success(currentStatus === 'rejected' ? 'Анкета отправлена на повторную проверку' : 'Профиль сохранён')
+    setAuthorProfile({
+      id: authorId || '',
+      name: form.name,
+      city: form.city,
+      instagram_url: form.instagram_url,
+      telegram_url: form.telegram_url || null,
+      telegram_followers: parseInt(form.telegram_followers) || 0,
+      followers_count: parseInt(form.followers_count) || 0,
+      stories_views: parseInt(form.stories_views) || 0,
+      occupation: form.occupation,
+      hobbies: form.hobbies,
+      bio: form.bio,
+      lifestyle: form.lifestyle,
+      open_to_barter: form.open_to_barter === 'yes',
+      status: currentStatus === 'rejected' ? 'pending' : (currentStatus || 'pending'),
+      avatar_url: uploadedUrl || undefined,
+      completed_deals_count: ctxProfile?.completed_deals_count || 0,
+      avg_rating: ctxProfile?.avg_rating || null,
+      reviews_count: ctxProfile?.reviews_count || 0,
+    })
     setEditing(false)
     if (!authorId) setCurrentStatus('pending')
   }

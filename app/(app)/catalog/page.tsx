@@ -86,12 +86,15 @@ export default function CatalogPage() {
   }, [authors, search, city, barter])
 
   useEffect(() => {
-    const params = new URLSearchParams()
-    if (search) params.set('q', search)
-    if (city) params.set('city', city)
-    if (barter !== 'all') params.set('barter', barter)
-    const qs = params.toString()
-    router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams()
+      if (search) params.set('q', search)
+      if (city) params.set('city', city)
+      if (barter !== 'all') params.set('barter', barter)
+      const qs = params.toString()
+      router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
+    }, 400)
+    return () => clearTimeout(timer)
   }, [search, city, barter, router])
 
   const openModal = (author: Author) => {
