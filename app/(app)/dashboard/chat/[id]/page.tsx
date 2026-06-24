@@ -274,8 +274,14 @@ export default function ChatPage() {
         )}
 
         <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px', minHeight:'300px' }}>
+          {messages.length === 0 && (
+            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <p style={{ fontSize:'14px', color:'#9a9590', textAlign:'center', lineHeight:1.6 }}>Сообщений пока нет. Напиши первым, чтобы начать диалог.</p>
+            </div>
+          )}
           {messages.map(m => {
             const isMine = m.sender_id === userId
+            const time = new Date(m.created_at).toLocaleString('ru', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' })
             return (
               <div key={m.id} style={{
                 alignSelf: isMine ? 'flex-end' : 'flex-start',
@@ -287,6 +293,7 @@ export default function ChatPage() {
                 borderRadius: isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
               }}>
                 <p style={{ fontSize:'14px', lineHeight:1.6 }}>{m.text}</p>
+                <p style={{ fontSize:'11px', color: isMine ? 'rgba(255,255,255,0.5)' : '#9a9590', marginTop:'6px', textAlign:'right' }}>{time}</p>
               </div>
             )
           })}
@@ -294,13 +301,16 @@ export default function ChatPage() {
         </div>
 
         {canChat && (
-          <div style={{ display:'flex', gap:'12px', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
-            <input
+          <div style={{ display:'flex', gap:'12px', alignItems:'flex-end', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
+            <textarea
               value={text}
               onChange={e => setText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && sendMessage()}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
               placeholder="Написать сообщение..."
-              style={{ flex:1, minWidth:0, padding:'14px 20px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }}
+              rows={1}
+              maxLength={5000}
+              style={{ flex:1, minWidth:0, padding:'14px 20px', border:'1.5px solid #e0ddd8', borderRadius:'18px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'none', maxHeight:'120px', lineHeight:'1.4' }}
+              onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px' }}
             />
             <button onClick={sendMessage} disabled={sending || !text.trim()} style={{ padding:'14px 28px', background: sending || !text.trim() ? '#9a9590' : '#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'15px', fontWeight:600, cursor: sending || !text.trim() ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
               Отправить

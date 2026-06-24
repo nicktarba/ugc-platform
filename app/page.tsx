@@ -135,13 +135,12 @@ function HeroSlider() {
 export default function HomePage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
+  const [loggedInRole, setLoggedInRole] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       const role = data.user?.user_metadata?.role
-      if (role === 'business') { router.replace('/catalog'); return }
-      if (role === 'author') { router.replace('/dashboard/author'); return }
-      if (role === 'admin') { router.replace('/dashboard/admin'); return }
+      if (role) setLoggedInRole(role)
       setChecking(false)
     })
   }, [router])
@@ -162,8 +161,14 @@ export default function HomePage() {
         <nav style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
           <Link href="/catalog" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Каталог</Link>
           <Link href="/support" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Поддержка</Link>
-          <Link href="/login" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Войти</Link>
-          <Link href="/register" style={{ fontSize: '15px', fontWeight: 700, color: '#2A2723', textDecoration: 'none', padding: '11px 20px', border: '1.5px solid #E0D2BC', borderRadius: '12px' }}>Регистрация</Link>
+          {loggedInRole ? (
+            <Link href={loggedInRole === 'author' ? '/dashboard/author' : loggedInRole === 'admin' ? '/dashboard/admin' : '/dashboard/business'} style={{ fontSize: '15px', fontWeight: 700, color: '#2A2723', textDecoration: 'none', padding: '11px 20px', border: '1.5px solid #E0D2BC', borderRadius: '12px' }}>Кабинет</Link>
+          ) : (
+            <>
+              <Link href="/login" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Войти</Link>
+              <Link href="/register" style={{ fontSize: '15px', fontWeight: 700, color: '#2A2723', textDecoration: 'none', padding: '11px 20px', border: '1.5px solid #E0D2BC', borderRadius: '12px' }}>Регистрация</Link>
+            </>
+          )}
         </nav>
       </header>
 

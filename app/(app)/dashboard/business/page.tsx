@@ -9,7 +9,7 @@ import { OPEN_STATUSES, type BusinessRequest as Req } from '@/lib/types'
 import { useApp } from '../../AppContext'
 
 export default function BusinessDashboard() {
-  const { userId, bumpBadge } = useApp()
+  const { userId, bumpBadge, businessProfile } = useApp()
   const [requests, setRequests] = useState<Req[]>([])
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [favoritesCount, setFavoritesCount] = useState(0)
@@ -70,6 +70,13 @@ export default function BusinessDashboard() {
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет бизнеса</div>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>Добро пожаловать</h1>
         </div>
+
+        {businessProfile && !businessProfile.company_name && (
+          <div style={{ padding:'14px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'16px', fontSize:'14px', color:'#c17f3e', fontWeight:500, display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
+            <span>💡 Заполни профиль компании — авторы будут видеть кто им пишет</span>
+            <Link href="/dashboard/business/profile" style={{ padding:'6px 16px', background:'#c17f3e', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600, flexShrink:0 }}>Заполнить</Link>
+          </div>
+        )}
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'16px', marginBottom:'16px' }}>
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>

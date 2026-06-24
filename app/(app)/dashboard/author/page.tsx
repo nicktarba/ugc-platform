@@ -14,6 +14,7 @@ export default function AuthorRequestsPage() {
   const { authorProfile: profile, bumpBadge } = useApp()
   const [requests, setRequests] = useState<Req[]>([])
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  const [businessNames, setBusinessNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [showHistory, setShowHistory] = useState(false)
 
@@ -24,6 +25,14 @@ export default function AuthorRequestsPage() {
       setRequests(r || [])
 
       if (r && r.length > 0) {
+        const bizIds = [...new Set(r.map(req => req.business_id))]
+        const { data: bps } = await supabase.from('business_profiles').select('id, company_name').in('id', bizIds)
+        if (bps) {
+          const names: Record<string, string> = {}
+          bps.forEach(bp => { if (bp.company_name) names[bp.id] = bp.company_name })
+          setBusinessNames(names)
+        }
+
         const ids = r.map(req => req.id)
         const { data: unread } = await supabase.from('messages').select('request_id').in('request_id', ids).eq('sender_role', 'business').eq('read', false)
         const counts: Record<string, number> = {}
@@ -138,7 +147,7 @@ export default function AuthorRequestsPage() {
                       return (
                         <Link key={r.id} href={`/dashboard/request/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: isNew ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
-                            <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.business_email}</span>
+                            <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
                             <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
                               {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
                               {r.status === 'new' && unread === 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff', whiteSpace:'nowrap' }}>Новое</span>}
@@ -171,7 +180,7 @@ export default function AuthorRequestsPage() {
                           return (
                             <Link key={r.id} href={`/dashboard/request/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
-                                <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.business_email}</span>
+                                <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
                                 {sBadge && <span style={{ padding:'2px 10px', background:sBadge.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:sBadge.color, whiteSpace:'nowrap' }}>{sBadge.text}</span>}
                               </div>
                               <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>

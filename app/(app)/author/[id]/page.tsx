@@ -35,10 +35,12 @@ export default function AuthorPublicPage() {
   const [deadline, setDeadline] = useState('')
   const [sending, setSending] = useState(false)
 
+  const [notFound, setNotFound] = useState(false)
+
   useEffect(() => {
     const init = async () => {
       const { data: a } = await supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, completed_deals_count, avg_rating, reviews_count').eq('id', authorId).eq('status', 'approved').single()
-      if (!a) { router.push('/catalog'); return }
+      if (!a) { setNotFound(true); setLoading(false); return }
       setAuthor(a as Author)
       if (userId && userRole === 'business') {
         const { data: deal } = await supabase.from('requests').select('id').eq('business_id', userId).eq('author_id', authorId).in('status', ['new','viewed','accepted']).maybeSingle()
@@ -62,6 +64,16 @@ export default function AuthorPublicPage() {
   }
 
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'80vh', color:'#9a9590' }}>Загрузка...</div>
+  if (notFound) return (
+    <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ textAlign:'center', maxWidth:'400px', padding:'40px 20px' }}>
+        <div style={{ fontSize:'48px', marginBottom:'16px' }}>🔍</div>
+        <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'28px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px' }}>Автор не найден</h1>
+        <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'24px', lineHeight:1.6 }}>Возможно, профиль был удалён или ещё не прошёл модерацию.</p>
+        <Link href="/catalog" style={{ display:'inline-block', padding:'12px 28px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Перейти в каталог</Link>
+      </div>
+    </main>
+  )
   if (!author) return null
 
   const ci = author.id.charCodeAt(0) % 5

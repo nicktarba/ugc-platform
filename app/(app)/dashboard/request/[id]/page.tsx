@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { useApp } from '../../../AppContext'
 
 import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
 
@@ -27,6 +28,7 @@ export default function RequestDetailPage() {
   const params = useParams()
   const router = useRouter()
   const toast = useToast()
+  const { bumpBadge } = useApp()
   const requestId = params.id as string
 
   const [userId, setUserId] = useState<string|null>(null)
@@ -66,6 +68,13 @@ export default function RequestDetailPage() {
         const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description').eq('id', (req as { business_id: string }).business_id).maybeSingle()
         if (bp) setBusinessProfile(bp as BusinessProfile)
       }
+
+      const { data: unreadMsgs } = await supabase.from('messages').select('id').eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
+      if (unreadMsgs && unreadMsgs.length > 0) {
+        await supabase.from('messages').update({ read: true }).eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
+        bumpBadge(-unreadMsgs.length)
+      }
+
       setLoading(false)
     }
     init()
@@ -242,9 +251,12 @@ export default function RequestDetailPage() {
               Сделка закрыта — переписка доступна только для просмотра.
             </div>
             {userRole === 'business' && request?.status === 'completed' && !hasReview && (
-              <button onClick={() => setReviewModal(true)} style={{ padding:'10px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', color:'#c17f3e', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit', marginBottom:'8px', display:'block' }}>
-                ★ Оценить сотрудничество
-              </button>
+              <div style={{ padding:'16px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'12px' }}>
+                <p style={{ fontSize:'14px', color:'#c17f3e', fontWeight:500, marginBottom:'10px' }}>Расскажи как прошло сотрудничество — это поможет автору получать больше заявок</p>
+                <button onClick={() => setReviewModal(true)} style={{ padding:'12px 24px', background:'#c17f3e', border:'none', borderRadius:'100px', color:'#fff', fontSize:'14px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                  ★ Оставить отзыв
+                </button>
+              </div>
             )}
             {userRole === 'business' && hasReview && (
               <div style={{ fontSize:'13px', color:'#16a34a', fontWeight:500, marginBottom:'8px' }}>✓ Отзыв оставлен</div>

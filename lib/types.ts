@@ -15,6 +15,7 @@ export type BusinessRequest = {
 
 export type AuthorRequest = {
   id: string
+  business_id: string
   message: string
   status: string
   business_email: string
