@@ -23,7 +23,7 @@ export default function AuthorPublicPage() {
   const params = useParams()
   const router = useRouter()
   const toast = useToast()
-  const { userId, userEmail, userRole } = useApp()
+  const { userId, userEmail, userRole, businessProfile } = useApp()
   const authorId = params.id as string
 
   const [author, setAuthor] = useState<Author | null>(null)
@@ -130,7 +130,7 @@ export default function AuthorPublicPage() {
                   hasOpenDeal ? (
                     <Link href={`/dashboard/request/${hasOpenDeal}`} style={{ display:'block', padding:'9px 20px', background:'#f0ede6', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600, whiteSpace:'nowrap' }}>К заявке</Link>
                   ) : (
-                    <button onClick={() => setModalOpen(true)} style={{ padding:'9px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Написать</button>
+                    <button onClick={() => { if (!businessProfile?.company_name || !businessProfile?.inn) { toast.error('Сначала заполни профиль компании'); return }; setModalOpen(true) }} style={{ padding:'9px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Написать</button>
                   )
                 )}
                 {!userId && (

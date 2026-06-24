@@ -35,12 +35,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (p) setBadgeCount(await getAuthorBadgeCount(p.id))
       } else if (role === 'business') {
         setBadgeCount(await getBusinessBadgeCount(u.id))
-        const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description').eq('id', u.id).maybeSingle()
+        const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description, inn').eq('id', u.id).maybeSingle()
         setBusinessProfile({
           company_name: bp?.company_name || '',
           website_url: bp?.website_url || '',
           niche: bp?.niche || '',
           description: bp?.description || '',
+          inn: bp?.inn || '',
         })
       }
       setReady(true)
@@ -103,3 +104,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </AppContext.Provider>
   )
 }
+

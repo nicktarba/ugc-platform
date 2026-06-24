@@ -11,7 +11,7 @@ type Author = { id:string; name:string; city:string; instagram_url:string; teleg
 export default function CatalogPage() {
   const router = useRouter()
   const toast = useToast()
-  const { userId, userEmail, userRole } = useApp()
+  const { userId, userEmail, userRole, businessProfile } = useApp()
   const [authors, setAuthors] = useState<Author[]>([])
   const [filtered, setFiltered] = useState<Author[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,6 +60,10 @@ export default function CatalogPage() {
   }, [city, barter, search, authors])
 
   const openModal = (author: Author) => {
+    if (userRole === 'business' && (!businessProfile?.company_name || !businessProfile?.inn)) {
+      toast.error('Сначала заполни профиль компании')
+      return
+    }
     setModalAuthor(author)
     setMessage('')
     setBudget('')
@@ -276,3 +280,4 @@ export default function CatalogPage() {
     </main>
   )
 }
+

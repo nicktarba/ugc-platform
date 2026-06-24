@@ -71,9 +71,9 @@ export default function BusinessDashboard() {
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>Добро пожаловать</h1>
         </div>
 
-        {businessProfile && !businessProfile.company_name && (
+        {businessProfile && (!businessProfile.company_name || !businessProfile.inn) && (
           <div style={{ padding:'14px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'16px', fontSize:'14px', color:'#c17f3e', fontWeight:500, display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
-            <span>💡 Заполни профиль компании — авторы будут видеть кто им пишет</span>
+            <span>Заполни профиль компании (название и ИНН), чтобы писать авторам</span>
             <Link href="/dashboard/business/profile" style={{ padding:'6px 16px', background:'#c17f3e', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600, flexShrink:0 }}>Заполнить</Link>
           </div>
         )}

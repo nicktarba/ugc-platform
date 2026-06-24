@@ -10,6 +10,7 @@ export default function BusinessProfilePage() {
   const { userId, businessProfile, setBusinessProfile } = useApp()
   const [form, setForm] = useState({
     company_name: businessProfile?.company_name || '',
+    inn: businessProfile?.inn || '',
     website_url: businessProfile?.website_url || '',
     niche: businessProfile?.niche || '',
     description: businessProfile?.description || '',
@@ -22,11 +23,15 @@ export default function BusinessProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!userId) return
+    if (!form.company_name.trim()) { toast.error('Укажи название компании'); return }
+    if (!form.inn.trim()) { toast.error('Укажи ИНН'); return }
+    if (form.inn.trim().length < 10 || form.inn.trim().length > 12) { toast.error('ИНН должен содержать 10 или 12 цифр'); return }
     if (form.website_url && !isValidUrl(form.website_url)) { toast.error('Ссылка должна начинаться с https://'); return }
     setSaving(true)
     const { error } = await supabase.from('business_profiles').upsert({
       id: userId,
-      company_name: form.company_name,
+      company_name: form.company_name.trim(),
+      inn: form.inn.trim(),
       website_url: form.website_url,
       niche: form.niche,
       description: form.description,
@@ -53,8 +58,13 @@ export default function BusinessProfilePage() {
         <form onSubmit={handleSubmit}>
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', display:'flex', flexDirection:'column', gap:'20px' }}>
             <div>
-              <label style={lbl}>Название компании</label>
-              <input name="company_name" value={form.company_name} onChange={handleChange} placeholder="Например: студия «Вкус»" style={inp} />
+              <label style={lbl}>Название компании *</label>
+              <input name="company_name" value={form.company_name} onChange={handleChange} required placeholder="Например: студия «Вкус»" style={inp} />
+            </div>
+            <div>
+              <label style={lbl}>ИНН *</label>
+              <input name="inn" value={form.inn} onChange={handleChange} required placeholder="10 или 12 цифр" style={inp} maxLength={12} />
+              <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>ИП — 12 цифр, ООО — 10 цифр</p>
             </div>
             <div>
               <label style={lbl}>Сайт или соцсети</label>
@@ -77,3 +87,4 @@ export default function BusinessProfilePage() {
     </main>
   )
 }
+

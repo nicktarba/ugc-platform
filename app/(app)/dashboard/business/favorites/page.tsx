@@ -12,7 +12,7 @@ type Author = { id:string; name:string; city:string; instagram_url:string; teleg
 export default function FavoritesPage() {
   const router = useRouter()
   const toast = useToast()
-  const { userId, userEmail } = useApp()
+  const { userId, userEmail, businessProfile } = useApp()
   const [authors, setAuthors] = useState<Author[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -53,6 +53,10 @@ export default function FavoritesPage() {
   }
 
   const openModal = (author: Author) => {
+    if (!businessProfile?.company_name || !businessProfile?.inn) {
+      toast.error('Сначала заполни профиль компании')
+      return
+    }
     setModalAuthor(author)
     setMessage('')
     setBudget('')
@@ -198,3 +202,4 @@ export default function FavoritesPage() {
     </main>
   )
 }
+

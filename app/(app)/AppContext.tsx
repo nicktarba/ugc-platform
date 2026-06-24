@@ -26,6 +26,7 @@ export type BusinessProfile = {
   website_url: string
   niche: string
   description: string
+  inn: string
 }
 
 export type AppContextValue = {
@@ -51,3 +52,4 @@ export const AppContext = createContext<AppContextValue>({
 })
 
 export const useApp = () => useContext(AppContext)
+
