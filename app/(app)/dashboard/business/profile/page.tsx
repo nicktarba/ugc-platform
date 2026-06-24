@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { isValidUrl } from '@/lib/format'
 import { useApp } from '../../../AppContext'
 
 export default function BusinessProfilePage() {
@@ -21,6 +22,7 @@ export default function BusinessProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!userId) return
+    if (form.website_url && !isValidUrl(form.website_url)) { toast.error('Ссылка должна начинаться с https://'); return }
     setSaving(true)
     const { error } = await supabase.from('business_profiles').upsert({
       id: userId,

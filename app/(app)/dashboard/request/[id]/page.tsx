@@ -63,7 +63,7 @@ export default function RequestDetailPage() {
       }
 
       if (role === 'author') {
-        const { data: bp } = await supabase.from('business_profiles').select('*').eq('id', (req as { business_id: string }).business_id).maybeSingle()
+        const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description').eq('id', (req as { business_id: string }).business_id).maybeSingle()
         if (bp) setBusinessProfile(bp as BusinessProfile)
       }
       setLoading(false)

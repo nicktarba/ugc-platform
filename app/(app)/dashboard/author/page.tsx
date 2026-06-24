@@ -20,7 +20,7 @@ export default function AuthorRequestsPage() {
   useEffect(() => {
     if (!profile) { setLoading(false); return }
     ;(async () => {
-      const { data: r } = await supabase.from('requests').select('*').eq('author_id', profile.id).order('created_at', { ascending: false })
+      const { data: r } = await supabase.from('requests').select('id, business_id, business_email, author_id, message, budget, deadline, status, created_at').eq('author_id', profile.id).order('created_at', { ascending: false })
       setRequests(r || [])
 
       if (r && r.length > 0) {

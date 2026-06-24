@@ -30,6 +30,7 @@ function LoginForm() {
 
     const role = data.user?.user_metadata?.role
     if (role === 'author') router.push('/dashboard/author')
+    else if (role === 'admin') router.push('/dashboard/admin')
     else router.push("/dashboard/business")
     setLoading(false)
   }

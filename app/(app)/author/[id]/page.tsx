@@ -37,7 +37,7 @@ export default function AuthorPublicPage() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: a } = await supabase.from('authors').select('*').eq('id', authorId).eq('status', 'approved').single()
+      const { data: a } = await supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, completed_deals_count, avg_rating, reviews_count').eq('id', authorId).eq('status', 'approved').single()
       if (!a) { router.push('/catalog'); return }
       setAuthor(a as Author)
       if (userId && userRole === 'business') {

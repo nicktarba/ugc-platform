@@ -43,7 +43,7 @@ export default function CatalogPage() {
   }, [userRole, userId])
 
   useEffect(() => {
-    supabase.from('authors').select('*').eq('status', 'approved').order('created_at', { ascending: false }).then(({ data }) => {
+    supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, completed_deals_count, avg_rating, reviews_count').eq('status', 'approved').order('created_at', { ascending: false }).then(({ data }) => {
       setAuthors(data || [])
       setFiltered(data || [])
       setLoading(false)

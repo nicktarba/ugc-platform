@@ -38,9 +38,9 @@ export default function AdminDashboard() {
   }, [router])
 
   const loadData = async () => {
-    const { data: a } = await supabase.from('authors').select('*').order('created_at', { ascending: false })
+    const { data: a } = await supabase.from('authors').select('id, user_id, name, city, instagram_url, telegram_url, followers_count, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, status, avatar_url, created_at').order('created_at', { ascending: false })
     setAuthors(a || [])
-    const { data: u } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+    const { data: u } = await supabase.from('profiles').select('id, email, role, created_at').order('created_at', { ascending: false })
     setUsers(u || [])
   }
 

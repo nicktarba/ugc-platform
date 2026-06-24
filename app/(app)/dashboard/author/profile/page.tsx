@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { isValidUrl } from '@/lib/format'
 import { useApp } from '../../../AppContext'
 import ReviewsList from '@/components/ReviewsList'
 
@@ -24,7 +25,7 @@ export default function AuthorProfilePage() {
 
   useEffect(() => {
     if (!userId) return
-    supabase.from('authors').select('*').eq('user_id', userId).single().then(({ data: p }) => {
+    supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, status, completed_deals_count, avg_rating, reviews_count').eq('user_id', userId).single().then(({ data: p }) => {
       if (p) {
         setForm({
           name: p.name || '',
@@ -74,6 +75,8 @@ export default function AuthorProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!userId) return
+    if (!isValidUrl(form.instagram_url)) { toast.error('Ссылка на Instagram должна начинаться с https://'); return }
+    if (form.telegram_url && !isValidUrl(form.telegram_url)) { toast.error('Ссылка на Telegram должна начинаться с https://'); return }
     setLoading(true)
     const uploadedUrl = await uploadAvatar()
     const payload = {

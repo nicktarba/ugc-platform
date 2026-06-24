@@ -56,7 +56,7 @@ export default function ChatPage() {
       if (!req) { router.push('/'); return }
       setRequest(req as unknown as RequestInfo)
 
-      const { data: msgs } = await supabase.from('messages').select('*').eq('request_id', requestId).order('created_at', { ascending: true })
+      const { data: msgs } = await supabase.from('messages').select('id, request_id, sender_id, sender_role, text, created_at, read').eq('request_id', requestId).order('created_at', { ascending: true })
       setMessages(msgs || [])
       setLoading(false)
 

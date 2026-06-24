@@ -32,7 +32,7 @@ export default function FavoritesPage() {
       const ids = (favs || []).map(f => f.author_id)
 
       if (ids.length > 0) {
-        const { data: a } = await supabase.from('authors').select('*').in('id', ids)
+        const { data: a } = await supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, status, completed_deals_count, avg_rating, reviews_count').in('id', ids)
         setAuthors(a || [])
       }
 

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import { isValidUrl } from '@/lib/format'
 import Link from 'next/link'
 
 const LIFESTYLE = ['Активный спорт','ЗОЖ и питание','Кофе и кафе','Рестораны','Путешествия','Авто','Мода и стиль','Красота и уход','Семья и дети','Технологии','Музыка','Кино и сериалы','Книги','Искусство','Бизнес']
@@ -26,7 +27,7 @@ export default function BecomeAuthorPage() {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return
       setUserId(data.user.id)
-      const { data: profile } = await supabase.from('authors').select('*').eq('user_id', data.user.id).single()
+      const { data: profile } = await supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, status').eq('user_id', data.user.id).single()
       if (profile) {
         setForm({
           name: profile.name || '',
@@ -71,6 +72,7 @@ export default function BecomeAuthorPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!userId) return
+    if (!isValidUrl(form.instagram_url)) { toast.error('Ссылка на Instagram должна начинаться с https://'); return }
     setLoading(true)
     setError('')
 

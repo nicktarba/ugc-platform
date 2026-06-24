@@ -1,5 +1,10 @@
 export const truncate = (s: string, n = 110) => s.length > n ? s.slice(0, n).trim() + '…' : s
 
+export const isValidUrl = (url: string) => {
+  if (!url || !url.trim()) return true
+  return /^https?:\/\/.+/.test(url.trim())
+}
+
 export const formatRelative = (iso: string) => {
   const d = new Date(iso)
   const today = new Date()

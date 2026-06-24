@@ -30,12 +30,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setUserRole(role)
 
       if (role === 'author') {
-        const { data: p } = await supabase.from('authors').select('*').eq('user_id', u.id).single()
+        const { data: p } = await supabase.from('authors').select('id, name, city, status, avatar_url, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, completed_deals_count, avg_rating, reviews_count').eq('user_id', u.id).single()
         setAuthorProfile((p as AuthorProfile) || null)
         if (p) setBadgeCount(await getAuthorBadgeCount(p.id))
       } else if (role === 'business') {
         setBadgeCount(await getBusinessBadgeCount(u.id))
-        const { data: bp } = await supabase.from('business_profiles').select('*').eq('id', u.id).maybeSingle()
+        const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description').eq('id', u.id).maybeSingle()
         setBusinessProfile({
           company_name: bp?.company_name || '',
           website_url: bp?.website_url || '',
@@ -46,6 +46,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setReady(true)
     })
   }, [])
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setUserId(null)
+        setUserRole(null)
+        setUserEmail(null)
+        setAuthorProfile(null)
+        setBusinessProfile(null)
+        setBadgeCount(0)
+        router.replace('/login')
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [router])
 
   useEffect(() => {
     if (ready && !userId && pathname !== '/catalog') {
