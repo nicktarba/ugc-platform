@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 export const metadata: Metadata = {
   title: 'Каталог авторов — ugcmarket',
   description: 'Найди микро-автора по городу, нише и стилю жизни. Каталог UGC-блогеров для рекламы и коллабораций.',
@@ -8,6 +9,6 @@ export const metadata: Metadata = {
   },
 }
 export default function CatalogLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <Suspense>{children}</Suspense>
 }
 

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../AppContext'
@@ -38,14 +38,15 @@ const HEADER_GRADIENTS = [
 
 export default function CatalogPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const toast = useToast()
   const { userId, userEmail, userRole, businessProfile } = useApp()
   const [authors, setAuthors] = useState<Author[]>([])
   const [filtered, setFiltered] = useState<Author[]>([])
   const [loading, setLoading] = useState(true)
-  const [city, setCity] = useState('')
-  const [barter, setBarter] = useState<'all'|'yes'|'no'>('all')
-  const [search, setSearch] = useState('')
+  const [city, setCity] = useState(searchParams.get('city') || '')
+  const [barter, setBarter] = useState<'all'|'yes'|'no'>((searchParams.get('barter') as 'all'|'yes'|'no') || 'all')
+  const [search, setSearch] = useState(searchParams.get('q') || '')
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
 
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
@@ -81,6 +82,15 @@ export default function CatalogPage() {
     if (barter === 'no') f = f.filter(a => !a.open_to_barter)
     setFiltered(f)
   }, [authors, search, city, barter])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (search) params.set('q', search)
+    if (city) params.set('city', city)
+    if (barter !== 'all') params.set('barter', barter)
+    const qs = params.toString()
+    router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
+  }, [search, city, barter, router])
 
   const openModal = (author: Author) => {
     if (userRole === 'business' && (!businessProfile?.company_name || !businessProfile?.inn)) {
