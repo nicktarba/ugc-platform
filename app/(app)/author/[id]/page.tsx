@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../../AppContext'
+import { ProfileSkeleton } from '@/components/Skeleton'
 import ReviewsList from '@/components/ReviewsList'
 
 type Author = {
@@ -88,7 +89,7 @@ export default function AuthorPublicPage() {
     router.push(`/dashboard/request/${inserted.id}`)
   }
 
-  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'80vh', color:'#9a9590' }}>Загрузка...</div>
+  if (loading) return <ProfileSkeleton />
   if (notFound) return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ textAlign:'center', maxWidth:'400px', padding:'40px 20px' }}>

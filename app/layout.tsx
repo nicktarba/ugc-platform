@@ -3,7 +3,14 @@ import './globals.css'
 import ToastProvider from '@/components/Toast'
 export const metadata: Metadata = {
   title: 'ugcmarket — живые авторы для бизнеса',
-  description: 'Площадка микро-авторов и UGC-блогеров',
+  description: 'Маркетплейс микро-авторов и UGC-блогеров. Найди автора с живой аудиторией для рекламы и коллабораций.',
+  openGraph: {
+    title: 'ugcmarket — живые авторы для бизнеса',
+    description: 'Маркетплейс микро-авторов и UGC-блогеров. Найди автора с живой аудиторией для рекламы и коллабораций.',
+    siteName: 'ugcmarket',
+    locale: 'ru_RU',
+    type: 'website',
+  },
 }
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,3 +24,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   )
 }
+

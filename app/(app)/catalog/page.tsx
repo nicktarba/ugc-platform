@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../AppContext'
+import { CatalogSkeleton } from '@/components/Skeleton'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; telegram_url:string|null; telegram_followers:number; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean; avatar_url:string|null; completed_deals_count:number; avg_rating:number|null; reviews_count:number }
 
@@ -140,7 +141,7 @@ export default function CatalogPage() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign:'center', padding:'80px', color:'#9a9590' }}>Загружаем авторов...</div>
+          <CatalogSkeleton />
         ) : filtered.length===0 ? (
           <div style={{ textAlign:'center', padding:'80px' }}>
             <div style={{ fontSize:'40px', marginBottom:'16px' }}>🔍</div>
