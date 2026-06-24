@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/components/Toast'
 import LoadingScreen from '@/components/LoadingScreen'
 import { truncate, formatRelative, formatDate } from '@/lib/format'
 import { businessStatusLabel } from '@/lib/status'
@@ -10,6 +11,7 @@ import { useApp } from '../../AppContext'
 
 export default function BusinessDashboard() {
   const { userId, bumpBadge, businessProfile } = useApp()
+  const toast = useToast()
   const [requests, setRequests] = useState<Req[]>([])
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [favoritesCount, setFavoritesCount] = useState(0)
@@ -19,7 +21,8 @@ export default function BusinessDashboard() {
   useEffect(() => {
     if (!userId) return
     ;(async () => {
-      const { data: r } = await supabase.from('requests').select('id, business_id, business_email, author_id, message, budget, deadline, status, created_at, authors(name, city)').eq('business_id', userId).order('created_at', { ascending: false })
+      const { data: r, error: reqErr } = await supabase.from('requests').select('id, business_id, business_email, author_id, message, budget, deadline, status, created_at, authors(name, city)').eq('business_id', userId).order('created_at', { ascending: false })
+      if (reqErr) toast.error('Не удалось загрузить заявки. Проверь соединение.')
       setRequests((r as unknown as Req[]) || [])
 
       const { count } = await supabase.from('favorites').select('id', { count: 'exact', head: true }).eq('business_id', userId)

@@ -69,7 +69,8 @@ export default function CatalogPage() {
         setRequestMap(map)
       })
     }
-    supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, completed_deals_count, avg_rating, reviews_count').eq('status', 'approved').order('created_at', { ascending: false }).then(({ data }) => {
+    supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, completed_deals_count, avg_rating, reviews_count').eq('status', 'approved').order('created_at', { ascending: false }).then(({ data, error: err }) => {
+      if (err) { toast.error('Не удалось загрузить авторов. Проверь соединение.') }
       setAuthors((data as Author[]) || [])
       setLoading(false)
     })

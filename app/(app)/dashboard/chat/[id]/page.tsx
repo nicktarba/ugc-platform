@@ -40,6 +40,9 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const PAGE_SIZE = 50
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -56,8 +59,11 @@ export default function ChatPage() {
       if (!req) { router.push('/'); return }
       setRequest(req as unknown as RequestInfo)
 
-      const { data: msgs } = await supabase.from('messages').select('id, request_id, sender_id, sender_role, text, created_at, read').eq('request_id', requestId).order('created_at', { ascending: true })
-      setMessages(msgs || [])
+      const { data: msgs, error: msgsErr } = await supabase.from('messages').select('id, request_id, sender_id, sender_role, text, created_at, read').eq('request_id', requestId).order('created_at', { ascending: false }).limit(PAGE_SIZE)
+      if (msgsErr) toast.error('Не удалось загрузить сообщения.')
+      const sorted = (msgs || []).reverse()
+      setMessages(sorted)
+      setHasMore((msgs?.length || 0) === PAGE_SIZE)
       setLoading(false)
 
       const { data: unreadMsgs } = await supabase.from('messages').select('id').eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
@@ -89,6 +95,17 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  const loadEarlier = async () => {
+    if (!messages.length || loadingMore) return
+    setLoadingMore(true)
+    const earliest = messages[0].created_at
+    const { data: older } = await supabase.from('messages').select('id, request_id, sender_id, sender_role, text, created_at, read').eq('request_id', requestId).lt('created_at', earliest).order('created_at', { ascending: false }).limit(PAGE_SIZE)
+    const sorted = (older || []).reverse()
+    setMessages(prev => [...sorted, ...prev])
+    setHasMore((older?.length || 0) === PAGE_SIZE)
+    setLoadingMore(false)
+  }
 
   const sendMessage = async () => {
     if (!text.trim() || !userId || !userRole) return
@@ -274,6 +291,13 @@ export default function ChatPage() {
         )}
 
         <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px', minHeight:'300px' }}>
+          {hasMore && (
+            <div style={{ textAlign:'center', padding:'8px 0' }}>
+              <button onClick={loadEarlier} disabled={loadingMore} style={{ padding:'6px 16px', background:'#fff', border:'1px solid #e0ddd8', borderRadius:'100px', fontSize:'12px', fontWeight:500, color:'#7a7570', cursor:'pointer', fontFamily:'inherit' }}>
+                {loadingMore ? 'Загружаем...' : '↑ Ранние сообщения'}
+              </button>
+            </div>
+          )}
           {messages.length === 0 && (
             <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
               <p style={{ fontSize:'14px', color:'#9a9590', textAlign:'center', lineHeight:1.6 }}>Сообщений пока нет. Напиши первым, чтобы начать диалог.</p>
