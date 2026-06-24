@@ -47,6 +47,11 @@ export default function CatalogPage() {
   const [city, setCity] = useState(searchParams.get('city') || '')
   const [barter, setBarter] = useState<'all'|'yes'|'no'>((searchParams.get('barter') as 'all'|'yes'|'no') || 'all')
   const [search, setSearch] = useState(searchParams.get('q') || '')
+  const [sort, setSort] = useState(searchParams.get('sort') || 'new')
+  const [lifestyleFilter, setLifestyleFilter] = useState<string[]>(() => {
+    const lf = searchParams.get('lifestyle')
+    return lf ? lf.split(',') : []
+  })
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [visibleCount, setVisibleCount] = useState(12)
 
@@ -82,9 +87,12 @@ export default function CatalogPage() {
     if (city) { const c = city.toLowerCase(); f = f.filter(a => a.city?.toLowerCase().includes(c)) }
     if (barter === 'yes') f = f.filter(a => a.open_to_barter)
     if (barter === 'no') f = f.filter(a => !a.open_to_barter)
+    if (lifestyleFilter.length > 0) f = f.filter(a => lifestyleFilter.some(tag => a.lifestyle?.includes(tag)))
+    if (sort === 'followers') f = [...f].sort((a, b) => b.followers_count - a.followers_count)
+    else if (sort === 'rating') f = [...f].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0))
     setFiltered(f)
     setVisibleCount(12)
-  }, [authors, search, city, barter])
+  }, [authors, search, city, barter, lifestyleFilter, sort])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -92,11 +100,13 @@ export default function CatalogPage() {
       if (search) params.set('q', search)
       if (city) params.set('city', city)
       if (barter !== 'all') params.set('barter', barter)
+      if (sort !== 'new') params.set('sort', sort)
+      if (lifestyleFilter.length > 0) params.set('lifestyle', lifestyleFilter.join(','))
       const qs = params.toString()
       router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
     }, 400)
     return () => clearTimeout(timer)
-  }, [search, city, barter, router])
+  }, [search, city, barter, sort, lifestyleFilter, router])
 
   const openModal = (author: Author) => {
     if (userRole === 'business' && (!businessProfile?.company_name || !businessProfile?.inn)) {
@@ -136,6 +146,9 @@ export default function CatalogPage() {
     }
   }
 
+  const toggleLifestyle = (tag: string) => setLifestyleFilter(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+  const LIFESTYLE_TAGS = Object.keys(TAG_COLORS)
+
   const inp = { padding:'10px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }
 
   return (
@@ -146,13 +159,29 @@ export default function CatalogPage() {
           <p style={{ fontSize:'15px', color:'#7a7570' }}>{filtered.length} {filtered.length===1?'автор':filtered.length<5?'автора':'авторов'}</p>
         </div>
 
-        <div style={{ display:'flex', gap:'12px', flexWrap:'wrap', marginBottom:'32px', padding:'20px', background:'#fff', borderRadius:'16px', border:'1px solid #e8e6e1' }}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по имени, хобби, профессии..." style={{ ...inp, minWidth:'240px', flex:1 }} />
-          <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Город" style={{ ...inp, width:'160px' }} />
-          <div style={{ display:'flex', gap:'8px' }}>
-            {[{val:'all',label:'Все'},{val:'yes',label:'Бартер ✓'},{val:'no',label:'Без бартера'}].map(opt => (
-              <button key={opt.val} onClick={()=>setBarter(opt.val as 'all'|'yes'|'no')} style={{ padding:'10px 16px', borderRadius:'100px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
+        <div style={{ display:'flex', flexDirection:'column', gap:'12px', marginBottom:'32px', padding:'20px', background:'#fff', borderRadius:'16px', border:'1px solid #e8e6e1' }}>
+          <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по имени, хобби, профессии..." style={{ ...inp, minWidth:'240px', flex:1 }} />
+            <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Город" style={{ ...inp, width:'160px' }} />
+            <select value={sort} onChange={e => setSort(e.target.value)} style={{ ...inp, cursor:'pointer', minWidth:'140px' }}>
+              <option value="new">Новые</option>
+              <option value="followers">По подписчикам</option>
+              <option value="rating">По рейтингу</option>
+            </select>
+          </div>
+          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' }}>
+            {[{val:'all' as const,label:'Все'},{val:'yes' as const,label:'Бартер ✓'},{val:'no' as const,label:'Без бартера'}].map(opt => (
+              <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ padding:'8px 14px', borderRadius:'100px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
             ))}
+            <div style={{ width:'1px', height:'20px', background:'#e0ddd8', margin:'0 4px' }} />
+            {LIFESTYLE_TAGS.map(tag => {
+              const tc = TAG_COLORS[tag]
+              const active = lifestyleFilter.includes(tag)
+              return <button key={tag} onClick={() => toggleLifestyle(tag)} style={{ padding:'6px 12px', borderRadius:'100px', fontSize:'11px', fontWeight:600, border:`1.5px solid ${active ? tc.border : '#e0ddd8'}`, cursor:'pointer', fontFamily:'inherit', background: active ? tc.bg : '#fff', color: active ? tc.color : '#9a9590' }}>{tag}</button>
+            })}
+            {lifestyleFilter.length > 0 && (
+              <button onClick={() => setLifestyleFilter([])} style={{ padding:'6px 12px', borderRadius:'100px', fontSize:'11px', fontWeight:500, border:'none', cursor:'pointer', fontFamily:'inherit', background:'transparent', color:'#dc2626', textDecoration:'underline' }}>Сбросить</button>
+            )}
           </div>
         </div>
 
