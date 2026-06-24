@@ -26,3 +26,4 @@ export type AuthorRequest = {
 
 // AuthorProfile — актуальный тип в app/(app)/AppContext.tsx
 // Здесь не дублируем во избежание рассинхронизации
+
