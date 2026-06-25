@@ -61,6 +61,8 @@ export default function NotificationBell({ userId }: { userId: string }) {
     return () => { supabase.removeChannel(channel) }
   }, [userId])
 
+  const [dropStyle, setDropStyle] = useState<React.CSSProperties>({})
+
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -101,7 +103,17 @@ export default function NotificationBell({ userId }: { userId: string }) {
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
-        onClick={() => { setOpen(!open); if (!open && unread > 0) markAllRead() }}
+        onClick={() => {
+          if (!open) {
+            const btn = ref.current?.querySelector('button')
+            if (btn) {
+              const r = btn.getBoundingClientRect()
+              setDropStyle({ position:'fixed', top: r.bottom + 8, left: r.left })
+            }
+            if (unread > 0) markAllRead()
+          }
+          setOpen(!open)
+        }}
         style={{ position:'relative', width:'36px', height:'36px', borderRadius:'50%', border:'1px solid #e0ddd8', background: open ? '#f0ede6' : '#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontFamily:'inherit' }}
       >
         🔔
@@ -114,7 +126,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
 
       {open && (
         <div style={{
-          position:'absolute', top:'calc(100% + 8px)', right:0, width:'340px',
+          ...dropStyle, width:'340px',
           background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px',
           boxShadow:'0 8px 30px rgba(0,0,0,0.12)', zIndex:1000, overflow:'hidden',
           maxHeight:'420px', display:'flex', flexDirection:'column',
