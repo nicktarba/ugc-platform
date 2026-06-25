@@ -18,6 +18,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null)
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null)
   const [badgeCount, setBadgeCount] = useState(0)
+  const [notifCount, setNotifCount] = useState(0)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -33,8 +34,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const { data: p } = await supabase.from('authors').select('id, name, city, status, avatar_url, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, completed_deals_count, avg_rating, reviews_count').eq('user_id', u.id).single()
         setAuthorProfile((p as AuthorProfile) || null)
         if (p) setBadgeCount(await getAuthorBadgeCount(p.id))
+        const { count: nc } = await supabase.from('notifications').select('id', { count:'exact', head:true }).eq('user_id', u.id).eq('read', false)
+        setNotifCount(nc || 0)
       } else if (role === 'business') {
         setBadgeCount(await getBusinessBadgeCount(u.id))
+        const { count: bnc } = await supabase.from('notifications').select('id', { count:'exact', head:true }).eq('user_id', u.id).eq('read', false)
+        setNotifCount(bnc || 0)
         const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description, inn').eq('id', u.id).maybeSingle()
         setBusinessProfile({
           company_name: bp?.company_name || '',
@@ -87,6 +92,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/dashboard/business/favorites') ? 'favorites'
     : pathname.startsWith('/dashboard/business/profile') ? 'profile'
     : pathname.startsWith('/dashboard/author/profile') ? 'profile'
+    : pathname.startsWith('/dashboard/notifications') ? 'notifications'
     : pathname === '/catalog' ? 'catalog'
     : 'requests'
 
@@ -107,7 +113,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
         <div className="sidebar-content">
           {children}
-          {navRole && <BottomNav role={navRole} active={active} unread={badgeCount} />}
+          {navRole && <BottomNav role={navRole} active={active} unread={badgeCount} notifCount={notifCount} />}
         </div>
       </div>
     </AppContext.Provider>

@@ -3,17 +3,18 @@ import Link from 'next/link'
 
 type Tab = { key: string; href: string; label: string; icon: string; badge?: number }
 
-export default function BottomNav({ role, active, unread = 0 }: { role: 'business' | 'author'; active: string; unread?: number }) {
+export default function BottomNav({ role, active, unread = 0, notifCount = 0 }: { role: 'business' | 'author'; active: string; unread?: number; notifCount?: number }) {
   const tabs: Tab[] = role === 'business'
     ? [
         { key: 'catalog', href: '/catalog', label: 'Каталог', icon: '🔍' },
         { key: 'requests', href: '/dashboard/business', label: 'Сделки', icon: '💬', badge: unread },
-        { key: 'favorites', href: '/dashboard/business/favorites', label: 'Избранное', icon: '⭐️' },
+        { key: 'notifications', href: '/dashboard/notifications', label: 'Уведомления', icon: '🔔', badge: notifCount },
         { key: 'profile', href: '/dashboard/business/profile', label: 'Профиль', icon: '👤' },
       ]
     : [
         { key: 'catalog', href: '/catalog', label: 'Каталог', icon: '🔍' },
         { key: 'requests', href: '/dashboard/author', label: 'Запросы', icon: '💬', badge: unread },
+        { key: 'notifications', href: '/dashboard/notifications', label: 'Уведомления', icon: '🔔', badge: notifCount },
         { key: 'profile', href: '/dashboard/author/profile', label: 'Профиль', icon: '👤' },
       ]
 
@@ -37,3 +38,4 @@ export default function BottomNav({ role, active, unread = 0 }: { role: 'busines
     </>
   )
 }
+
