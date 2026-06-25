@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { useApp } from '../../../AppContext'
+import { useApp } from '../../AppContext'
 
 type Notification = {
   id: string; type: string; title: string; body: string | null
