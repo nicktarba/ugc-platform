@@ -2,15 +2,17 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import NotificationBell from './NotificationBell'
 
 type Props = {
   role: 'business' | 'author' | 'admin' | null
   email: string | null
+  userId: string | null
   badgeCount?: number
   authorId?: string | null
 }
 
-export default function Sidebar({ role, email, badgeCount = 0, authorId }: Props) {
+export default function Sidebar({ role, email, userId, badgeCount = 0, authorId }: Props) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -61,7 +63,10 @@ export default function Sidebar({ role, email, badgeCount = 0, authorId }: Props
   return (
     <aside className="sidebar">
       <div style={{ padding:'20px 16px 16px' }}>
-        <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', textDecoration:'none', display:'block', marginBottom:'24px' }}>ugcmarket</Link>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px' }}>
+          <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
+          {userId && <NotificationBell userId={userId} />}
+        </div>
 
         {role && (
           <div style={{ marginBottom:'8px' }}>
@@ -93,3 +98,4 @@ export default function Sidebar({ role, email, badgeCount = 0, authorId }: Props
     </aside>
   )
 }
+

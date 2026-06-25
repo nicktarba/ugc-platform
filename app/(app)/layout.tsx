@@ -101,6 +101,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Sidebar
           role={userRole}
           email={userEmail}
+          userId={userId}
           badgeCount={badgeCount}
           authorId={authorProfile?.id || null}
         />
