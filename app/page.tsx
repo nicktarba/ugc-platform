@@ -152,13 +152,30 @@ export default function HomePage() {
 
   return (
     <main style={{ background: '#FBF7F0', minHeight: '100vh', fontFamily: "'Manrope', system-ui, sans-serif" }}>
+      <style>{`
+        .lp-header { display:flex; align-items:center; justify-content:space-between; padding:14px 64px; border-bottom:1px solid rgba(42,39,35,.06); background:#FBF7F0; }
+        .lp-header nav { display:flex; align-items:center; gap:36px; }
+        .lp-hero-grid { display:grid; grid-template-columns:1fr 440px; gap:48px; padding:52px 64px 56px; align-items:center; position:relative; }
+        .lp-hero-title { margin:22px 0 0; font-size:62px; font-weight:800; line-height:1.0; letter-spacing:-0.025em; color:#2A2723; }
+        .lp-hero-buttons { display:flex; gap:12px; margin-top:30px; }
+        .lp-hero-right { display:block; }
+        @media (max-width: 768px) {
+          .lp-header { padding:12px 16px; flex-wrap:wrap; gap:8px; }
+          .lp-header nav { gap:16px; font-size:13px; flex-wrap:wrap; }
+          .lp-hero-grid { grid-template-columns:1fr; padding:32px 20px 40px; gap:24px; }
+          .lp-hero-title { font-size:38px; }
+          .lp-hero-buttons { flex-direction:column; }
+          .lp-hero-buttons a { text-align:center; justify-content:center; }
+          .lp-hero-right { display:none; }
+        }
+      `}</style>
 
       {/* ═══ HEADER ═══ */}
-      <header style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 64px', borderBottom: '1px solid rgba(42,39,35,.06)', background: '#FBF7F0' }}>
+      <header className="lp-header">
         <Link href="/" style={{ fontSize: '23px', fontWeight: 800, letterSpacing: '-0.02em', color: '#2A2723', textDecoration: 'none' }}>
           ugc<span style={{ color: '#C56A43' }}>market</span>
         </Link>
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
+        <nav>
           <Link href="/catalog" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Каталог</Link>
           <Link href="/support" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Поддержка</Link>
           {loggedInRole ? (
@@ -176,7 +193,7 @@ export default function HomePage() {
       <section style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid rgba(42,39,35,.06)' }}>
         <div style={{ position: 'absolute', top: '-120px', right: '-80px', width: '620px', height: '620px', borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(197,106,67,.10), rgba(197,106,67,0))', pointerEvents: 'none' }} />
 
-        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 440px', gap: '48px', padding: '52px 64px 56px', alignItems: 'center' }}>
+        <div className="lp-hero-grid">
 
           {/* ── Левая колонка ── */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -185,7 +202,7 @@ export default function HomePage() {
               Площадка микро-авторов · от 300 до 30 000 подписчиков
             </div>
 
-            <h1 style={{ margin: '22px 0 0', fontSize: '62px', fontWeight: 800, lineHeight: 1.0, letterSpacing: '-0.025em', color: '#2A2723' }}>
+            <h1 className="lp-hero-title">
               Живые люди<br />
               с{' '}
               <span style={{ fontFamily: "'Great Vibes', cursive", fontWeight: 400, fontSize: '1.2em', color: '#C56A43', display: 'inline-block', transform: 'rotate(-2deg)', lineHeight: 0.85, padding: '0 0.04em' }}>тёплой</span>
@@ -199,14 +216,16 @@ export default function HomePage() {
               Выбирайте авторов по городу, профессии, хобби, темам и стилю жизни
             </p>
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '30px' }}>
+            <div className="lp-hero-buttons">
               <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '15px 26px', borderRadius: '13px', textDecoration: 'none', boxShadow: '0 6px 18px rgba(197,106,67,.28)' }}>Стать автором — бесплатно</Link>
               <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#2A2723', padding: '15px 24px', borderRadius: '13px', border: '1.5px solid #DCCDB6', textDecoration: 'none', background: 'rgba(255,255,255,.6)' }}>Смотреть каталог</Link>
             </div>
           </div>
 
           {/* ── Правая колонка ── */}
-          <HeroSlider />
+          <div className="lp-hero-right">
+            <HeroSlider />
+          </div>
         </div>
       </section>
 
