@@ -28,7 +28,8 @@ function LoginForm() {
 
     if (err) { setError('Неверный email или пароль'); setLoading(false); return }
 
-    const role = data.user?.user_metadata?.role
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user?.id).single()
+    const role = profile?.role || data.user?.user_metadata?.role
     if (role === 'author') router.push('/dashboard/author')
     else if (role === 'admin') router.push('/dashboard/admin')
     else router.push("/dashboard/business")
@@ -82,3 +83,4 @@ export default function LoginPage() {
     </Suspense>
   )
 }
+
