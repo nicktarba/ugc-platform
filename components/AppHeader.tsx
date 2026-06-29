@@ -6,12 +6,19 @@ import { supabase } from '@/lib/supabase'
 
 export default function AppHeader() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email?: string; user_metadata?: { role?: string } } | null>(null)
+  const [user, setUser] = useState<{ id?: string; email?: string; user_metadata?: { role?: string } } | null>(null)
+  const [role, setRole] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUser(data.user)
+      if (data.user?.id) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
+        setRole(profile?.role || data.user?.user_metadata?.role || null)
+      }
+    })
     const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => setUser(session?.user ?? null))
     return () => listener.subscription.unsubscribe()
   }, [])
@@ -32,7 +39,6 @@ export default function AppHeader() {
   }
 
   const initial = user?.email?.[0]?.toUpperCase() || '?'
-  const role = user?.user_metadata?.role
   const dashboardHref = role === 'author' ? '/dashboard/author' : role === 'admin' ? '/dashboard/admin' : '/dashboard/business'
 
   return (
@@ -66,3 +72,4 @@ export default function AppHeader() {
     </nav>
   )
 }
+

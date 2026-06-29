@@ -41,6 +41,8 @@ export type AppContextValue = {
   setBusinessProfile: (p: BusinessProfile) => void
   badgeCount: number
   bumpBadge: (delta: number) => void
+  notifCount: number
+  setNotifCount: (n: number) => void
 }
 
 export const AppContext = createContext<AppContextValue>({
@@ -53,6 +55,8 @@ export const AppContext = createContext<AppContextValue>({
   setBusinessProfile: () => {},
   badgeCount: 0,
   bumpBadge: () => {},
+  notifCount: 0,
+  setNotifCount: () => {},
 })
 
 export const useApp = () => useContext(AppContext)

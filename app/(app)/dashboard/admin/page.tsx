@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   const [authors, setAuthors] = useState<Author[]>([])
   const [users, setUsers] = useState<UserProfile[]>([])
   const [tab, setTab] = useState<'pending'|'authors'|'users'>('pending')
+  const [adminSearch, setAdminSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
 
@@ -80,6 +81,11 @@ export default function AdminDashboard() {
   users.forEach(u => { emailById[u.id] = u.email })
 
   const pending = authors.filter(a => a.status === 'pending')
+  const filteredAuthors = authors.filter(a => {
+    if (!adminSearch) return true
+    const s = adminSearch.toLowerCase()
+    return a.name?.toLowerCase().includes(s) || a.city?.toLowerCase().includes(s) || a.instagram_url?.toLowerCase().includes(s)
+  })
 
   const btn = { padding:'8px 18px', borderRadius:'100px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit', border:'none' }
 
@@ -183,24 +189,30 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        {tab !== 'users' && (
+          <div style={{ marginBottom:'16px' }}>
+            <input value={adminSearch} onChange={e => setAdminSearch(e.target.value)} placeholder="Поиск по имени, городу, Instagram..." style={{ width:'100%', maxWidth:'400px', padding:'10px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }} />
+          </div>
+        )}
+
         {/* Pending moderation */}
         {tab === 'pending' && (
-          pending.length === 0 ? (
+          (adminSearch ? filteredAuthors.filter(a => a.status === 'pending') : pending).length === 0 ? (
             <div style={{ textAlign:'center', padding:'60px', color:'#9a9590' }}>Нет анкет на модерации 🎉</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-              {pending.map(a => <AuthorCard key={a.id} a={a} />)}
+              {(adminSearch ? filteredAuthors.filter(a => a.status === 'pending') : pending).map(a => <AuthorCard key={a.id} a={a} />)}
             </div>
           )
         )}
 
         {/* All authors */}
         {tab === 'authors' && (
-          authors.length === 0 ? (
+          filteredAuthors.length === 0 ? (
             <div style={{ textAlign:'center', padding:'60px', color:'#9a9590' }}>Анкет пока нет</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-              {authors.map(a => <AuthorCard key={a.id} a={a} />)}
+              {filteredAuthors.map(a => <AuthorCard key={a.id} a={a} />)}
             </div>
           )
         )}

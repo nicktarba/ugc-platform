@@ -25,7 +25,8 @@ export default function RegisterPage() {
     if (err) { setError(err.message); setLoading(false); return }
 
     if (data.user) {
-      await supabase.from('profiles').insert([{ id: data.user.id, email: form.email, role: form.role }])
+      const { error: profileErr } = await supabase.from('profiles').insert([{ id: data.user.id, email: form.email, role: form.role }])
+      if (profileErr) { setError('Ошибка создания профиля. Попробуй ещё раз.'); setLoading(false); return }
       if (form.role === 'author') router.push('/dashboard/author')
       else router.push("/dashboard/business")
     }
@@ -43,6 +44,7 @@ export default function RegisterPage() {
       </nav>
 
       <div style={{ maxWidth: '480px', margin: '0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
+        <Link href="/" style={{ fontSize:'13px', color:'#9a9590', textDecoration:'none', display:'inline-block', marginBottom:'16px' }}>← На главную</Link>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '8px' }}>Регистрация</h1>
         <p style={{ fontSize: '15px', color: '#7a7570', marginBottom: '40px' }}>Уже есть аккаунт? <Link href="/login" style={{ color: '#1a1a1a', fontWeight: 600 }}>Войти</Link></p>
 
@@ -82,3 +84,4 @@ export default function RegisterPage() {
     </main>
   )
 }
+

@@ -17,7 +17,7 @@ const ICONS: Record<string, string> = {
 
 export default function NotificationsPage() {
   const router = useRouter()
-  const { userId } = useApp()
+  const { userId, setNotifCount } = useApp()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -28,6 +28,7 @@ export default function NotificationsPage() {
       setNotifications((data as Notification[]) || [])
       setLoading(false)
       await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
+      setNotifCount(0)
     })()
   }, [userId])
 

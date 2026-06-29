@@ -103,7 +103,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     : null
 
   return (
-    <AppContext.Provider value={{ userId, userEmail, userRole, authorProfile, setAuthorProfile, businessProfile, setBusinessProfile, badgeCount, bumpBadge }}>
+    <AppContext.Provider value={{ userId, userEmail, userRole, authorProfile, setAuthorProfile, businessProfile, setBusinessProfile, badgeCount, bumpBadge, notifCount, setNotifCount }}>
       <div className="sidebar-layout">
         <Sidebar
           role={userRole}

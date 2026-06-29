@@ -47,6 +47,7 @@ function LoginForm() {
       </nav>
 
       <div style={{ maxWidth: '480px', margin: '0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
+        <Link href="/" style={{ fontSize:'13px', color:'#9a9590', textDecoration:'none', display:'inline-block', marginBottom:'16px' }}>← На главную</Link>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '8px' }}>Вход</h1>
         <p style={{ fontSize: '15px', color: '#7a7570', marginBottom: '40px' }}>Нет аккаунта? <Link href="/register" style={{ color: '#1a1a1a', fontWeight: 600 }}>Зарегистрироваться</Link></p>
 

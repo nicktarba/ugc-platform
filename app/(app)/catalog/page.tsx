@@ -169,7 +169,7 @@ export default function CatalogPage() {
               <option value="rating">По рейтингу</option>
             </select>
           </div>
-          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' }}>
+          <div style={{ display:'flex', gap:'8px', flexWrap:'nowrap', alignItems:'center', overflowX:'auto', WebkitOverflowScrolling:'touch', paddingBottom:'4px' }}>
             {[{val:'all' as const,label:'Все'},{val:'yes' as const,label:'Бартер ✓'},{val:'no' as const,label:'Без бартера'}].map(opt => (
               <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ padding:'8px 14px', borderRadius:'100px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
             ))}
