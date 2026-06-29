@@ -28,6 +28,7 @@ export type BusinessProfile = {
   niche: string
   description: string
   inn: string
+  avatar_url?: string
 }
 
 export type AppContextValue = {

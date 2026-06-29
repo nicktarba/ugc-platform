@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { isValidUrl } from '@/lib/format'
@@ -7,6 +7,7 @@ import { useApp } from '../../../AppContext'
 
 export default function BusinessProfilePage() {
   const toast = useToast()
+  const fileRef = useRef<HTMLInputElement>(null)
   const { userId, businessProfile, setBusinessProfile } = useApp()
   const [form, setForm] = useState({
     company_name: businessProfile?.company_name || '',
@@ -15,10 +16,31 @@ export default function BusinessProfilePage() {
     niche: businessProfile?.niche || '',
     description: businessProfile?.description || '',
   })
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(businessProfile?.avatar_url || null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value })
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { toast.error('Максимум 5 МБ'); return }
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
+
+  const uploadAvatar = async (): Promise<string | null> => {
+    if (!avatarFile || !userId) return avatarUrl
+    const ext = avatarFile.name.split('.').pop()
+    const path = `${userId}/logo.${ext}`
+    const { error } = await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true })
+    if (error) { toast.error('Не удалось загрузить логотип'); return avatarUrl }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+    return data.publicUrl
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,6 +50,7 @@ export default function BusinessProfilePage() {
     if (form.inn.trim().length < 10 || form.inn.trim().length > 12) { toast.error('ИНН должен содержать 10 или 12 цифр'); return }
     if (form.website_url && !isValidUrl(form.website_url)) { toast.error('Ссылка должна начинаться с https://'); return }
     setSaving(true)
+    const uploadedUrl = await uploadAvatar()
     const { error } = await supabase.from('business_profiles').upsert({
       id: userId,
       company_name: form.company_name.trim(),
@@ -35,14 +58,19 @@ export default function BusinessProfilePage() {
       website_url: form.website_url,
       niche: form.niche,
       description: form.description,
+      avatar_url: uploadedUrl,
       updated_at: new Date().toISOString(),
     })
     setSaving(false)
     if (error) { toast.error('Не удалось сохранить. Попробуй ещё раз.'); return }
-    setBusinessProfile({ ...form })
+    if (uploadedUrl) setAvatarUrl(uploadedUrl)
+    setAvatarFile(null); setAvatarPreview(null)
+    setBusinessProfile({ ...form, avatar_url: uploadedUrl || undefined })
     toast.success('Профиль сохранён')
   }
 
+  const displayAvatar = avatarPreview || avatarUrl
+  const initial = form.company_name?.[0]?.toUpperCase() || '?'
   const inp = { width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' as const }
   const lbl = { display:'block' as const, fontSize:'14px', fontWeight:600, color:'#1a1a1a', marginBottom:'8px' }
 
@@ -52,11 +80,26 @@ export default function BusinessProfilePage() {
         <div style={{ marginBottom:'32px' }}>
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет бизнеса</div>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Профиль компании</h1>
-          <p style={{ fontSize:'15px', color:'#7a7570', lineHeight:1.6 }}>Эта информация видна авторам, которым ты пишешь — заполни, чтобы тебе было проще договариваться.</p>
+          <p style={{ fontSize:'15px', color:'#7a7570', lineHeight:1.6 }}>Эта информация видна авторам, которым ты пишешь.</p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', display:'flex', flexDirection:'column', gap:'20px' }}>
+            <div>
+              <label style={lbl}>Логотип компании</label>
+              <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
+                <div onClick={() => fileRef.current?.click()} style={{ width:'72px', height:'72px', borderRadius:'16px', background:'#fdf3e7', border:'2px dashed #d4d0c8', cursor:'pointer', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px', fontWeight:700, color:'#c17f3e' }}>
+                  {displayAvatar ? <img src={displayAvatar} alt="logo" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initial}
+                </div>
+                <div>
+                  <button type="button" onClick={() => fileRef.current?.click()} style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'13px', fontWeight:500, fontFamily:'inherit', color:'#1a1a1a' }}>
+                    {displayAvatar ? 'Заменить' : 'Загрузить'}
+                  </button>
+                  <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>JPG или PNG, до 5 МБ</p>
+                </div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} style={{ display:'none' }} />
+            </div>
             <div>
               <label style={lbl}>Название компании *</label>
               <input name="company_name" value={form.company_name} onChange={handleChange} required placeholder="Например: студия «Вкус»" style={inp} />

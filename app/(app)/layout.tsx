@@ -40,13 +40,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         setBadgeCount(await getBusinessBadgeCount(u.id))
         const { count: bnc } = await supabase.from('notifications').select('id', { count:'exact', head:true }).eq('user_id', u.id).eq('read', false)
         setNotifCount(bnc || 0)
-        const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description, inn').eq('id', u.id).maybeSingle()
+        const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description, inn, avatar_url').eq('id', u.id).maybeSingle()
         setBusinessProfile({
           company_name: bp?.company_name || '',
           website_url: bp?.website_url || '',
           niche: bp?.niche || '',
           description: bp?.description || '',
           inn: bp?.inn || '',
+          avatar_url: bp?.avatar_url || undefined,
         })
       }
       setReady(true)
