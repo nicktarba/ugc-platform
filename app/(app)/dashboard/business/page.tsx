@@ -47,10 +47,10 @@ export default function BusinessDashboard() {
         const updated = payload.new as { id: string; status: string }
         setRequests(prev => prev.map(r => r.id === updated.id ? { ...r, status: updated.status } : r))
       })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const msg = payload.new as { request_id: string; sender_role: string }
-        if (msg.sender_role === 'author') {
-          setUnreadCounts(prev => ({ ...prev, [msg.request_id]: (prev[msg.request_id] || 0) + 1 }))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload) => {
+        const notif = payload.new as { type: string; data: { request_id?: string } }
+        if (notif.type === 'new_message' && notif.data?.request_id) {
+          setUnreadCounts(prev => ({ ...prev, [notif.data.request_id!]: (prev[notif.data.request_id!] || 0) + 1 }))
           bumpBadge(1)
         }
       })

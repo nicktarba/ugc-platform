@@ -11,7 +11,7 @@ import { useApp } from '../../AppContext'
 
 export default function AuthorRequestsPage() {
   const toast = useToast()
-  const { authorProfile: profile, bumpBadge } = useApp()
+  const { userId, authorProfile: profile, bumpBadge } = useApp()
   const [requests, setRequests] = useState<Req[]>([])
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [businessNames, setBusinessNames] = useState<Record<string, string>>({})
@@ -57,10 +57,10 @@ export default function AuthorRequestsPage() {
         setRequests(prev => [newReq, ...prev])
         bumpBadge(1)
       })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const msg = payload.new as { request_id: string; sender_role: string }
-        if (msg.sender_role === 'business') {
-          setUnreadCounts(prev => ({ ...prev, [msg.request_id]: (prev[msg.request_id] || 0) + 1 }))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, (payload) => {
+        const notif = payload.new as { type: string; data: { request_id?: string } }
+        if (notif.type === 'new_message' && notif.data?.request_id) {
+          setUnreadCounts(prev => ({ ...prev, [notif.data.request_id!]: (prev[notif.data.request_id!] || 0) + 1 }))
           bumpBadge(1)
         }
       })
