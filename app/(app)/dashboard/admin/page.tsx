@@ -49,12 +49,17 @@ export default function AdminDashboard() {
     router.push('/')
   }
 
-  const setStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from('authors').update({ status }).eq('id', id)
+  const setStatus = async (id: string, status: string, reason?: string) => {
+    const update: Record<string, string> = { status }
+    if (reason) update.rejection_reason = reason
+    const { error } = await supabase.from('authors').update(update).eq('id', id)
     if (error) { toast.error('Не удалось изменить статус анкеты.'); return }
     setAuthors(authors.map(a => a.id === id ? { ...a, status } : a))
     toast.success(status === 'approved' ? 'Анкета одобрена' : 'Анкета отклонена')
   }
+
+  const [rejectModal, setRejectModal] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   const statusBadge = (status: string) => {
     if (status === 'approved') return { text: 'Опубликован', color: '#16a34a', bg: '#f0fdf4' }
@@ -127,7 +132,7 @@ export default function AdminDashboard() {
           <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
             {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ ...btn, border:'1.5px solid #e0ddd8', background:'#fff', color:'#1a1a1a' }}>Instagram →</a>}
             {a.status !== 'approved' && <button onClick={() => setStatus(a.id, 'approved')} style={{ ...btn, background:'#16a34a', color:'#fff' }}>Одобрить</button>}
-            {a.status !== 'rejected' && <button onClick={() => setStatus(a.id, 'rejected')} style={{ ...btn, background:'#fff', border:'1.5px solid #e0ddd8', color:'#5a5650' }}>Отклонить</button>}
+            {a.status !== 'rejected' && <button onClick={() => { setRejectModal(a.id); setRejectReason('') }} style={{ ...btn, background:'#fff', border:'1.5px solid #e0ddd8', color:'#5a5650' }}>Отклонить</button>}
           </div>
         </div>
       </div>
@@ -225,6 +230,21 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      {rejectModal && (
+        <div onClick={() => setRejectModal(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'440px', width:'100%' }}>
+            <h3 style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px' }}>Причина отклонения</h3>
+            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'16px' }}>Автор увидит эту причину в своём профиле.</p>
+            <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3} placeholder="Например: недостаточно подписчиков, некорректные ссылки..." style={{ width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'16px' }} />
+            <div style={{ display:'flex', gap:'10px' }}>
+              <button onClick={() => setRejectModal(null)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
+              <button onClick={() => { setStatus(rejectModal, 'rejected', rejectReason.trim() || undefined); setRejectModal(null) }} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#dc2626', color:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отклонить</button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
+

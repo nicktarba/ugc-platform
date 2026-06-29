@@ -20,12 +20,13 @@ export default function AuthorProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string|null>(null)
   const [loading, setLoading] = useState(false)
   const [currentStatus, setCurrentStatus] = useState<string|null>(null)
+  const [rejectionReason, setRejectionReason] = useState<string|null>(null)
   const [authorId, setAuthorId] = useState<string|null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
 
   useEffect(() => {
     if (!userId) return
-    supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, status, completed_deals_count, avg_rating, reviews_count').eq('user_id', userId).single().then(({ data: p }) => {
+    supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, status, rejection_reason, completed_deals_count, avg_rating, reviews_count').eq('user_id', userId).single().then(({ data: p }) => {
       if (p) {
         setForm({
           name: p.name || '', city: p.city || '', instagram_url: p.instagram_url || '',
@@ -36,6 +37,7 @@ export default function AuthorProfilePage() {
         })
         setAvatarUrl(p.avatar_url || null)
         setCurrentStatus(p.status)
+        setRejectionReason(p.rejection_reason || null)
         setAuthorId(p.id)
       } else { setEditing(true) }
       setProfileLoaded(true)
@@ -143,7 +145,7 @@ export default function AuthorProfilePage() {
 
         {currentStatus === 'rejected' && (
           <div style={{ padding:'12px 20px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'14px', marginBottom:'20px', fontSize:'14px', color:'#dc2626' }}>
-            Анкета не прошла модерацию. Отредактируй и отправь повторно.
+            Анкета не прошла модерацию. {rejectionReason ? `Причина: ${rejectionReason}. ` : ''}Отредактируй и отправь повторно.
           </div>
         )}
 
