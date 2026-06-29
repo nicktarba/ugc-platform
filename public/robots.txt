@@ -1,0 +1,1 @@
+<-bash: cd: /root/Desktop/UGC/ugc-platform: No such file or autodeploytest -->
