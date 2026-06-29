@@ -136,6 +136,7 @@ export default function HomePage() {
   const router = useRouter()
   const [checking, setChecking] = useState(true)
   const [loggedInRole, setLoggedInRole] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -155,15 +156,23 @@ export default function HomePage() {
       <style>{`
         .lp-header { display:flex; align-items:center; justify-content:space-between; padding:14px 64px; border-bottom:1px solid rgba(42,39,35,.06); background:#FBF7F0; }
         .lp-header nav { display:flex; align-items:center; gap:36px; }
+        .lp-burger { display:none; width:36px; height:36px; border:1px solid #e0ddd8; border-radius:10px; background:#fff; cursor:pointer; font-size:18px; align-items:center; justify-content:center; }
+        .lp-mobile-menu { display:none; }
         .lp-hero-grid { display:grid; grid-template-columns:1fr 440px; gap:48px; padding:52px 64px 56px; align-items:center; position:relative; }
         .lp-hero-title { margin:22px 0 0; font-size:62px; font-weight:800; line-height:1.0; letter-spacing:-0.025em; color:#2A2723; }
         .lp-hero-buttons { display:flex; gap:12px; margin-top:30px; }
         .lp-hero-right { display:block; }
         @media (max-width: 768px) {
-          .lp-header { padding:12px 16px; flex-wrap:wrap; gap:8px; }
-          .lp-header nav { gap:16px; font-size:13px; flex-wrap:wrap; }
-          .lp-hero-grid { grid-template-columns:1fr; padding:32px 20px 40px; gap:24px; }
-          .lp-hero-title { font-size:38px; }
+          .lp-header { padding:12px 16px; }
+          .lp-header nav { display:none; }
+          .lp-burger { display:flex; }
+          .lp-mobile-menu { position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:999; display:flex; justify-content:flex-end; }
+          .lp-mobile-menu-inner { width:260px; background:#FBF7F0; padding:20px; display:flex; flex-direction:column; gap:4px; height:100%; box-shadow:-4px 0 20px rgba(0,0,0,0.1); }
+          .lp-mobile-menu a, .lp-mobile-menu button { display:block; padding:14px 16px; border-radius:12px; font-size:15px; font-weight:600; color:#2A2723; text-decoration:none; border:none; background:none; text-align:left; cursor:pointer; font-family:inherit; }
+          .lp-mobile-menu a:hover, .lp-mobile-menu button:hover { background:#f0ede6; }
+          .lp-mobile-menu .lp-menu-cta { background:#C56A43; color:#fff; text-align:center; border-radius:12px; margin-top:8px; }
+          .lp-hero-grid { grid-template-columns:1fr; padding:28px 20px 36px; gap:24px; }
+          .lp-hero-title { font-size:36px; line-height:1.05; }
           .lp-hero-buttons { flex-direction:column; }
           .lp-hero-buttons a { text-align:center; justify-content:center; }
           .lp-hero-right { display:none; }
@@ -187,7 +196,30 @@ export default function HomePage() {
             </>
           )}
         </nav>
+        <button className="lp-burger" onClick={() => setMenuOpen(true)}>☰</button>
       </header>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div className="lp-mobile-menu" onClick={() => setMenuOpen(false)}>
+          <div className="lp-mobile-menu-inner" onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px', padding:'0 16px' }}>
+              <span style={{ fontSize:'20px', fontWeight:800, color:'#2A2723' }}>ugc<span style={{ color:'#C56A43' }}>market</span></span>
+              <button onClick={() => setMenuOpen(false)} style={{ border:'none', background:'none', fontSize:'22px', cursor:'pointer', color:'#9a9590' }}>✕</button>
+            </div>
+            <Link href="/catalog" onClick={() => setMenuOpen(false)}>Каталог</Link>
+            <Link href="/support" onClick={() => setMenuOpen(false)}>Поддержка</Link>
+            {loggedInRole ? (
+              <Link href={loggedInRole === 'author' ? '/dashboard/author' : loggedInRole === 'admin' ? '/dashboard/admin' : '/dashboard/business'} onClick={() => setMenuOpen(false)}>Кабинет</Link>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setMenuOpen(false)}>Войти</Link>
+                <Link href="/register" className="lp-menu-cta" onClick={() => setMenuOpen(false)}>Регистрация</Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ═══ HERO ═══ */}
       <section style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid rgba(42,39,35,.06)' }}>

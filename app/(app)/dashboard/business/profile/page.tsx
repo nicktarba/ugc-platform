@@ -83,6 +83,10 @@ export default function BusinessProfilePage() {
             </button>
           </div>
         </form>
+
+        <div style={{ marginTop:'24px', paddingTop:'24px', borderTop:'1px solid #f0ede6', textAlign:'center' }}>
+          <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/' }} style={{ padding:'10px 24px', border:'1px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#9a9590', fontSize:'14px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Выйти из аккаунта</button>
+        </div>
       </div>
     </main>
   )
