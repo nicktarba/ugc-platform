@@ -101,21 +101,22 @@ export default function CatalogPage() {
     if (searchWords.length > 0) {
       const scored = f.map(a => {
         let score = 0
+        let hits = 0
         const fieldText = [a.name, a.city, a.occupation, a.bio, a.hobbies, ...(a.lifestyle || [])].filter(Boolean).join(' ').toLowerCase()
         const fieldWords = fieldText.split(/[\s,;.!?·—–\-]+/).filter(w => w.length > 2)
         for (const w of searchWords) {
-          if (['бартер','бартера','бартеру'].includes(w)) { if (a.open_to_barter) score += 8; continue }
-          // Exact substring match
-          if (fieldText.includes(w)) { score += 5; continue }
-          // Stem match: share 4+ char prefix
+          if (['бартер','бартера','бартеру'].includes(w)) { if (a.open_to_barter) { score += 8; hits++ }; continue }
+          if (fieldText.includes(w)) { score += 5; hits++; continue }
           const root = w.slice(0, Math.max(4, Math.floor(w.length * 0.6)))
-          if (fieldWords.some(fw => fw.startsWith(root) || w.startsWith(fw.slice(0, Math.max(4, Math.floor(fw.length * 0.6)))))) { score += 4; continue }
+          if (fieldWords.some(fw => fw.startsWith(root) || w.startsWith(fw.slice(0, Math.max(4, Math.floor(fw.length * 0.6)))))) { score += 4; hits++; continue }
         }
-        if (a.avg_rating) score += a.avg_rating
-        if (a.completed_deals_count > 0) score += Math.min(a.completed_deals_count, 5)
-        return { author: a, score }
+        if (hits > 0) {
+          if (a.avg_rating) score += a.avg_rating
+          if (a.completed_deals_count > 0) score += Math.min(a.completed_deals_count, 3)
+        }
+        return { author: a, score, hits }
       })
-      f = scored.filter(s => s.score > 0).sort((a, b) => b.score - a.score).map(s => s.author)
+      f = scored.filter(s => s.hits > 0).sort((a, b) => b.score - a.score).map(s => s.author)
     }
 
     if (hasBarter) f = f.filter(a => a.open_to_barter)
