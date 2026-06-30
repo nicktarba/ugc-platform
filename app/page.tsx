@@ -157,6 +157,7 @@ export default function HomePage() {
         .lp-header { display:flex; align-items:center; justify-content:space-between; padding:14px 64px; border-bottom:1px solid rgba(42,39,35,.06); background:#FBF7F0; }
         .lp-header nav { display:flex; align-items:center; gap:36px; }
         .lp-burger { display:none; width:36px; height:36px; border:1px solid #e0ddd8; border-radius:10px; background:#fff; cursor:pointer; font-size:18px; align-items:center; justify-content:center; }
+        .lp-mobile-auth { display:none; gap:6px; align-items:center; }
         .lp-mobile-menu { display:none; }
         .lp-hero-grid { display:grid; grid-template-columns:1fr 440px; gap:48px; padding:52px 64px 56px; align-items:center; position:relative; }
         .lp-hero-title { margin:22px 0 0; font-size:62px; font-weight:800; line-height:1.0; letter-spacing:-0.025em; color:#2A2723; }
@@ -166,6 +167,7 @@ export default function HomePage() {
           .lp-header { padding:12px 16px; }
           .lp-header nav { display:none; }
           .lp-burger { display:flex; }
+          .lp-mobile-auth { display:flex; }
           .lp-mobile-menu { position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:999; display:flex; justify-content:flex-end; }
           .lp-mobile-menu-inner { width:260px; background:#FBF7F0; padding:20px; display:flex; flex-direction:column; gap:4px; height:100%; box-shadow:-4px 0 20px rgba(0,0,0,0.1); }
           .lp-mobile-menu a, .lp-mobile-menu button { display:block; padding:14px 16px; border-radius:12px; font-size:15px; font-weight:600; color:#2A2723; text-decoration:none; border:none; background:none; text-align:left; cursor:pointer; font-family:inherit; }
@@ -196,6 +198,12 @@ export default function HomePage() {
             </>
           )}
         </nav>
+        {!loggedInRole && (
+          <div className="lp-mobile-auth">
+            <Link href="/login" style={{ padding:'7px 14px', fontSize:'13px', color:'#2A2723', textDecoration:'none', fontWeight:500, border:'1px solid #E0D2BC', borderRadius:'100px' }}>Войти</Link>
+            <Link href="/register" style={{ padding:'7px 14px', background:'#C56A43', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600 }}>Регистрация</Link>
+          </div>
+        )}
         <button className="lp-burger" onClick={() => setMenuOpen(true)}>☰</button>
       </header>
 
