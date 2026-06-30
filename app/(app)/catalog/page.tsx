@@ -47,13 +47,17 @@ export default function CatalogPage() {
   const [city, setCity] = useState(searchParams.get('city') || '')
   const [barter, setBarter] = useState<'all'|'yes'|'no'>((searchParams.get('barter') as 'all'|'yes'|'no') || 'all')
   const [search, setSearch] = useState(searchParams.get('q') || '')
-  const [sort, setSort] = useState(searchParams.get('sort') || 'new')
+  const [sort, setSort] = useState(searchParams.get('sort') || 'relevance')
   const [lifestyleFilter, setLifestyleFilter] = useState<string[]>(() => {
     const lf = searchParams.get('lifestyle')
     return lf ? lf.split(',') : []
   })
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [visibleCount, setVisibleCount] = useState(12)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [aiSearching, setAiSearching] = useState(false)
+  const [aiResults, setAiResults] = useState<{id:string; reason:string}[] | null>(null)
+  const [placeholderIdx, setPlaceholderIdx] = useState(0)
 
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
   const [message, setMessage] = useState('')
@@ -62,6 +66,13 @@ export default function CatalogPage() {
   const [sending, setSending] = useState(false)
   const [requestMap, setRequestMap] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
+
+  const PLACEHOLDERS = ['фуд-блогер Владивосток', 'мама с детьми для бартера', 'фитнес-автор до 5000 подписчиков', 'обзор заведения, уютная атмосфера', 'девушка, мода, стиль, lifestyle']
+
+  useEffect(() => {
+    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 3000)
+    return () => clearInterval(t)
+  }, [])
 
   useEffect(() => {
     if (userId && userRole === 'business') {
@@ -82,8 +93,29 @@ export default function CatalogPage() {
   }, [userId, userRole])
 
   useEffect(() => {
+    if (aiResults) return
     let f = authors
-    if (search) { const s = search.toLowerCase(); f = f.filter(a => [a.name,a.city,a.occupation,a.hobbies,...(a.lifestyle||[])].some(v => v?.toLowerCase().includes(s))) }
+    const searchWords = search.toLowerCase().split(/\s+/).filter(w => w.length > 1)
+    const hasBarter = searchWords.some(w => ['бартер', 'бартера', 'бартеру'].includes(w))
+
+    if (searchWords.length > 0) {
+      const scored = f.map(a => {
+        let score = 0
+        const fields = [a.name, a.city, a.occupation, a.bio, a.hobbies, ...(a.lifestyle || [])].filter(Boolean).map(v => v.toLowerCase())
+        for (const w of searchWords) {
+          if (['бартер','бартера','бартеру'].includes(w)) { if (a.open_to_barter) score += 8; continue }
+          for (const field of fields) {
+            if (field.includes(w)) { score += 5; break }
+          }
+        }
+        if (a.avg_rating) score += a.avg_rating
+        if (a.completed_deals_count > 0) score += Math.min(a.completed_deals_count, 5)
+        return { author: a, score }
+      })
+      f = scored.filter(s => s.score > 0).sort((a, b) => b.score - a.score).map(s => s.author)
+    }
+
+    if (hasBarter) f = f.filter(a => a.open_to_barter)
     if (city) { const c = city.toLowerCase(); f = f.filter(a => a.city?.toLowerCase().includes(c)) }
     if (barter === 'yes') f = f.filter(a => a.open_to_barter)
     if (barter === 'no') f = f.filter(a => !a.open_to_barter)
@@ -92,7 +124,7 @@ export default function CatalogPage() {
     else if (sort === 'rating') f = [...f].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0))
     setFiltered(f)
     setVisibleCount(12)
-  }, [authors, search, city, barter, lifestyleFilter, sort])
+  }, [authors, search, city, barter, lifestyleFilter, sort, aiResults])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -100,13 +132,60 @@ export default function CatalogPage() {
       if (search) params.set('q', search)
       if (city) params.set('city', city)
       if (barter !== 'all') params.set('barter', barter)
-      if (sort !== 'new') params.set('sort', sort)
+      if (sort !== 'relevance') params.set('sort', sort)
       if (lifestyleFilter.length > 0) params.set('lifestyle', lifestyleFilter.join(','))
       const qs = params.toString()
       router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
     }, 400)
     return () => clearTimeout(timer)
   }, [search, city, barter, sort, lifestyleFilter, router])
+
+  const runAiSearch = async () => {
+    if (!search.trim() || authors.length === 0) return
+    setAiSearching(true)
+    setAiResults(null)
+    try {
+      const authorsData = authors.map(a => ({
+        id: a.id, name: a.name, city: a.city, occupation: a.occupation,
+        bio: a.bio, hobbies: a.hobbies, lifestyle: a.lifestyle,
+        followers: a.followers_count, stories_views: a.stories_views,
+        barter: a.open_to_barter, rating: a.avg_rating, deals: a.completed_deals_count
+      }))
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: `Ты помощник UGC-маркетплейса. Бизнес ищет автора и написал: "${search.trim()}"
+
+Вот список доступных авторов:
+${JSON.stringify(authorsData)}
+
+Выбери до 5 самых подходящих авторов. НЕ ставь автора выше только из-за количества подписчиков. Оценивай совпадение по нише, городу, стилю, аудитории.
+
+Ответь ТОЛЬКО JSON массивом (без markdown, без бэктиков):
+[{"id":"uuid","reason":"Почему подходит (1 предложение на русском)"}]` }]
+        })
+      })
+      const data = await resp.json()
+      const text = data.content?.[0]?.text || '[]'
+      const clean = text.replace(/```json|```/g, '').trim()
+      const results = JSON.parse(clean)
+      setAiResults(results)
+      const ids = results.map((r: {id:string}) => r.id)
+      const sorted = ids.map((id: string) => authors.find(a => a.id === id)).filter(Boolean) as Author[]
+      setFiltered(sorted)
+    } catch {
+      toast.error('Не удалось выполнить умный поиск')
+    }
+    setAiSearching(false)
+  }
+
+  const clearAiSearch = () => {
+    setAiResults(null)
+    setSearch('')
+  }
 
   const openModal = (author: Author) => {
     if (userRole === 'business' && (!businessProfile?.company_name || !businessProfile?.inn)) {
@@ -146,44 +225,110 @@ export default function CatalogPage() {
     }
   }
 
-  const toggleLifestyle = (tag: string) => setLifestyleFilter(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
-  const LIFESTYLE_TAGS = Object.keys(TAG_COLORS)
+  const CATEGORIES = [
+    { label: '🍽 Еда', tags: ['Кофе и кафе', 'Рестораны', 'ЗОЖ и питание'] },
+    { label: '💪 Спорт', tags: ['Активный спорт'] },
+    { label: '✈️ Путешествия', tags: ['Путешествия'] },
+    { label: '👗 Стиль', tags: ['Мода и стиль', 'Красота и уход'] },
+    { label: '🚗 Авто', tags: ['Авто'] },
+    { label: '💻 Тех и бизнес', tags: ['Технологии', 'Бизнес'] },
+    { label: '🎵 Культура', tags: ['Музыка', 'Кино и сериалы', 'Книги', 'Искусство'] },
+    { label: '👨‍👩‍👧 Семья', tags: ['Семья и дети'] },
+  ]
 
-  const inp = { padding:'10px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }
+  const toggleCategory = (tags: string[]) => {
+    const allActive = tags.every(t => lifestyleFilter.includes(t))
+    if (allActive) setLifestyleFilter(prev => prev.filter(t => !tags.includes(t)))
+    else setLifestyleFilter(prev => [...prev.filter(t => !tags.includes(t)), ...tags])
+  }
+
+  const activeFiltersCount = (city ? 1 : 0) + (barter !== 'all' ? 1 : 0) + lifestyleFilter.length + (sort !== 'relevance' ? 1 : 0)
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
       <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'clamp(28px, 7vw, 48px) clamp(16px, 5vw, 40px)' }}>
-        <div style={{ marginBottom:'40px' }}>
+        <div style={{ marginBottom:'32px' }}>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'40px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Каталог авторов</h1>
           <p style={{ fontSize:'15px', color:'#7a7570' }}>{filtered.length} {filtered.length===1?'автор':filtered.length<5?'автора':'авторов'}</p>
         </div>
 
-        <div style={{ display:'flex', flexDirection:'column', gap:'12px', marginBottom:'32px', padding:'20px', background:'#fff', borderRadius:'16px', border:'1px solid #e8e6e1' }}>
-          <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Поиск по имени, хобби, профессии..." style={{ ...inp, minWidth:'240px', flex:1 }} />
-            <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Город" style={{ ...inp, width:'160px' }} />
-            <select value={sort} onChange={e => setSort(e.target.value)} style={{ ...inp, cursor:'pointer', minWidth:'140px' }}>
-              <option value="new">Новые</option>
-              <option value="followers">По подписчикам</option>
-              <option value="rating">По рейтингу</option>
-            </select>
-          </div>
-          <div style={{ display:'flex', gap:'8px', flexWrap:'nowrap', alignItems:'center', overflowX:'auto', WebkitOverflowScrolling:'touch', paddingBottom:'4px' }}>
-            {[{val:'all' as const,label:'Все'},{val:'yes' as const,label:'Бартер ✓'},{val:'no' as const,label:'Без бартера'}].map(opt => (
-              <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ padding:'8px 14px', borderRadius:'100px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
-            ))}
-            <div style={{ width:'1px', height:'20px', background:'#e0ddd8', margin:'0 4px' }} />
-            {LIFESTYLE_TAGS.map(tag => {
-              const tc = TAG_COLORS[tag]
-              const active = lifestyleFilter.includes(tag)
-              return <button key={tag} onClick={() => toggleLifestyle(tag)} style={{ padding:'6px 12px', borderRadius:'100px', fontSize:'11px', fontWeight:600, border:`1.5px solid ${active ? tc.border : '#e0ddd8'}`, cursor:'pointer', fontFamily:'inherit', background: active ? tc.bg : '#fff', color: active ? tc.color : '#9a9590' }}>{tag}</button>
-            })}
-            {lifestyleFilter.length > 0 && (
-              <button onClick={() => setLifestyleFilter([])} style={{ padding:'6px 12px', borderRadius:'100px', fontSize:'11px', fontWeight:500, border:'none', cursor:'pointer', fontFamily:'inherit', background:'transparent', color:'#dc2626', textDecoration:'underline' }}>Сбросить</button>
+        {/* Search */}
+        <div style={{ marginBottom:'16px' }}>
+          <div style={{ position:'relative' }}>
+            <input
+              value={search}
+              onChange={e => { setSearch(e.target.value); if (aiResults) setAiResults(null) }}
+              placeholder={PLACEHOLDERS[placeholderIdx]}
+              style={{ width:'100%', padding:'16px 120px 16px 48px', border:'1.5px solid #e0ddd8', borderRadius:'16px', fontSize:'16px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+            />
+            <span style={{ position:'absolute', left:'18px', top:'50%', transform:'translateY(-50%)', fontSize:'20px', opacity:0.4 }}>🔍</span>
+            {search && !aiSearching && (
+              <button onClick={runAiSearch} style={{ position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', padding:'8px 16px', background:'linear-gradient(135deg, #C56A43, #d4845f)', border:'none', borderRadius:'10px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>✨ Умный поиск</button>
+            )}
+            {aiSearching && (
+              <span style={{ position:'absolute', right:'20px', top:'50%', transform:'translateY(-50%)', fontSize:'13px', color:'#9a9590' }}>Подбираем...</span>
             )}
           </div>
+          <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px' }}>Опишите кого ищете — город, ниша, стиль контента, задача. Чем подробнее, тем точнее результат.</p>
         </div>
+
+        {/* AI results banner */}
+        {aiResults && (
+          <div style={{ padding:'14px 20px', background:'linear-gradient(135deg, #fdf3e7, #fff)', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontSize:'14px', color:'#b45309' }}>✨ Подобрали {aiResults.length} {aiResults.length === 1 ? 'автора' : aiResults.length < 5 ? 'автора' : 'авторов'} под ваш запрос</span>
+            <button onClick={clearAiSearch} style={{ background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#9a9590', fontFamily:'inherit', textDecoration:'underline' }}>Показать всех</button>
+          </div>
+        )}
+
+        {/* Advanced toggle */}
+        <div style={{ display:'flex', gap:'8px', marginBottom:'16px', alignItems:'center' }}>
+          <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ padding:'8px 16px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', background: showAdvanced ? '#f0ede6' : '#fff', color:'#5a5650' }}>
+            ⚙️ Расширенный поиск{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
+          </button>
+          {activeFiltersCount > 0 && (
+            <button onClick={() => { setCity(''); setBarter('all'); setLifestyleFilter([]); setSort('relevance') }} style={{ padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#dc2626', fontFamily:'inherit' }}>Сбросить всё</button>
+          )}
+        </div>
+
+        {/* Advanced panel */}
+        {showAdvanced && (
+          <div style={{ padding:'20px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', marginBottom:'24px', display:'flex', flexDirection:'column', gap:'16px' }}>
+            <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
+              <div style={{ flex:'1', minWidth:'160px' }}>
+                <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Город</label>
+                <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Владивосток" style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+              </div>
+              <div style={{ minWidth:'140px' }}>
+                <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Сортировка</label>
+                <select value={sort} onChange={e => setSort(e.target.value)} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fff', color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
+                  <option value="relevance">По релевантности</option>
+                  <option value="new">Новые</option>
+                  <option value="followers">По подписчикам</option>
+                  <option value="rating">По рейтингу</option>
+                </select>
+              </div>
+              <div style={{ minWidth:'140px' }}>
+                <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Бартер</label>
+                <div style={{ display:'flex', gap:'4px' }}>
+                  {[{val:'all' as const,label:'Все'},{val:'yes' as const,label:'Да'},{val:'no' as const,label:'Нет'}].map(opt => (
+                    <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ flex:1, padding:'9px 0', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'8px', display:'block' }}>Категории</label>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
+                {CATEGORIES.map(cat => {
+                  const active = cat.tags.some(t => lifestyleFilter.includes(t))
+                  return (
+                    <button key={cat.label} onClick={() => toggleCategory(cat.tags)} style={{ padding:'8px 14px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: active ? '#C56A43' : '#e0ddd8', background: active ? '#fdf3e7' : '#fff', color: active ? '#C56A43' : '#5a5650' }}>{cat.label}</button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <CatalogSkeleton />
@@ -225,6 +370,9 @@ export default function CatalogPage() {
 
                   {/* Content */}
                   <div style={{ padding:'36px 20px 0', flex:1, display:'flex', flexDirection:'column' }}>
+
+                    {/* AI reason */}
+                    {aiResults && (() => { const r = aiResults.find(r => r.id === a.id); return r ? <div style={{ padding:'6px 10px', background:'#fdf3e7', borderRadius:'8px', fontSize:'12px', color:'#b45309', marginBottom:'8px' }}>✨ {r.reason}</div> : null })()}
 
                     {/* Name + badges */}
                     <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', marginBottom:'4px' }}>
