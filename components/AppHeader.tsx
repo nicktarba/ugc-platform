@@ -40,9 +40,11 @@ export default function AppHeader() {
         .ah-nav-links { display:contents; }
         .ah-auth-buttons { display:flex; gap:8px; align-items:center; }
         .ah-burger { display:none; width:36px; height:36px; border:1px solid #e0ddd8; border-radius:10px; background:#fff; cursor:pointer; font-size:18px; align-items:center; justify-content:center; font-family:inherit; }
+        .ah-auth-mobile { display:none; gap:6px; align-items:center; }
         @media (max-width: 768px) {
           .ah-nav-links { display:none !important; }
           .ah-auth-buttons { display:none !important; }
+          .ah-auth-mobile { display:flex; }
           .ah-burger { display:flex; }
         }
       `}</style>
@@ -70,6 +72,13 @@ export default function AppHeader() {
             <div className="ah-auth-buttons">
               <Link href="/login" style={{ padding:'8px 16px', fontSize:'14px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>Войти</Link>
               <Link href="/register" style={{ padding:'8px 20px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:500 }}>Регистрация</Link>
+            </div>
+          )}
+
+          {!user && (
+            <div className="ah-auth-mobile">
+              <Link href="/login" style={{ padding:'7px 14px', fontSize:'13px', color:'#1a1a1a', textDecoration:'none', fontWeight:500, border:'1px solid #e0ddd8', borderRadius:'100px' }}>Войти</Link>
+              <Link href="/register" style={{ padding:'7px 14px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:500 }}>Регистрация</Link>
             </div>
           )}
 
