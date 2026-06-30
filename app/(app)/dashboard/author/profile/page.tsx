@@ -232,7 +232,7 @@ export default function AuthorProfilePage() {
 
         {!editing && authorId && currentStatus === 'approved' && (
           <div style={{ textAlign:'center', paddingTop:'4px', marginBottom:'24px' }}>
-            <Link href={`/author/${authorId}`} target="_blank" style={{ fontSize:'13px', color:'#9a9590', textDecoration:'none' }}>Открыть публичный профиль →</Link>
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/author/${authorId}`); toast.success('Ссылка скопирована') }} style={{ fontSize:'13px', color:'#9a9590', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit' }}>📋 Скопировать ссылку на профиль</button>
           </div>
         )}
 
