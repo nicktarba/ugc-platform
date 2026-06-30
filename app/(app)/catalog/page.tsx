@@ -101,12 +101,15 @@ export default function CatalogPage() {
     if (searchWords.length > 0) {
       const scored = f.map(a => {
         let score = 0
-        const fields = [a.name, a.city, a.occupation, a.bio, a.hobbies, ...(a.lifestyle || [])].filter(Boolean).map(v => v.toLowerCase())
+        const fieldText = [a.name, a.city, a.occupation, a.bio, a.hobbies, ...(a.lifestyle || [])].filter(Boolean).join(' ').toLowerCase()
+        const fieldWords = fieldText.split(/[\s,;.!?·—–\-]+/).filter(w => w.length > 2)
         for (const w of searchWords) {
           if (['бартер','бартера','бартеру'].includes(w)) { if (a.open_to_barter) score += 8; continue }
-          for (const field of fields) {
-            if (field.includes(w)) { score += 5; break }
-          }
+          // Exact substring match
+          if (fieldText.includes(w)) { score += 5; continue }
+          // Stem match: share 4+ char prefix
+          const root = w.slice(0, Math.max(4, Math.floor(w.length * 0.6)))
+          if (fieldWords.some(fw => fw.startsWith(root) || w.startsWith(fw.slice(0, Math.max(4, Math.floor(fw.length * 0.6)))))) { score += 4; continue }
         }
         if (a.avg_rating) score += a.avg_rating
         if (a.completed_deals_count > 0) score += Math.min(a.completed_deals_count, 5)
