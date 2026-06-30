@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -56,8 +56,9 @@ export default function CatalogPage() {
   const [visibleCount, setVisibleCount] = useState(12)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [aiSearching, setAiSearching] = useState(false)
-  const [aiResults, setAiResults] = useState<{id:string; reason:string}[] | null>(null)
+  const [aiResults, setAiResults] = useState<{id:string; score:number; reason:string}[] | null>(null)
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
+  const aiTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
   const [message, setMessage] = useState('')
@@ -216,47 +217,42 @@ export default function CatalogPage() {
     return () => clearTimeout(timer)
   }, [search, city, barter, sort, lifestyleFilter, router])
 
-  const runAiSearch = async () => {
-    if (!search.trim() || authors.length === 0) return
-    setAiSearching(true)
-    setAiResults(null)
-    try {
-      const authorsData = authors.map(a => ({
-        id: a.id, name: a.name, city: a.city, occupation: a.occupation,
-        bio: a.bio, hobbies: a.hobbies, lifestyle: a.lifestyle,
-        followers: a.followers_count, stories_views: a.stories_views,
-        barter: a.open_to_barter, rating: a.avg_rating, deals: a.completed_deals_count
-      }))
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: `Ты помощник UGC-маркетплейса. Бизнес ищет автора и написал: "${search.trim()}"
-
-Вот список доступных авторов:
-${JSON.stringify(authorsData)}
-
-Выбери до 5 самых подходящих авторов. НЕ ставь автора выше только из-за количества подписчиков. Оценивай совпадение по нише, городу, стилю, аудитории.
-
-Ответь ТОЛЬКО JSON массивом (без markdown, без бэктиков):
-[{"id":"uuid","reason":"Почему подходит (1 предложение на русском)"}]` }]
-        })
-      })
-      const data = await resp.json()
-      const text = data.content?.[0]?.text || '[]'
-      const clean = text.replace(/```json|```/g, '').trim()
-      const results = JSON.parse(clean)
-      setAiResults(results)
-      const ids = results.map((r: {id:string}) => r.id)
-      const sorted = ids.map((id: string) => authors.find(a => a.id === id)).filter(Boolean) as Author[]
-      setFiltered(sorted)
-    } catch {
-      toast.error('Не удалось выполнить умный поиск')
+  // Debounced AI search - triggers 1.5s after typing stops
+  useEffect(() => {
+    if (aiTimerRef.current) clearTimeout(aiTimerRef.current)
+    if (!search.trim() || search.trim().length < 3 || authors.length === 0) {
+      setAiResults(null)
+      setAiSearching(false)
+      return
     }
-    setAiSearching(false)
-  }
+    aiTimerRef.current = setTimeout(async () => {
+      setAiSearching(true)
+      try {
+        const authorsData = authors.map(a => ({
+          id: a.id, name: a.name, city: a.city, occupation: a.occupation,
+          bio: a.bio, lifestyle: a.lifestyle, open_to_barter: a.open_to_barter
+        }))
+        const resp = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: search.trim(), authors: authorsData })
+        })
+        const data = await resp.json()
+        if (data.results?.length > 0) {
+          setAiResults(data.results)
+          const ids = data.results.map((r: {id:string}) => r.id)
+          const sorted = ids.map((id: string) => authors.find(a => a.id === id)).filter(Boolean) as Author[]
+          setFiltered(sorted)
+        } else {
+          setAiResults(null)
+        }
+      } catch {
+        setAiResults(null)
+      }
+      setAiSearching(false)
+    }, 1500)
+    return () => { if (aiTimerRef.current) clearTimeout(aiTimerRef.current) }
+  }, [search, authors])
 
   const clearAiSearch = () => {
     setAiResults(null)
@@ -335,14 +331,14 @@ ${JSON.stringify(authorsData)}
               value={search}
               onChange={e => { setSearch(e.target.value); if (aiResults) setAiResults(null) }}
               placeholder={PLACEHOLDERS[placeholderIdx]}
-              style={{ width:'100%', padding:'16px 120px 16px 48px', border:'1.5px solid #e0ddd8', borderRadius:'16px', fontSize:'16px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+              style={{ width:'100%', padding:'16px 52px 16px 48px', border:'1.5px solid #e0ddd8', borderRadius:'16px', fontSize:'16px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
             />
             <span style={{ position:'absolute', left:'18px', top:'50%', transform:'translateY(-50%)', fontSize:'20px', opacity:0.4 }}>🔍</span>
-            {search && !aiSearching && (
-              <button onClick={runAiSearch} style={{ position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', padding:'8px 16px', background:'linear-gradient(135deg, #C56A43, #d4845f)', border:'none', borderRadius:'10px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>✨ Умный поиск</button>
-            )}
             {aiSearching && (
-              <span style={{ position:'absolute', right:'20px', top:'50%', transform:'translateY(-50%)', fontSize:'13px', color:'#9a9590' }}>Подбираем...</span>
+              <span style={{ position:'absolute', right:'18px', top:'50%', transform:'translateY(-50%)', fontSize:'12px', color:'#C56A43', fontWeight:500 }}>ищем...</span>
+            )}
+            {search && !aiSearching && (
+              <button onClick={() => { setSearch(''); setAiResults(null) }} style={{ position:'absolute', right:'18px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', fontSize:'16px', color:'#9a9590', padding:'4px' }}>✕</button>
             )}
           </div>
           <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px', lineHeight:1.5 }}>💡 Можно описать бизнес: «кофейня, нужен обзор» — или портрет блогера: «девушка, фитнес, ЗОЖ»</p>
@@ -350,8 +346,8 @@ ${JSON.stringify(authorsData)}
 
         {/* AI results banner */}
         {aiResults && (
-          <div style={{ padding:'14px 20px', background:'linear-gradient(135deg, #fdf3e7, #fff)', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontSize:'14px', color:'#b45309' }}>✨ Подобрали {aiResults.length} {aiResults.length === 1 ? 'автора' : aiResults.length < 5 ? 'автора' : 'авторов'} под ваш запрос</span>
+          <div style={{ padding:'14px 20px', background:'linear-gradient(135deg, #fdf3e7, #fff)', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
+            <span style={{ fontSize:'14px', color:'#b45309' }}>✨ Подобрали {aiResults.length} {aiResults.length === 1 ? 'автора' : aiResults.length < 5 ? 'автора' : 'авторов'} по вашему запросу</span>
             <button onClick={clearAiSearch} style={{ background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#9a9590', fontFamily:'inherit', textDecoration:'underline' }}>Показать всех</button>
           </div>
         )}
