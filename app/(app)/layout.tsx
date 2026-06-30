@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
 import BottomNav from '@/components/BottomNav'
+import Footer from '@/components/Footer'
 import LoadingScreen from '@/components/LoadingScreen'
 import { getBusinessBadgeCount, getAuthorBadgeCount } from '@/lib/badges'
 import { AppContext, AuthorProfile, BusinessProfile } from './AppContext'
@@ -114,6 +115,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
         <div className="sidebar-content">
           {children}
+          <Footer />
           {navRole && <BottomNav role={navRole} active={active} unread={badgeCount} notifCount={notifCount} />}
         </div>
       </div>
