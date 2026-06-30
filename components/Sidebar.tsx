@@ -20,7 +20,6 @@ export default function Sidebar({ role, email, userId, badgeCount = 0, authorId 
     await supabase.auth.signOut()
     window.location.href = '/'
   }
-  }
 
   const initial = email?.[0]?.toUpperCase() || '?'
 
