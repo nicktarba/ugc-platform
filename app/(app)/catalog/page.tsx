@@ -345,7 +345,7 @@ ${JSON.stringify(authorsData)}
               <span style={{ position:'absolute', right:'20px', top:'50%', transform:'translateY(-50%)', fontSize:'13px', color:'#9a9590' }}>Подбираем...</span>
             )}
           </div>
-          <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px' }}>Опишите свой бизнес или портрет блогера — подберём подходящих авторов</p>
+          <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px', lineHeight:1.5 }}>💡 Можно описать бизнес: «кофейня, нужен обзор» — или портрет блогера: «девушка, фитнес, ЗОЖ»</p>
         </div>
 
         {/* AI results banner */}
