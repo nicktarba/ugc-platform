@@ -67,7 +67,7 @@ export default function CatalogPage() {
   const [requestMap, setRequestMap] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
 
-  const PLACEHOLDERS = ['фуд-блогер Владивосток', 'мама с детьми для бартера', 'фитнес-автор до 5000 подписчиков', 'обзор заведения, уютная атмосфера', 'девушка, мода, стиль, lifestyle']
+  const PLACEHOLDERS = ['кофейня Владивосток, нужен обзор заведения', 'фитнес-студия, ищем девушку для stories', 'автосервис, обзор услуг для мужской аудитории', 'детский центр, мама-блогер с живой аудиторией', 'ресторан, фуд-блогер для красивого контента', 'салон красоты, бьюти-обзор процедур', 'барбершоп, мужской стиль и уход']
 
   useEffect(() => {
     const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 3000)
@@ -272,7 +272,7 @@ ${JSON.stringify(authorsData)}
               <span style={{ position:'absolute', right:'20px', top:'50%', transform:'translateY(-50%)', fontSize:'13px', color:'#9a9590' }}>Подбираем...</span>
             )}
           </div>
-          <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px' }}>Опишите кого ищете — город, ниша, стиль контента, задача. Чем подробнее, тем точнее результат.</p>
+          <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px' }}>Опишите свой бизнес или кого ищете — мы подберём подходящих авторов</p>
         </div>
 
         {/* AI results banner */}
