@@ -13,6 +13,7 @@ export default function BusinessDashboard() {
   const { userId, bumpBadge, businessProfile } = useApp()
   const toast = useToast()
   const [requests, setRequests] = useState<Req[]>([])
+  const [reqTab, setReqTab] = useState<'active'|'history'|'all'>('active')
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [favoritesCount, setFavoritesCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -113,19 +114,28 @@ export default function BusinessDashboard() {
 
 
         <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-          <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px' }}>
-            Мои запросы {requests.length > 0 && `(${requests.length})`}
-            {totalUnread > 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'12px', fontWeight:700, color:'#fff' }}>{totalUnread} новых</span>}
-          </h3>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px', flexWrap:'wrap', gap:'8px' }}>
+            <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', display:'flex', alignItems:'center', gap:'8px', margin:0 }}>
+              Мои запросы {requests.length > 0 && `(${requests.length})`}
+              {totalUnread > 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'12px', fontWeight:700, color:'#fff' }}>{totalUnread} новых</span>}
+            </h3>
+            {requests.length > 0 && (
+              <div style={{ display:'flex', gap:'4px' }}>
+                {[{key:'active' as const, label:'Активные'}, {key:'history' as const, label:'Завершённые'}, {key:'all' as const, label:'Все'}].map(t => (
+                  <button key={t.key} onClick={() => setReqTab(t.key)} style={{ padding:'5px 12px', borderRadius:'100px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: reqTab === t.key ? '#1a1a1a' : '#e0ddd8', background: reqTab === t.key ? '#1a1a1a' : '#fff', color: reqTab === t.key ? '#fff' : '#5a5650' }}>{t.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
           {requests.length === 0 ? (
             <p style={{ fontSize:'14px', color:'#9a9590' }}>Запросы которые ты отправил авторам появятся здесь.</p>
-          ) : (
-            <>
-              {activeRequests.length === 0 ? (
-                <p style={{ fontSize:'13px', color:'#9a9590', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>Нет активных запросов</p>
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>
-                  {activeRequests.map(r => {
+          ) : (() => {
+            const shown = reqTab === 'active' ? activeRequests : reqTab === 'history' ? historyRequests : requests
+            return shown.length === 0 ? (
+              <p style={{ fontSize:'13px', color:'#9a9590' }}>{reqTab === 'active' ? 'Нет активных запросов' : 'Нет завершённых запросов'}</p>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                {shown.map(r => {
                     const s = businessStatusLabel(r.status)
                     const unread = unreadCounts[r.id] || 0
                     return (
@@ -150,35 +160,7 @@ export default function BusinessDashboard() {
                   })}
                 </div>
               )}
-
-              {historyRequests.length > 0 && (
-                <>
-                  <button onClick={() => setShowHistory(!showHistory)} style={{ width:'100%', padding:'10px', border:'1px dashed #e0ddd8', borderRadius:'12px', background:'none', cursor:'pointer', fontSize:'13px', fontWeight:500, color:'#9a9590', fontFamily:'inherit' }}>
-                    {showHistory ? 'Скрыть историю' : `Показать историю (${historyRequests.length})`}
-                  </button>
-                  {showHistory && (
-                    <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginTop:'12px' }}>
-                      {historyRequests.map(r => {
-                        const s = businessStatusLabel(r.status)
-                        return (
-                          <Link key={r.id} href={`/dashboard/request/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
-                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
-                              <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.authors?.name} · {r.authors?.city}</span>
-                              <span style={{ padding:'2px 10px', background:s.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:s.color, whiteSpace:'nowrap' }}>{s.text}</span>
-                            </div>
-                            <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
-                            <div style={{ display:'flex', justifyContent:'flex-end', fontSize:'12px', color:'#9a9590' }}>
-                              <span>{formatRelative(r.created_at)}</span>
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
+          )()}
         </div>
       </div>
     </main>
