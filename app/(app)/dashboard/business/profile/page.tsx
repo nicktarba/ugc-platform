@@ -88,8 +88,8 @@ export default function BusinessProfilePage() {
             <div>
               <label style={lbl}>Логотип компании</label>
               <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
-                <div onClick={() => fileRef.current?.click()} style={{ width:'72px', height:'72px', borderRadius:'16px', background:'#fdf3e7', border:'2px dashed #d4d0c8', cursor:'pointer', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px', fontWeight:700, color:'#c17f3e', opacity: saving ? 0.5 : 1, transition:'opacity 0.2s' }}>
-                  {saving && avatarFile ? '⏳' : displayAvatar ? <img src={displayAvatar} alt="logo" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initial}
+                <div onClick={() => fileRef.current?.click()} style={{ width:'72px', height:'72px', borderRadius:'16px', background:'#fdf3e7', border: saving && avatarFile ? '2px solid #c17f3e' : '2px dashed #d4d0c8', cursor:'pointer', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px', fontWeight:700, color:'#c17f3e', opacity: saving && avatarFile ? 0.6 : 1, transition:'all 0.3s' }}>
+                  {saving && avatarFile ? <span style={{ fontSize:'14px', animation:'spin 1s linear infinite' }}>⏳</span> : displayAvatar ? <img src={displayAvatar} alt="logo" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initial}
                 </div>
                 <div>
                   <button type="button" onClick={() => fileRef.current?.click()} style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'13px', fontWeight:500, fontFamily:'inherit', color:'#1a1a1a' }}>

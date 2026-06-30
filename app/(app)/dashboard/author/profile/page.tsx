@@ -254,8 +254,8 @@ export default function AuthorProfilePage() {
               <div>
                 <label style={lbl}>Фото профиля</label>
                 <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
-                  <div onClick={() => fileRef.current?.click()} style={{ width:'72px', height:'72px', borderRadius:'50%', background:'#f0ede6', border:'2px dashed #d4d0c8', cursor:'pointer', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px', opacity: loading && avatarFile ? 0.5 : 1, transition:'opacity 0.2s' }}>
-                    {loading && avatarFile ? '⏳' : displayAvatar ? <img src={displayAvatar} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '📷'}
+                  <div onClick={() => fileRef.current?.click()} style={{ width:'72px', height:'72px', borderRadius:'50%', background:'#f0ede6', border: loading && avatarFile ? '2px solid #c17f3e' : '2px dashed #d4d0c8', cursor:'pointer', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px', opacity: loading && avatarFile ? 0.6 : 1, transition:'all 0.3s' }}>
+                    {loading && avatarFile ? <span style={{ fontSize:'14px' }}>⏳</span> : displayAvatar ? <img src={displayAvatar} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '📷'}
                   </div>
                   <div>
                     <button type="button" onClick={() => fileRef.current?.click()} style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'13px', fontWeight:500, fontFamily:'inherit', color:'#1a1a1a' }}>
