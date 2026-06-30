@@ -7,8 +7,9 @@ export default function BottomNav({ role, active, unread = 0, notifCount = 0 }: 
   const tabs: Tab[] = role === 'business'
     ? [
         { key: 'catalog', href: '/catalog', label: 'Каталог', icon: '🔍' },
+        { key: 'favorites', href: '/dashboard/business/favorites', label: 'Избранное', icon: '⭐' },
         { key: 'requests', href: '/dashboard/business', label: 'Сделки', icon: '💬', badge: unread },
-        { key: 'notifications', href: '/dashboard/notifications', label: 'Уведомления', icon: '🔔', badge: notifCount },
+        { key: 'notifications', href: '/dashboard/notifications', label: 'Увед.', icon: '🔔', badge: notifCount },
         { key: 'profile', href: '/dashboard/business/profile', label: 'Профиль', icon: '👤' },
       ]
     : [
