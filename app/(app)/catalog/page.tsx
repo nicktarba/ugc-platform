@@ -56,7 +56,7 @@ export default function CatalogPage() {
   const [visibleCount, setVisibleCount] = useState(12)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [aiSearching, setAiSearching] = useState(false)
-  const [aiResults, setAiResults] = useState<{id:string; score:number; reason:string}[] | null>(null)
+  const [aiResults, setAiResults] = useState<{id:string; score:number; match_type?:string; reason:string}[] | null>(null)
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
   const aiTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -444,7 +444,24 @@ export default function CatalogPage() {
                   <div style={{ padding:'36px 20px 0', flex:1, display:'flex', flexDirection:'column' }}>
 
                     {/* AI reason */}
-                    {aiResults && (() => { const r = aiResults.find(r => r.id === a.id); return r ? <div style={{ padding:'6px 10px', background:'#fdf3e7', borderRadius:'8px', fontSize:'12px', color:'#b45309', marginBottom:'8px' }}>✨ {r.reason}</div> : null })()}
+                    {aiResults && (() => {
+                      const r = aiResults.find(r => r.id === a.id)
+                      if (!r) return null
+                      const MATCH_LABELS: Record<string, {icon:string; label:string}> = {
+                        direct: {icon:'🎯', label:'Прямое попадание'},
+                        scenario: {icon:'🎬', label:'Подходит по сценарию'},
+                        audience: {icon:'👥', label:'Совпадение аудитории'},
+                        content: {icon:'📸', label:'Подходит для контента'},
+                        geo: {icon:'📍', label:'Совпадение по городу'},
+                      }
+                      const match = r.match_type ? MATCH_LABELS[r.match_type] : null
+                      return (
+                        <div style={{ padding:'8px 12px', background:'#fdf3e7', borderRadius:'10px', fontSize:'12px', color:'#b45309', marginBottom:'10px' }}>
+                          {match && <span style={{ fontWeight:600 }}>{match.icon} {match.label} · </span>}
+                          {r.reason}
+                        </div>
+                      )
+                    })()}
 
                     {/* Name + badges */}
                     <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', marginBottom:'4px' }}>
