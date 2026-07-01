@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const cache = new Map<string, { result: unknown; ts: number }>()
-const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
+const CACHE_TTL = 24 * 60 * 60 * 1000
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,20 +20,7 @@ export async function POST(req: NextRequest) {
       `[${a.id}] ${a.name}, ${a.city}, ${a.occupation || ''}. ${a.bio || ''}. Теги: ${(a.lifestyle || []).join(', ')}. Бартер: ${a.open_to_barter ? 'да' : 'нет'}`
     ).join('\n')
 
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        temperature: 0.3,
-        max_tokens: 800,
-        messages: [
-          {
-            role: 'system',
-            content: `Ты ранжируешь UGC-креаторов под запрос бизнеса.
+    const systemPrompt = `Ты ранжируешь UGC-креаторов под запрос бизнеса.
 Оценивай не по ключевым словам, а по реальной пригодности автора для рекламы продукта.
 
 Типы соответствия:
@@ -52,27 +39,34 @@ export async function POST(req: NextRequest) {
 6. Не включай автора, если связь натянутая или основана на случайном совпадении слов.
 7. Не выдумывай факты об авторе. Используй только данные каталога.
 
-Score:
-90-100 — идеальное попадание
-75-89 — сильное соответствие
-60-74 — нормальное соответствие
-45-59 — слабое, но объяснимое соответствие
-30-44 — минимально допустимое
-<30 — не включать
+Score: 90-100 идеальное, 75-89 сильное, 60-74 нормальное, 45-59 слабое, 30-44 минимальное, <30 не включать.
 
-Отвечай на русском. Строго JSON массив, без markdown, без бэктиков, максимум 10:
+Отвечай ТОЛЬКО JSON массивом, без markdown, без бэктиков, максимум 10:
 [{"id":"uuid","score":85,"match_type":"scenario","reason":"Почему подходит"}]`
-          },
-          {
-            role: 'user',
-            content: `Запрос бизнеса: "${query}"\n\nКреаторы:\n${authorsStr}`
-          }
+
+    const resp = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Api-Key ${process.env.YANDEX_API_KEY}`,
+        'x-folder-id': process.env.YANDEX_FOLDER_ID || '',
+      },
+      body: JSON.stringify({
+        modelUri: `gpt://${process.env.YANDEX_FOLDER_ID}/yandexgpt-lite`,
+        completionOptions: {
+          stream: false,
+          temperature: 0.3,
+          maxTokens: '1000',
+        },
+        messages: [
+          { role: 'system', text: systemPrompt },
+          { role: 'user', text: `Запрос бизнеса: "${query}"\n\nКреаторы:\n${authorsStr}` }
         ]
       })
     })
 
     const data = await resp.json()
-    const text = data.choices?.[0]?.message?.content || '[]'
+    const text = data.result?.alternatives?.[0]?.message?.text || '[]'
     const clean = text.replace(/```json|```/g, '').trim()
 
     let results
