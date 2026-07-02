@@ -175,21 +175,35 @@ export default function CatalogPage() {
   // автора (доход, стадия жизни семьи), а не через его собственную нишу: у мамы-блогера
   // в bio не будет слова "мультиварка", и не должно быть. Для audience keyword-проверка
   // структурно не работает — доверяем оценке модели целиком.
+  // Если модель сама написала в reason явное отрицание ("не подходит", "нет связи"),
+  // результат выкидывается независимо от score и match_type. Score и текстовое обоснование —
+  // два независимых поля одного ответа модели, и они иногда расходятся: модель честно
+  // признаёт в тексте, что связи нет, но всё равно включает автора в массив с проходным
+  // баллом. Текстовое самопротиворечие — более надёжный сигнал, чем число, которое модель
+  // могла проставить не глядя.
+  const NEGATION_PATTERNS = ['не подходит', 'не связан', 'нет связи', 'не является', 'не относится', 'не подойдёт', 'не рекомендую']
+  const hasNegation = (reason: string) => {
+    const r = reason.toLowerCase()
+    return NEGATION_PATTERNS.some(p => r.includes(p))
+  }
+
   const filterAiResultsByRelevance = (
     results: { id:string; score:number; match_type?:string; reason:string }[],
     authorsList: Author[],
     query: string
   ) => {
+    const withoutSelfContradicting = results.filter(r => !hasNegation(r.reason))
+
     const meaningfulWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 1 && !GENERIC_WORDS.includes(w))
-    if (meaningfulWords.length === 0) return results
+    if (meaningfulWords.length === 0) return withoutSelfContradicting
 
     const hasKnownCategory = meaningfulWords.some(w =>
       Object.keys(CONCEPT_MAP).some(trigger => w.startsWith(trigger) || trigger.startsWith(w.slice(0, 4)))
     )
-    if (!hasKnownCategory) return results // вне таксономии — фильтровать нечем, доверяем ИИ
+    if (!hasKnownCategory) return withoutSelfContradicting // вне таксономии — фильтровать нечем, доверяем ИИ
 
     const allWords = expandSearch(meaningfulWords)
-    return results.filter(r => {
+    return withoutSelfContradicting.filter(r => {
       if (r.match_type === 'audience') return true // проверяется моделью, не keyword-совпадением
       const author = authorsList.find(a => a.id === r.id)
       if (!author) return false
