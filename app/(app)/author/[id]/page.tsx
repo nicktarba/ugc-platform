@@ -272,42 +272,45 @@ export default function AuthorPublicPage() {
                 <ReviewsList authorId={author.id} avgRating={author.avg_rating} reviewsCount={author.reviews_count} currentUserId={userId} />
               </div>
             )}
-            {/* Похожие авторы */}
-            {similarAuthors.length > 0 && (
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
-                <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Похожие авторы</h2>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'12px' }}>
-                  {similarAuthors.map(s => {
-                    const sci = s.id.charCodeAt(0) % 5
-                    const sInitial = s.name?.[0]?.toUpperCase() || '?'
-                    return (
-                      <Link key={s.id} href={`/author/${s.id}`} style={{ display:'block', padding:'14px', border:'1px solid #e8e6e1', borderRadius:'14px', textDecoration:'none', color:'inherit' }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px' }}>
-                          <div style={{ width:'40px', height:'40px', borderRadius:'50%', overflow:'hidden', background:AVATAR_BG[sci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:700, color:AVATAR_TEXT[sci], flexShrink:0 }}>
-                            {s.avatar_url ? <img src={s.avatar_url} alt={s.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : sInitial}
-                          </div>
-                          <div style={{ minWidth:0 }}>
-                            <div style={{ fontSize:'14px', fontWeight:700, color:'#1a1a1a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.name}</div>
-                            <div style={{ fontSize:'12px', color:'#9a9590', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>📍 {s.city}</div>
-                          </div>
-                        </div>
-                        {s.lifestyle?.length > 0 && (
-                          <div style={{ display:'flex', flexWrap:'wrap', gap:'4px' }}>
-                            {s.lifestyle.slice(0, 2).map(tag => {
-                              const tc = TAG_COLORS[tag] || defaultTag
-                              return <span key={tag} style={{ padding:'2px 8px', background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:'100px', fontSize:'10px', color:tc.color, fontWeight:600 }}>{tag}</span>
-                            })}
-                          </div>
-                        )}
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Похожие авторы — отдельная полноширинная секция под сеткой, не втиснута в узкую колонку */}
+      {similarAuthors.length > 0 && (
+        <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'0 clamp(16px, 5vw, 40px) clamp(20px, 4vw, 36px)' }}>
+          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
+            <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Похожие авторы</h2>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:'14px' }}>
+              {similarAuthors.map(s => {
+                const sci = s.id.charCodeAt(0) % 5
+                const sInitial = s.name?.[0]?.toUpperCase() || '?'
+                return (
+                  <Link key={s.id} href={`/author/${s.id}`} style={{ display:'block', padding:'16px', border:'1px solid #e8e6e1', borderRadius:'14px', textDecoration:'none', color:'inherit' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px' }}>
+                      <div style={{ width:'44px', height:'44px', borderRadius:'50%', overflow:'hidden', background:AVATAR_BG[sci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'17px', fontWeight:700, color:AVATAR_TEXT[sci], flexShrink:0 }}>
+                        {s.avatar_url ? <img src={s.avatar_url} alt={s.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : sInitial}
+                      </div>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:'15px', fontWeight:700, color:'#1a1a1a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.name}</div>
+                        <div style={{ fontSize:'12px', color:'#9a9590', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>📍 {s.city}</div>
+                      </div>
+                    </div>
+                    {s.lifestyle?.length > 0 && (
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:'4px' }}>
+                        {s.lifestyle.slice(0, 3).map(tag => {
+                          const tc = TAG_COLORS[tag] || defaultTag
+                          return <span key={tag} style={{ padding:'3px 9px', background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:'100px', fontSize:'11px', color:tc.color, fontWeight:600 }}>{tag}</span>
+                        })}
+                      </div>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {modalOpen && (
