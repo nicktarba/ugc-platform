@@ -19,6 +19,13 @@ function LoginForm() {
     }
   }, [])
 
+  // Безопасный редирект: только внутренние пути, чтобы никто не подсунул внешний URL через параметр
+  const getSafeRedirect = (): string | null => {
+    const redirect = searchParams.get('redirect')
+    if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) return redirect
+    return null
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -27,6 +34,9 @@ function LoginForm() {
     const { data, error: err } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
 
     if (err) { setError('Неверный email или пароль'); setLoading(false); return }
+
+    const redirectTo = getSafeRedirect()
+    if (redirectTo) { router.push(redirectTo); setLoading(false); return }
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user?.id).single()
     const role = profile?.role || data.user?.user_metadata?.role
@@ -39,17 +49,20 @@ function LoginForm() {
   const inp = { width: '100%', padding: '12px 16px', border: '1.5px solid #e0ddd8', borderRadius: '12px', fontSize: '15px', background: '#fff', color: '#1a1a1a', outline: 'none', fontFamily: 'inherit' }
   const lbl = { display: 'block' as const, fontSize: '14px', fontWeight: 600, color: '#1a1a1a', marginBottom: '8px' }
 
+  // Ссылка на регистрацию несёт тот же redirect дальше
+  const redirectQuery = searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''
+
   return (
     <main style={{ background: '#fafaf9', minHeight: '100vh' }}>
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom: '1px solid #e8e6e1', background: '#fafaf9' }}>
         <Link href="/" style={{ fontFamily: 'Fraunces, serif', fontSize: '22px', fontWeight: 700, color: '#1a1a1a', textDecoration: 'none' }}>ugcmarket</Link>
-        <Link href="/register" style={{ padding: '8px 20px', background: '#1a1a1a', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '14px', fontWeight: 500 }}>Регистрация</Link>
+        <Link href={`/register${redirectQuery}`} style={{ padding: '8px 20px', background: '#1a1a1a', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '14px', fontWeight: 500 }}>Регистрация</Link>
       </nav>
 
       <div style={{ maxWidth: '480px', margin: '0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
         <Link href="/" style={{ fontSize:'13px', color:'#9a9590', textDecoration:'none', display:'inline-block', marginBottom:'16px' }}>← На главную</Link>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '8px' }}>Вход</h1>
-        <p style={{ fontSize: '15px', color: '#7a7570', marginBottom: '40px' }}>Нет аккаунта? <Link href="/register" style={{ color: '#1a1a1a', fontWeight: 600 }}>Зарегистрироваться</Link></p>
+        <p style={{ fontSize: '15px', color: '#7a7570', marginBottom: '40px' }}>Нет аккаунта? <Link href={`/register${redirectQuery}`} style={{ color: '#1a1a1a', fontWeight: 600 }}>Зарегистрироваться</Link></p>
 
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

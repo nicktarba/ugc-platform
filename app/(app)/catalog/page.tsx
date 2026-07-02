@@ -110,7 +110,7 @@ export default function CatalogPage() {
   })
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [visibleCount, setVisibleCount] = useState(12)
-  const [showAdvanced, setShowAdvanced] = useState(true)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [showAllTags, setShowAllTags] = useState(false)
   const [searchMode, setSearchMode] = useState<SearchMode>((searchParams.get('mode') as SearchMode) || 'regular')
   const [aiSearching, setAiSearching] = useState(false)
@@ -380,7 +380,7 @@ export default function CatalogPage() {
     if (mode === searchMode) return
     setSearchMode(mode)
     setAiResults(null)
-    setShowAdvanced(mode === 'regular')
+    setShowAdvanced(false)
   }
 
   const openModal = (author: Author) => {
@@ -516,13 +516,11 @@ export default function CatalogPage() {
           </div>
         )}
 
-        {/* Filters toggle — только в ИИ-режиме, в обычном фильтры всегда видны */}
+        {/* Filters toggle — свёрнуто по умолчанию в обоих режимах */}
         <div style={{ display:'flex', gap:'8px', marginTop:'12px', marginBottom:'16px', alignItems:'center', flexWrap:'wrap' }}>
-          {searchMode === 'ai' && (
-            <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ padding:'9px 16px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', background: showAdvanced ? '#f0ede6' : '#fff', color:'#5a5650' }}>
-              ⚙️ Фильтры{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
-            </button>
-          )}
+          <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ padding:'9px 16px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', background: showAdvanced ? '#f0ede6' : '#fff', color:'#5a5650' }}>
+            ⚙️ Фильтры{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
+          </button>
           {activeFiltersCount > 0 && (
             <button onClick={() => { setCity(''); setBarter('all'); setLifestyleFilter([]); setSort('relevance'); setMinFollowers(0); setMaxFollowers(FOLLOWERS_MAX_CAP) }} style={{ padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#dc2626', fontFamily:'inherit' }}>Сбросить всё</button>
           )}
@@ -711,7 +709,7 @@ export default function CatalogPage() {
                           <button onClick={() => openModal(a)} style={{ flex:1, padding:'9px', background:'#C56A43', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Написать</button>
                         )
                       )}
-                      {!userEmail && <Link href="/register" style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'9px', background:'#C56A43', borderRadius:'12px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600 }}>Войти</Link>}
+                      {!userEmail && <Link href={`/register?redirect=${encodeURIComponent(`/author/${a.id}`)}`} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'9px', background:'#C56A43', borderRadius:'12px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600 }}>Войти</Link>}
                     </div>
                   </div>
                 </div>

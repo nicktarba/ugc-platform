@@ -26,7 +26,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getUser()
-      if (!data.user) { router.push('/login'); return }
+      if (!data.user) { router.push('/login?redirect=%2Fdashboard%2Fadmin'); return }
 
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
       if (profile?.role !== 'admin') { setDenied(true); setLoading(false); return }

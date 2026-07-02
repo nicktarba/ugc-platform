@@ -48,7 +48,7 @@ export default function ChatPage() {
   useEffect(() => {
     const init = async () => {
       const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) { router.push('/login'); return }
+      if (!userData.user) { router.push(`/login?redirect=${encodeURIComponent(`/dashboard/chat/${requestId}`)}`); return }
       const uid = userData.user.id
       setUserId(uid)
       setUserEmail(userData.user.email || null)

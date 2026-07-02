@@ -192,7 +192,7 @@ export default function AuthorPublicPage() {
                   )
                 )}
                 {!userId && (
-                  <Link href="/register" style={{ display:'block', padding:'12px', background:'#C56A43', borderRadius:'12px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600, textAlign:'center' }}>Войти чтобы написать</Link>
+                  <Link href={`/register?redirect=${encodeURIComponent(`/author/${authorId}`)}`} style={{ display:'block', padding:'12px', background:'#C56A43', borderRadius:'12px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600, textAlign:'center' }}>Войти чтобы написать</Link>
                 )}
                 <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Ссылка скопирована') }} style={{ width:'100%', padding:'10px', background:'none', border:'1.5px solid #e0ddd8', borderRadius:'12px', color:'#7a7570', fontSize:'13px', fontWeight:500, cursor:'pointer', fontFamily:'inherit', marginTop:'8px' }}>📋 Поделиться профилем</button>
               </div>
