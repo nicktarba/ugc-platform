@@ -17,6 +17,12 @@ type Author = {
   completed_deals_count: number; avg_rating: number | null; reviews_count: number
 }
 
+type SimilarAuthor = {
+  id: string; name: string; city: string; occupation: string
+  lifestyle: string[]; avatar_url: string | null; avg_rating: number | null
+  followers_count: number; open_to_barter: boolean
+}
+
 const AVATAR_BG   = ['#fdf3e7','#e8f4fd','#f0fdf4','#fdf4ff','#fff0f0']
 const AVATAR_TEXT = ['#c17f3e','#1a6fa8','#16a34a','#7c3aed','#dc2626']
 const HEADER_GRADIENTS = [
@@ -62,6 +68,7 @@ export default function AuthorPublicPage() {
   const [deadline, setDeadline] = useState('')
   const [sending, setSending] = useState(false)
   const [notFound, setNotFound] = useState(false)
+  const [similarAuthors, setSimilarAuthors] = useState<SimilarAuthor[]>([])
 
   useEffect(() => {
     const init = async () => {
@@ -72,6 +79,20 @@ export default function AuthorPublicPage() {
         const { data: deal } = await supabase.from('requests').select('id').eq('business_id', userId).eq('author_id', authorId).in('status', ['new','viewed','accepted']).maybeSingle()
         if (deal) setHasOpenDeal(deal.id)
       }
+
+      // Похожие авторы: пересечение тегов lifestyle + бонус за тот же город, топ-4
+      const { data: pool } = await supabase.from('authors').select('id, name, city, occupation, lifestyle, avatar_url, avg_rating, followers_count, open_to_barter').eq('status', 'approved').neq('id', authorId).limit(200)
+      if (pool && pool.length > 0) {
+        const currentTags = new Set((a.lifestyle || []) as string[])
+        const scored = (pool as SimilarAuthor[]).map(p => {
+          const sharedTags = (p.lifestyle || []).filter(t => currentTags.has(t)).length
+          const sameCity = p.city === a.city ? 1 : 0
+          return { author: p, score: sharedTags * 2 + sameCity }
+        })
+        const similar = scored.filter(s => s.score > 0).sort((x, y) => y.score - x.score).slice(0, 4).map(s => s.author)
+        setSimilarAuthors(similar)
+      }
+
       setLoading(false)
     }
     init()
@@ -249,6 +270,39 @@ export default function AuthorPublicPage() {
                   {author.avg_rating && <span style={{ fontSize:'15px', fontWeight:500, color:'#c17f3e', marginLeft:'8px' }}>★ {author.avg_rating}</span>}
                 </h2>
                 <ReviewsList authorId={author.id} avgRating={author.avg_rating} reviewsCount={author.reviews_count} currentUserId={userId} />
+              </div>
+            )}
+            {/* Похожие авторы */}
+            {similarAuthors.length > 0 && (
+              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
+                <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Похожие авторы</h2>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'12px' }}>
+                  {similarAuthors.map(s => {
+                    const sci = s.id.charCodeAt(0) % 5
+                    const sInitial = s.name?.[0]?.toUpperCase() || '?'
+                    return (
+                      <Link key={s.id} href={`/author/${s.id}`} style={{ display:'block', padding:'14px', border:'1px solid #e8e6e1', borderRadius:'14px', textDecoration:'none', color:'inherit' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'8px' }}>
+                          <div style={{ width:'40px', height:'40px', borderRadius:'50%', overflow:'hidden', background:AVATAR_BG[sci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px', fontWeight:700, color:AVATAR_TEXT[sci], flexShrink:0 }}>
+                            {s.avatar_url ? <img src={s.avatar_url} alt={s.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : sInitial}
+                          </div>
+                          <div style={{ minWidth:0 }}>
+                            <div style={{ fontSize:'14px', fontWeight:700, color:'#1a1a1a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.name}</div>
+                            <div style={{ fontSize:'12px', color:'#9a9590', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>📍 {s.city}</div>
+                          </div>
+                        </div>
+                        {s.lifestyle?.length > 0 && (
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:'4px' }}>
+                            {s.lifestyle.slice(0, 2).map(tag => {
+                              const tc = TAG_COLORS[tag] || defaultTag
+                              return <span key={tag} style={{ padding:'2px 8px', background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:'100px', fontSize:'10px', color:tc.color, fontWeight:600 }}>{tag}</span>
+                            })}
+                          </div>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>
