@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -38,6 +38,44 @@ const HEADER_GRADIENTS = [
 
 type SearchMode = 'ai' | 'regular'
 
+// Города для автодополнения — фокус на ДВФО (основной рынок агентства), плюс крупные города РФ
+const CITY_LIST = [
+  'Владивосток', 'Хабаровск', 'Находка', 'Уссурийск', 'Артём', 'Благовещенск',
+  'Южно-Сахалинск', 'Петропавловск-Камчатский', 'Комсомольск-на-Амуре', 'Биробиджан',
+  'Магадан', 'Чита', 'Улан-Удэ', 'Якутск',
+  'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург',
+]
+
+function CityPicker({ value, onChange, placeholder, width, inputStyle }: { value: string; onChange: (v: string) => void; placeholder: string; width: string; inputStyle?: CSSProperties }) {
+  const [open, setOpen] = useState(false)
+  const filtered = value ? CITY_LIST.filter(c => c.toLowerCase().startsWith(value.toLowerCase())).slice(0, 8) : CITY_LIST.slice(0, 8)
+  return (
+    <div style={{ position:'relative', width }}>
+      <input
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder={placeholder}
+        style={{ width:'100%', padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box', ...inputStyle }}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, background:'#fff', border:'1px solid #e0ddd8', borderRadius:'10px', boxShadow:'0 4px 16px rgba(0,0,0,0.08)', zIndex:20, overflow:'hidden', maxHeight:'220px', overflowY:'auto' }}>
+          {filtered.map(c => (
+            <div
+              key={c}
+              onMouseDown={() => { onChange(c); setOpen(false) }}
+              style={{ padding:'8px 12px', fontSize:'13px', cursor:'pointer', color:'#1a1a1a' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#f0ede6')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+            >{c}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CatalogPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -57,10 +95,14 @@ export default function CatalogPage() {
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [visibleCount, setVisibleCount] = useState(12)
   const [showAdvanced, setShowAdvanced] = useState(true)
+  const [showAllTags, setShowAllTags] = useState(false)
   const [searchMode, setSearchMode] = useState<SearchMode>((searchParams.get('mode') as SearchMode) || 'regular')
   const [aiSearching, setAiSearching] = useState(false)
   const [aiResults, setAiResults] = useState<{id:string; score:number; match_type?:string; reason:string}[] | null>(null)
   const [aiFilteredOutCount, setAiFilteredOutCount] = useState(0)
+  const FOLLOWERS_MAX_CAP = 20000
+  const [minFollowers, setMinFollowers] = useState(0)
+  const [maxFollowers, setMaxFollowers] = useState(FOLLOWERS_MAX_CAP)
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
 
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
@@ -260,12 +302,15 @@ export default function CatalogPage() {
     if (barter === 'yes') base = base.filter(a => a.open_to_barter)
     if (barter === 'no') base = base.filter(a => !a.open_to_barter)
     if (lifestyleFilter.length > 0) base = base.filter(a => lifestyleFilter.some(tag => a.lifestyle?.includes(tag)))
+    if (minFollowers > 0 || maxFollowers < FOLLOWERS_MAX_CAP) {
+      base = base.filter(a => a.followers_count >= minFollowers && (maxFollowers >= FOLLOWERS_MAX_CAP || a.followers_count <= maxFollowers))
+    }
     if (sort === 'followers') base = [...base].sort((a, b) => b.followers_count - a.followers_count)
     else if (sort === 'rating') base = [...base].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0))
 
     setFiltered(base)
     setVisibleCount(12)
-  }, [authors, search, city, barter, lifestyleFilter, sort, aiResults, searchMode])
+  }, [authors, search, city, barter, lifestyleFilter, sort, aiResults, searchMode, minFollowers, maxFollowers])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -377,7 +422,7 @@ export default function CatalogPage() {
     else setLifestyleFilter(prev => [...prev.filter(t => !tags.includes(t)), ...tags])
   }
 
-  const activeFiltersCount = (searchMode === 'ai' && city ? 1 : 0) + (barter !== 'all' ? 1 : 0) + lifestyleFilter.length + (sort !== 'relevance' ? 1 : 0)
+  const activeFiltersCount = (searchMode === 'ai' && city ? 1 : 0) + (barter !== 'all' ? 1 : 0) + lifestyleFilter.length + (sort !== 'relevance' ? 1 : 0) + (minFollowers > 0 || maxFollowers < FOLLOWERS_MAX_CAP ? 1 : 0)
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
@@ -417,11 +462,12 @@ export default function CatalogPage() {
               )}
             </div>
             {searchMode === 'regular' ? (
-              <input
+              <CityPicker
                 value={city}
-                onChange={e => setCity(e.target.value)}
+                onChange={setCity}
                 placeholder="Город"
-                style={{ width:'150px', padding:'16px', border:'1.5px solid #e0ddd8', borderRadius:'16px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+                width="150px"
+                inputStyle={{ padding:'16px', borderRadius:'16px', fontSize:'15px' }}
               />
             ) : (
               <button onClick={runAiSearch} disabled={!search.trim() || aiSearching} style={{ padding:'0 24px', borderRadius:'16px', fontSize:'14px', fontWeight:700, border:'none', cursor: !search.trim() || aiSearching ? 'not-allowed' : 'pointer', fontFamily:'inherit', background: !search.trim() ? '#e8e6e1' : 'linear-gradient(135deg, #C56A43, #d4845f)', color: !search.trim() ? '#9a9590' : '#fff', opacity: aiSearching ? 0.7 : 1, whiteSpace:'nowrap' }}>
@@ -454,40 +500,79 @@ export default function CatalogPage() {
           </div>
         )}
 
-        {/* Filters toggle */}
+        {/* Filters toggle — только в ИИ-режиме, в обычном фильтры всегда видны */}
         <div style={{ display:'flex', gap:'8px', marginTop:'12px', marginBottom:'16px', alignItems:'center', flexWrap:'wrap' }}>
-          <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ padding:'9px 16px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', background: showAdvanced ? '#f0ede6' : '#fff', color:'#5a5650' }}>
-            ⚙️ Фильтры{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
-          </button>
+          {searchMode === 'ai' && (
+            <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ padding:'9px 16px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', background: showAdvanced ? '#f0ede6' : '#fff', color:'#5a5650' }}>
+              ⚙️ Фильтры{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
+            </button>
+          )}
           {activeFiltersCount > 0 && (
-            <button onClick={() => { setCity(''); setBarter('all'); setLifestyleFilter([]); setSort('relevance') }} style={{ padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#dc2626', fontFamily:'inherit' }}>Сбросить всё</button>
+            <button onClick={() => { setCity(''); setBarter('all'); setLifestyleFilter([]); setSort('relevance'); setMinFollowers(0); setMaxFollowers(FOLLOWERS_MAX_CAP) }} style={{ padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#dc2626', fontFamily:'inherit' }}>Сбросить всё</button>
           )}
         </div>
 
         {/* Advanced panel — компактный тулбар, не отдельная форма */}
         {showAdvanced && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', alignItems:'center', marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #e8e6e1' }}>
-            {searchMode === 'ai' && (
-              <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Город" style={{ width:'130px', padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-            )}
-            <select value={sort} onChange={e => setSort(e.target.value)} style={{ padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fff', color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
-              <option value="relevance">По релевантности</option>
-              <option value="new">Новые</option>
-              <option value="followers">По подписчикам</option>
-              <option value="rating">По рейтингу</option>
-            </select>
-            <div style={{ display:'flex', gap:'3px' }}>
-              {[{val:'all' as const,label:'Бартер: все'},{val:'yes' as const,label:'Бартер'},{val:'no' as const,label:'Без бартера'}].map(opt => (
-                <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
-              ))}
+          <div style={{ marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #e8e6e1', display:'flex', flexDirection:'column', gap:'14px' }}>
+            <style>{`
+              .followers-range { -webkit-appearance:none; appearance:none; position:absolute; top:0; left:0; width:100%; height:4px; background:transparent; margin:0; pointer-events:none; }
+              .followers-range::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:15px; height:15px; border-radius:50%; background:#C56A43; cursor:pointer; pointer-events:auto; margin-top:-5.5px; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+              .followers-range::-moz-range-thumb { width:15px; height:15px; border-radius:50%; background:#C56A43; cursor:pointer; pointer-events:auto; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+              .followers-range::-webkit-slider-runnable-track { height:4px; background:transparent; }
+              .followers-range::-moz-range-track { height:4px; background:transparent; }
+            `}</style>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', alignItems:'center' }}>
+              {searchMode === 'ai' && (
+                <CityPicker value={city} onChange={setCity} placeholder="Город" width="130px" />
+              )}
+              <select value={sort} onChange={e => setSort(e.target.value)} style={{ padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fff', color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
+                <option value="relevance">По релевантности</option>
+                <option value="new">Новые</option>
+                <option value="followers">По подписчикам</option>
+                <option value="rating">По рейтингу</option>
+              </select>
+              <div style={{ display:'flex', gap:'3px' }}>
+                {[{val:'all' as const,label:'Бартер: все'},{val:'yes' as const,label:'Бартер'},{val:'no' as const,label:'Без бартера'}].map(opt => (
+                  <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
+                ))}
+              </div>
+              <div style={{ width:'1px', height:'22px', background:'#e0ddd8', margin:'0 2px' }} />
+              <div style={{ minWidth:'220px' }}>
+                <div style={{ fontSize:'11px', color:'#9a9590', marginBottom:'4px' }}>
+                  Подписчики: {minFollowers.toLocaleString('ru')} — {maxFollowers >= FOLLOWERS_MAX_CAP ? `${FOLLOWERS_MAX_CAP.toLocaleString('ru')}+` : maxFollowers.toLocaleString('ru')}
+                </div>
+                <div style={{ position:'relative', height:'15px' }}>
+                  <div style={{ position:'absolute', top:'5.5px', left:0, right:0, height:'4px', background:'#e8e6e1', borderRadius:'2px' }} />
+                  <div style={{ position:'absolute', top:'5.5px', height:'4px', background:'#C56A43', borderRadius:'2px', left:`${(minFollowers/FOLLOWERS_MAX_CAP)*100}%`, right:`${100-(maxFollowers/FOLLOWERS_MAX_CAP)*100}%` }} />
+                  <input type="range" className="followers-range" min={0} max={FOLLOWERS_MAX_CAP} step={100} value={minFollowers}
+                    onChange={e => setMinFollowers(Math.min(Number(e.target.value), maxFollowers - 100))} />
+                  <input type="range" className="followers-range" min={0} max={FOLLOWERS_MAX_CAP} step={100} value={maxFollowers}
+                    onChange={e => setMaxFollowers(Math.max(Number(e.target.value), minFollowers + 100))} />
+                </div>
+              </div>
             </div>
-            <div style={{ width:'1px', height:'22px', background:'#e0ddd8', margin:'0 2px' }} />
-            {CATEGORIES.map(cat => {
-              const active = cat.tags.some(t => lifestyleFilter.includes(t))
-              return (
-                <button key={cat.label} onClick={() => toggleCategory(cat.tags)} style={{ padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: active ? '#C56A43' : '#e0ddd8', background: active ? '#fdf3e7' : '#fff', color: active ? '#C56A43' : '#5a5650' }}>{cat.label}</button>
-              )
-            })}
+            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', alignItems:'center' }}>
+              {CATEGORIES.map(cat => {
+                const active = cat.tags.some(t => lifestyleFilter.includes(t))
+                return (
+                  <button key={cat.label} onClick={() => toggleCategory(cat.tags)} style={{ padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: active ? '#C56A43' : '#e0ddd8', background: active ? '#fdf3e7' : '#fff', color: active ? '#C56A43' : '#5a5650' }}>{cat.label}</button>
+                )
+              })}
+              <button onClick={() => setShowAllTags(v => !v)} style={{ padding:'8px 4px', background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#9a9590', fontFamily:'inherit', textDecoration:'underline', whiteSpace:'nowrap' }}>
+                {showAllTags ? 'Скрыть' : `Ещё интересы (+${Object.keys(TAG_COLORS).length - CATEGORIES.length})`}
+              </button>
+            </div>
+            {showAllTags && (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
+                {Object.keys(TAG_COLORS).map(tag => {
+                  const active = lifestyleFilter.includes(tag)
+                  return (
+                    <button key={tag} onClick={() => setLifestyleFilter(prev => active ? prev.filter(t => t !== tag) : [...prev, tag])} style={{ padding:'6px 11px', borderRadius:'8px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: active ? '#C56A43' : '#e0ddd8', background: active ? '#fdf3e7' : '#fff', color: active ? '#C56A43' : '#7a7570' }}>{tag}</button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
