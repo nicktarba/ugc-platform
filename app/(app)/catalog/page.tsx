@@ -285,6 +285,7 @@ export default function CatalogPage() {
       const data = await resp.json()
       const raw = data.results?.length > 0 ? data.results : []
       const relevant = filterAiResultsByRelevance(raw, authors, search)
+        .sort((a, b) => b.score - a.score) // не доверяем порядку из ответа модели — сортируем сами
       setAiFilteredOutCount(raw.length - relevant.length)
       setAiResults(relevant)
     } catch {
