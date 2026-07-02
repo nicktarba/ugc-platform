@@ -56,8 +56,8 @@ export default function CatalogPage() {
   })
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [visibleCount, setVisibleCount] = useState(12)
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const [searchMode, setSearchMode] = useState<SearchMode>((searchParams.get('mode') as SearchMode) || 'ai')
+  const [showAdvanced, setShowAdvanced] = useState(true)
+  const [searchMode, setSearchMode] = useState<SearchMode>((searchParams.get('mode') as SearchMode) || 'regular')
   const [aiSearching, setAiSearching] = useState(false)
   const [aiResults, setAiResults] = useState<{id:string; score:number; match_type?:string; reason:string}[] | null>(null)
   const [aiFilteredOutCount, setAiFilteredOutCount] = useState(0)
@@ -319,6 +319,7 @@ export default function CatalogPage() {
     if (mode === searchMode) return
     setSearchMode(mode)
     setAiResults(null)
+    if (mode === 'regular') setShowAdvanced(true)
   }
 
   const openModal = (author: Author) => {
@@ -388,15 +389,16 @@ export default function CatalogPage() {
 
         {/* Mode tabs */}
         <div style={{ display:'flex', gap:'8px', marginBottom:'10px' }}>
-          <button onClick={() => switchMode('ai')} style={{ flex:'1', padding:'12px 16px', borderRadius:'14px', border: searchMode==='ai' ? '1.5px solid #C56A43' : '1.5px solid #e0ddd8', background: searchMode==='ai' ? '#fdf3e7' : '#fff', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
-            <div style={{ fontSize:'14px', fontWeight:700, color: searchMode==='ai' ? '#C56A43' : '#1a1a1a', marginBottom:'2px' }}>🤖 Умный ИИ-поиск</div>
-            <div style={{ fontSize:'12px', color:'#9a9590' }}>Понимает смысл запроса</div>
-          </button>
           <button onClick={() => switchMode('regular')} style={{ flex:'1', padding:'12px 16px', borderRadius:'14px', border: searchMode==='regular' ? '1.5px solid #C56A43' : '1.5px solid #e0ddd8', background: searchMode==='regular' ? '#fdf3e7' : '#fff', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
             <div style={{ fontSize:'14px', fontWeight:700, color: searchMode==='regular' ? '#C56A43' : '#1a1a1a', marginBottom:'2px' }}>🔍 Обычный поиск</div>
-            <div style={{ fontSize:'12px', color:'#9a9590' }}>Точные слова, город сразу</div>
+            <div style={{ fontSize:'12px', color:'#9a9590' }}>Точные слова, город и фильтры сразу</div>
+          </button>
+          <button onClick={() => switchMode('ai')} style={{ flex:'1', padding:'12px 16px', borderRadius:'14px', border: searchMode==='ai' ? '1.5px solid #C56A43' : '1.5px solid #e0ddd8', background: searchMode==='ai' ? '#fdf3e7' : '#fff', cursor:'pointer', fontFamily:'inherit', textAlign:'left', position:'relative' }}>
+            <div style={{ fontSize:'14px', fontWeight:700, color: searchMode==='ai' ? '#C56A43' : '#1a1a1a', marginBottom:'2px' }}>🤖 Умный ИИ-поиск</div>
+            <div style={{ fontSize:'12px', color:'#9a9590' }}>Находит по смыслу и объясняет выбор — там, где обычный поиск не сработает</div>
           </button>
         </div>
+
 
         {/* Search */}
         <div style={{ marginBottom:'6px' }}>
