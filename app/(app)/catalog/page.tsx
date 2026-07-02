@@ -170,10 +170,11 @@ export default function CatalogPage() {
 
   // Пост-фильтр результатов ИИ-поиска: YandexGPT Lite иногда придумывает связь без опоры
   // в данных автора. Отсекаем авторов без смыслового пересечения с запросом по CONCEPT_MAP —
-  // НО только если у нас вообще есть словарь для проверки. Если ни одно слово запроса не
-  // попадает ни в одну категорию CONCEPT_MAP (например «мультиварка» — бытовая техника,
-  // такой категории нет), фильтровать нечем — тогда доверяем оценке модели как есть,
-  // а не обнуляем всё вслепую.
+  // НО только для типов связи, где буквальное пересечение слов вообще имеет смысл проверять
+  // (direct/content/scenario/geo). Тип audience — это связь через демографию подписчиков
+  // автора (доход, стадия жизни семьи), а не через его собственную нишу: у мамы-блогера
+  // в bio не будет слова "мультиварка", и не должно быть. Для audience keyword-проверка
+  // структурно не работает — доверяем оценке модели целиком.
   const filterAiResultsByRelevance = (
     results: { id:string; score:number; match_type?:string; reason:string }[],
     authorsList: Author[],
@@ -189,6 +190,7 @@ export default function CatalogPage() {
 
     const allWords = expandSearch(meaningfulWords)
     return results.filter(r => {
+      if (r.match_type === 'audience') return true // проверяется моделью, не keyword-совпадением
       const author = authorsList.find(a => a.id === r.id)
       if (!author) return false
       const fieldText = [author.name, author.city, author.occupation, author.bio, author.hobbies, ...(author.lifestyle || [])].filter(Boolean).join(' ').toLowerCase()
