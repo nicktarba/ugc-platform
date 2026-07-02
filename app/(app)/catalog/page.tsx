@@ -36,6 +36,8 @@ const HEADER_GRADIENTS = [
   'linear-gradient(135deg, #e6d6f0 0%, #d5c0e8 100%)',
 ]
 
+type SearchMode = 'ai' | 'regular'
+
 export default function CatalogPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -55,6 +57,7 @@ export default function CatalogPage() {
   const [favoriteIds, setFavoriteIds] = useState<string[]>([])
   const [visibleCount, setVisibleCount] = useState(12)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [searchMode, setSearchMode] = useState<SearchMode>((searchParams.get('mode') as SearchMode) || 'ai')
   const [aiSearching, setAiSearching] = useState(false)
   const [aiResults, setAiResults] = useState<{id:string; score:number; match_type?:string; reason:string}[] | null>(null)
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
@@ -67,12 +70,15 @@ export default function CatalogPage() {
   const [requestMap, setRequestMap] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
 
-  const PLACEHOLDERS = ['кофейня, обзор заведения', 'фитнес-блогер с аудиторией', 'детский центр, мама-блогер', 'девушка, мода, стиль', 'автосервис, мужская аудитория', 'фуд-блогер для ресторана', 'салон красоты, бьюти', 'мама с детьми, бартер', 'барбершоп, мужской стиль', 'тревел-блогер, Азия']
+  const AI_PLACEHOLDERS = ['кофейня, нужен обзор заведения', 'девушка, фитнес, ЗОЖ', 'детский центр, мама-блогер', 'автосервис, мужская аудитория', 'салон красоты, бьюти-сфера', 'ресторан, семейная аудитория']
+  const REGULAR_PLACEHOLDERS = ['кофейня Владивосток', 'мама блогер бартер', 'фитнес тренер', 'авто ремонт', 'путешествия Азия']
+  const PLACEHOLDERS = searchMode === 'ai' ? AI_PLACEHOLDERS : REGULAR_PLACEHOLDERS
 
   useEffect(() => {
+    setPlaceholderIdx(0)
     const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 3000)
     return () => clearInterval(t)
-  }, [])
+  }, [searchMode])
 
   useEffect(() => {
     if (userId && userRole === 'business') {
@@ -157,27 +163,28 @@ export default function CatalogPage() {
     return Array.from(expanded)
   }
 
+  // Единая логика: сначала выбираем базовый набор (результат ИИ-поиска ИЛИ обычного keyword-поиска),
+  // затем поверх него применяем общие фильтры (город/бартер/категории/сортировка) — независимо от режима.
   useEffect(() => {
-    if (aiResults) return
-    let f = authors
-    const searchWords = search.toLowerCase().split(/\s+/).filter(w => w.length > 1)
-    const hasBarter = searchWords.some(w => ['бартер', 'бартера', 'бартеру'].includes(w))
+    let base: Author[]
 
-    if (searchWords.length > 0) {
+    if (aiResults) {
+      const ids = aiResults.map(r => r.id)
+      base = ids.map(id => authors.find(a => a.id === id)).filter(Boolean) as Author[]
+    } else if (searchMode === 'regular' && search.trim()) {
+      const searchWords = search.toLowerCase().split(/\s+/).filter(w => w.length > 1)
       const allWords = expandSearch(searchWords)
-      const scored = f.map(a => {
+      const scored = authors.map(a => {
         let score = 0
         let hits = 0
         const fieldText = [a.name, a.city, a.occupation, a.bio, a.hobbies, ...(a.lifestyle || [])].filter(Boolean).join(' ').toLowerCase()
         const fieldWords = fieldText.split(/[\s,;.!?·—–\-]+/).filter(w => w.length > 2)
-        // Direct keyword matches (higher weight)
         for (const w of searchWords) {
           if (['бартер','бартера','бартеру'].includes(w)) { if (a.open_to_barter) { score += 8; hits++ }; continue }
           if (fieldText.includes(w)) { score += 6; hits++; continue }
           const root = w.slice(0, Math.max(4, Math.floor(w.length * 0.6)))
           if (fieldWords.some(fw => fw.startsWith(root) || w.startsWith(fw.slice(0, Math.max(4, Math.floor(fw.length * 0.6)))))) { score += 5; hits++; continue }
         }
-        // Semantic matches (lower weight)
         for (const w of allWords) {
           if (searchWords.includes(w)) continue
           if (fieldText.includes(w)) { score += 3; hits++ }
@@ -188,19 +195,28 @@ export default function CatalogPage() {
         }
         return { author: a, score, hits }
       })
-      f = scored.filter(s => s.hits > 0).sort((a, b) => b.score - a.score).map(s => s.author)
+      base = scored.filter(s => s.hits > 0).sort((a, b) => b.score - a.score).map(s => s.author)
+    } else {
+      base = authors
     }
 
-    if (hasBarter) f = f.filter(a => a.open_to_barter)
-    if (city) { const c = city.toLowerCase(); f = f.filter(a => a.city?.toLowerCase().includes(c)) }
-    if (barter === 'yes') f = f.filter(a => a.open_to_barter)
-    if (barter === 'no') f = f.filter(a => !a.open_to_barter)
-    if (lifestyleFilter.length > 0) f = f.filter(a => lifestyleFilter.some(tag => a.lifestyle?.includes(tag)))
-    if (sort === 'followers') f = [...f].sort((a, b) => b.followers_count - a.followers_count)
-    else if (sort === 'rating') f = [...f].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0))
-    setFiltered(f)
+    // "бартер" словом в тексте запроса — учитываем только для обычного поиска
+    if (searchMode === 'regular' && !aiResults) {
+      const searchWords = search.toLowerCase().split(/\s+/).filter(w => w.length > 1)
+      const hasBarter = searchWords.some(w => ['бартер', 'бартера', 'бартеру'].includes(w))
+      if (hasBarter) base = base.filter(a => a.open_to_barter)
+    }
+
+    if (city) { const c = city.toLowerCase(); base = base.filter(a => a.city?.toLowerCase().includes(c)) }
+    if (barter === 'yes') base = base.filter(a => a.open_to_barter)
+    if (barter === 'no') base = base.filter(a => !a.open_to_barter)
+    if (lifestyleFilter.length > 0) base = base.filter(a => lifestyleFilter.some(tag => a.lifestyle?.includes(tag)))
+    if (sort === 'followers') base = [...base].sort((a, b) => b.followers_count - a.followers_count)
+    else if (sort === 'rating') base = [...base].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0))
+
+    setFiltered(base)
     setVisibleCount(12)
-  }, [authors, search, city, barter, lifestyleFilter, sort, aiResults])
+  }, [authors, search, city, barter, lifestyleFilter, sort, aiResults, searchMode])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -210,13 +226,14 @@ export default function CatalogPage() {
       if (barter !== 'all') params.set('barter', barter)
       if (sort !== 'relevance') params.set('sort', sort)
       if (lifestyleFilter.length > 0) params.set('lifestyle', lifestyleFilter.join(','))
+      if (searchMode !== 'ai') params.set('mode', searchMode)
       const qs = params.toString()
       router.replace(qs ? `/catalog?${qs}` : '/catalog', { scroll: false })
     }, 400)
     return () => clearTimeout(timer)
-  }, [search, city, barter, sort, lifestyleFilter, router])
+  }, [search, city, barter, sort, lifestyleFilter, searchMode, router])
 
-  // Manual AI search - triggered by button click
+  // ИИ-поиск — явное действие (кнопка/Enter), не авто-триггер
   const runAiSearch = async () => {
     if (!search.trim() || search.trim().length < 2 || authors.length === 0) return
     setAiSearching(true)
@@ -231,16 +248,10 @@ export default function CatalogPage() {
         body: JSON.stringify({ query: search.trim(), authors: authorsData })
       })
       const data = await resp.json()
-      if (data.results?.length > 0) {
-        setAiResults(data.results)
-        const ids = data.results.map((r: {id:string}) => r.id)
-        const sorted = ids.map((id: string) => authors.find(a => a.id === id)).filter(Boolean) as Author[]
-        setFiltered(sorted)
-      } else {
-        setAiResults([])
-      }
+      setAiResults(data.results?.length > 0 ? data.results : [])
     } catch {
       setAiResults(null)
+      toast.error('ИИ-поиск сейчас недоступен. Попробуй обычный поиск.')
     }
     setAiSearching(false)
   }
@@ -248,6 +259,12 @@ export default function CatalogPage() {
   const clearAiSearch = () => {
     setAiResults(null)
     setSearch('')
+  }
+
+  const switchMode = (mode: SearchMode) => {
+    if (mode === searchMode) return
+    setSearchMode(mode)
+    setAiResults(null)
   }
 
   const openModal = (author: Author) => {
@@ -305,7 +322,7 @@ export default function CatalogPage() {
     else setLifestyleFilter(prev => [...prev.filter(t => !tags.includes(t)), ...tags])
   }
 
-  const activeFiltersCount = (city ? 1 : 0) + (barter !== 'all' ? 1 : 0) + lifestyleFilter.length + (sort !== 'relevance' ? 1 : 0)
+  const activeFiltersCount = (searchMode === 'ai' && city ? 1 : 0) + (barter !== 'all' ? 1 : 0) + lifestyleFilter.length + (sort !== 'relevance' ? 1 : 0)
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
@@ -315,41 +332,69 @@ export default function CatalogPage() {
           <p style={{ fontSize:'15px', color:'#7a7570' }}>{filtered.length} {filtered.length===1?'автор':filtered.length<5?'автора':'авторов'}</p>
         </div>
 
+        {/* Mode tabs */}
+        <div style={{ display:'flex', gap:'8px', marginBottom:'10px' }}>
+          <button onClick={() => switchMode('ai')} style={{ flex:'1', padding:'12px 16px', borderRadius:'14px', border: searchMode==='ai' ? '1.5px solid #C56A43' : '1.5px solid #e0ddd8', background: searchMode==='ai' ? '#fdf3e7' : '#fff', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
+            <div style={{ fontSize:'14px', fontWeight:700, color: searchMode==='ai' ? '#C56A43' : '#1a1a1a', marginBottom:'2px' }}>🤖 Умный ИИ-поиск</div>
+            <div style={{ fontSize:'12px', color:'#9a9590' }}>Понимает смысл запроса</div>
+          </button>
+          <button onClick={() => switchMode('regular')} style={{ flex:'1', padding:'12px 16px', borderRadius:'14px', border: searchMode==='regular' ? '1.5px solid #C56A43' : '1.5px solid #e0ddd8', background: searchMode==='regular' ? '#fdf3e7' : '#fff', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
+            <div style={{ fontSize:'14px', fontWeight:700, color: searchMode==='regular' ? '#C56A43' : '#1a1a1a', marginBottom:'2px' }}>🔍 Обычный поиск</div>
+            <div style={{ fontSize:'12px', color:'#9a9590' }}>Точные слова, город сразу</div>
+          </button>
+        </div>
+
         {/* Search */}
-        <div style={{ marginBottom:'16px' }}>
-          <div style={{ position:'relative' }}>
-            <input
-              value={search}
-              onChange={e => { setSearch(e.target.value); if (aiResults) setAiResults(null) }}
-              placeholder={PLACEHOLDERS[placeholderIdx]}
-              style={{ width:'100%', padding:'16px 44px 16px 48px', border:'1.5px solid #e0ddd8', borderRadius:'16px', fontSize:'16px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
-            />
-            <span style={{ position:'absolute', left:'18px', top:'50%', transform:'translateY(-50%)', fontSize:'20px', opacity:0.4 }}>🔍</span>
-            {search && (
-              <button onClick={() => { setSearch(''); setAiResults(null) }} style={{ position:'absolute', right:'14px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', fontSize:'16px', color:'#9a9590', padding:'4px' }}>✕</button>
+        <div style={{ marginBottom:'6px' }}>
+          <div style={{ display:'flex', gap:'8px' }}>
+            <div style={{ position:'relative', flex:'1' }}>
+              <input
+                value={search}
+                onChange={e => { setSearch(e.target.value); if (aiResults) setAiResults(null) }}
+                onKeyDown={e => { if (e.key === 'Enter' && searchMode === 'ai') runAiSearch() }}
+                placeholder={PLACEHOLDERS[placeholderIdx]}
+                style={{ width:'100%', padding:'16px 44px 16px 48px', border:'1.5px solid #e0ddd8', borderRadius:'16px', fontSize:'16px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+              />
+              <span style={{ position:'absolute', left:'18px', top:'50%', transform:'translateY(-50%)', fontSize:'20px', opacity:0.4 }}>🔍</span>
+              {search && (
+                <button onClick={() => { setSearch(''); setAiResults(null) }} style={{ position:'absolute', right:'14px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', fontSize:'16px', color:'#9a9590', padding:'4px' }}>✕</button>
+              )}
+            </div>
+            {searchMode === 'regular' ? (
+              <input
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                placeholder="Город"
+                style={{ width:'150px', padding:'16px', border:'1.5px solid #e0ddd8', borderRadius:'16px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+              />
+            ) : (
+              <button onClick={runAiSearch} disabled={!search.trim() || aiSearching} style={{ padding:'0 24px', borderRadius:'16px', fontSize:'14px', fontWeight:700, border:'none', cursor: !search.trim() || aiSearching ? 'not-allowed' : 'pointer', fontFamily:'inherit', background: !search.trim() ? '#e8e6e1' : 'linear-gradient(135deg, #C56A43, #d4845f)', color: !search.trim() ? '#9a9590' : '#fff', opacity: aiSearching ? 0.7 : 1, whiteSpace:'nowrap' }}>
+                {aiSearching ? '🔄 Ищем...' : 'Найти'}
+              </button>
             )}
           </div>
-          <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px', lineHeight:1.5 }}>💡 Можно описать бизнес: «кофейня, нужен обзор» — или портрет блогера: «девушка, фитнес, ЗОЖ»</p>
+          <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px', lineHeight:1.5 }}>
+            {searchMode === 'ai'
+              ? '💡 ИИ ищет по смыслу, не по ключевым словам. Опишите бизнес: «кофейня, нужен обзор» — или портрет автора: «девушка, фитнес, ЗОЖ». Подберёт до 10 авторов и объяснит, чем каждый подходит.'
+              : '💡 Ищет по точным словам, синонимам и корням в профиле автора. Город можно указать сразу в поле справа.'}
+          </p>
         </div>
 
         {/* AI results banner */}
         {aiResults && aiResults.length > 0 && (
-          <div style={{ padding:'10px 16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
+          <div style={{ padding:'10px 16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'12px', marginTop:'12px', marginBottom:'16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
             <span style={{ fontSize:'13px', color:'#5a5650' }}>🤖 ИИ подобрал {aiResults.length} {aiResults.length === 1 ? 'автора' : aiResults.length < 5 ? 'автора' : 'авторов'}</span>
             <button onClick={clearAiSearch} style={{ background:'none', border:'none', cursor:'pointer', fontSize:'12px', color:'#9a9590', fontFamily:'inherit', textDecoration:'underline' }}>Показать всех</button>
           </div>
         )}
         {aiResults && aiResults.length === 0 && (
-          <div style={{ padding:'10px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginBottom:'16px', fontSize:'13px', color:'#dc2626' }}>
+          <div style={{ padding:'10px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginTop:'12px', marginBottom:'16px', fontSize:'13px', color:'#dc2626' }}>
             Не нашли подходящих авторов. Попробуйте описать запрос иначе.
           </div>
         )}
 
-        {/* Search buttons */}
-        <div style={{ display:'flex', gap:'8px', marginBottom:'16px', alignItems:'center', flexWrap:'wrap' }}>
-          <button onClick={runAiSearch} disabled={!search.trim() || aiSearching} style={{ padding:'9px 18px', borderRadius:'10px', fontSize:'13px', fontWeight:600, border:'none', cursor: !search.trim() || aiSearching ? 'not-allowed' : 'pointer', fontFamily:'inherit', background: !search.trim() ? '#e8e6e1' : 'linear-gradient(135deg, #C56A43, #d4845f)', color: !search.trim() ? '#9a9590' : '#fff', opacity: aiSearching ? 0.7 : 1 }}>
-            {aiSearching ? '🔄 Ищем...' : '🤖 ИИ-поиск'}
-          </button>
+        {/* Filters toggle */}
+        <div style={{ display:'flex', gap:'8px', marginTop:'12px', marginBottom:'16px', alignItems:'center', flexWrap:'wrap' }}>
           <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ padding:'9px 16px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', background: showAdvanced ? '#f0ede6' : '#fff', color:'#5a5650' }}>
             ⚙️ Фильтры{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
           </button>
@@ -362,10 +407,12 @@ export default function CatalogPage() {
         {showAdvanced && (
           <div style={{ padding:'20px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', marginBottom:'24px', display:'flex', flexDirection:'column', gap:'16px' }}>
             <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
-              <div style={{ flex:'1', minWidth:'160px' }}>
-                <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Город</label>
-                <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Владивосток" style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-              </div>
+              {searchMode === 'ai' && (
+                <div style={{ flex:'1', minWidth:'160px' }}>
+                  <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Город</label>
+                  <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Владивосток" style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                </div>
+              )}
               <div style={{ minWidth:'140px' }}>
                 <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Сортировка</label>
                 <select value={sort} onChange={e => setSort(e.target.value)} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fff', color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
@@ -439,13 +486,17 @@ export default function CatalogPage() {
                   {/* Content */}
                   <div style={{ padding:'36px 20px 0', flex:1, display:'flex', flexDirection:'column' }}>
 
-                    {/* AI tip */}
+                    {/* AI tip — отдельный выделенный блок с объяснением, не дубль тегов */}
                     {aiResults && (() => {
                       const r = aiResults.find(r => r.id === a.id)
                       if (!r) return null
                       const icons: Record<string, string> = { direct:'🎯', scenario:'🎬', audience:'👥', content:'📸', geo:'📍' }
                       const icon = r.match_type ? icons[r.match_type] || '✨' : '✨'
-                      return <div style={{ fontSize:'11px', color:'#9a9590', marginBottom:'6px', fontStyle:'italic' }}>{icon} {r.reason}</div>
+                      return (
+                        <div style={{ padding:'9px 11px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'10px', marginBottom:'12px', fontSize:'12.5px', color:'#8a5a2e', lineHeight:1.45 }}>
+                          {icon} {r.reason}
+                        </div>
+                      )
                     })()}
 
                     {/* Name + badges */}
@@ -566,4 +617,3 @@ export default function CatalogPage() {
     </main>
   )
 }
-
