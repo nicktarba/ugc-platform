@@ -60,6 +60,7 @@ export default function CatalogPage() {
   const [searchMode, setSearchMode] = useState<SearchMode>((searchParams.get('mode') as SearchMode) || 'ai')
   const [aiSearching, setAiSearching] = useState(false)
   const [aiResults, setAiResults] = useState<{id:string; score:number; match_type?:string; reason:string}[] | null>(null)
+  const [aiFilteredOutCount, setAiFilteredOutCount] = useState(0)
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
 
   const [modalAuthor, setModalAuthor] = useState<Author|null>(null)
@@ -163,6 +164,26 @@ export default function CatalogPage() {
     return Array.from(expanded)
   }
 
+  // Пост-фильтр результатов ИИ-поиска: YandexGPT Lite иногда придумывает связь без опоры
+  // в данных автора (например "сёрфер может показать детскую одежду"). Отсекаем авторов,
+  // у которых нет вообще ни одного смыслового пересечения с запросом по CONCEPT_MAP —
+  // независимо от score, который поставила модель.
+  const filterAiResultsByRelevance = (
+    results: { id:string; score:number; match_type?:string; reason:string }[],
+    authorsList: Author[],
+    query: string
+  ) => {
+    const searchWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 1)
+    if (searchWords.length === 0) return results
+    const allWords = expandSearch(searchWords)
+    return results.filter(r => {
+      const author = authorsList.find(a => a.id === r.id)
+      if (!author) return false
+      const fieldText = [author.name, author.city, author.occupation, author.bio, author.hobbies, ...(author.lifestyle || [])].filter(Boolean).join(' ').toLowerCase()
+      return allWords.some(w => fieldText.includes(w))
+    })
+  }
+
   // Единая логика: сначала выбираем базовый набор (результат ИИ-поиска ИЛИ обычного keyword-поиска),
   // затем поверх него применяем общие фильтры (город/бартер/категории/сортировка) — независимо от режима.
   useEffect(() => {
@@ -248,7 +269,10 @@ export default function CatalogPage() {
         body: JSON.stringify({ query: search.trim(), authors: authorsData })
       })
       const data = await resp.json()
-      setAiResults(data.results?.length > 0 ? data.results : [])
+      const raw = data.results?.length > 0 ? data.results : []
+      const relevant = filterAiResultsByRelevance(raw, authors, search)
+      setAiFilteredOutCount(raw.length - relevant.length)
+      setAiResults(relevant)
     } catch {
       setAiResults(null)
       toast.error('ИИ-поиск сейчас недоступен. Попробуй обычный поиск.')
@@ -258,6 +282,7 @@ export default function CatalogPage() {
 
   const clearAiSearch = () => {
     setAiResults(null)
+    setAiFilteredOutCount(0)
     setSearch('')
   }
 
@@ -383,7 +408,10 @@ export default function CatalogPage() {
         {/* AI results banner */}
         {aiResults && aiResults.length > 0 && (
           <div style={{ padding:'10px 16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'12px', marginTop:'12px', marginBottom:'16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
-            <span style={{ fontSize:'13px', color:'#5a5650' }}>🤖 ИИ подобрал {aiResults.length} {aiResults.length === 1 ? 'автора' : aiResults.length < 5 ? 'автора' : 'авторов'}</span>
+            <span style={{ fontSize:'13px', color:'#5a5650' }}>
+              🤖 ИИ подобрал {aiResults.length} {aiResults.length === 1 ? 'автора' : aiResults.length < 5 ? 'автора' : 'авторов'}
+              {aiFilteredOutCount > 0 && <span style={{ color:'#9a9590' }}> · ещё {aiFilteredOutCount} отсеяно по проверке на связь с запросом</span>}
+            </span>
             <button onClick={clearAiSearch} style={{ background:'none', border:'none', cursor:'pointer', fontSize:'12px', color:'#9a9590', fontFamily:'inherit', textDecoration:'underline' }}>Показать всех</button>
           </div>
         )}
