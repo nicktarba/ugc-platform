@@ -164,18 +164,30 @@ export default function CatalogPage() {
     return Array.from(expanded)
   }
 
+  // Слова, которые есть в описании почти любого автора независимо от ниши —
+  // не несут сигнала о релевантности, только шумят при постфильтрации.
+  const GENERIC_WORDS = ['обзор', 'обзоры', 'обзора', 'обзором', 'обзорам', 'делюсь', 'контент', 'блог', 'блогер', 'снимаю', 'показываю', 'рассказываю']
+
   // Пост-фильтр результатов ИИ-поиска: YandexGPT Lite иногда придумывает связь без опоры
-  // в данных автора (например "сёрфер может показать детскую одежду"). Отсекаем авторов,
-  // у которых нет вообще ни одного смыслового пересечения с запросом по CONCEPT_MAP —
-  // независимо от score, который поставила модель.
+  // в данных автора. Отсекаем авторов без смыслового пересечения с запросом по CONCEPT_MAP —
+  // НО только если у нас вообще есть словарь для проверки. Если ни одно слово запроса не
+  // попадает ни в одну категорию CONCEPT_MAP (например «мультиварка» — бытовая техника,
+  // такой категории нет), фильтровать нечем — тогда доверяем оценке модели как есть,
+  // а не обнуляем всё вслепую.
   const filterAiResultsByRelevance = (
     results: { id:string; score:number; match_type?:string; reason:string }[],
     authorsList: Author[],
     query: string
   ) => {
-    const searchWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 1)
-    if (searchWords.length === 0) return results
-    const allWords = expandSearch(searchWords)
+    const meaningfulWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 1 && !GENERIC_WORDS.includes(w))
+    if (meaningfulWords.length === 0) return results
+
+    const hasKnownCategory = meaningfulWords.some(w =>
+      Object.keys(CONCEPT_MAP).some(trigger => w.startsWith(trigger) || trigger.startsWith(w.slice(0, 4)))
+    )
+    if (!hasKnownCategory) return results // вне таксономии — фильтровать нечем, доверяем ИИ
+
+    const allWords = expandSearch(meaningfulWords)
     return results.filter(r => {
       const author = authorsList.find(a => a.id === r.id)
       if (!author) return false
@@ -417,7 +429,9 @@ export default function CatalogPage() {
         )}
         {aiResults && aiResults.length === 0 && (
           <div style={{ padding:'10px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginTop:'12px', marginBottom:'16px', fontSize:'13px', color:'#dc2626' }}>
-            Не нашли подходящих авторов. Попробуйте описать запрос иначе.
+            {aiFilteredOutCount > 0
+              ? `ИИ предложил ${aiFilteredOutCount} ${aiFilteredOutCount === 1 ? 'автора' : 'авторов'}, но ни один не прошёл проверку на явную связь с запросом. Попробуй обычный поиск или переформулируй запрос.`
+              : 'В каталоге пока нет авторов, подходящих под этот запрос.'}
           </div>
         )}
 
