@@ -20,7 +20,7 @@ type Author = {
 type SimilarAuthor = {
   id: string; name: string; city: string; occupation: string
   lifestyle: string[]; avatar_url: string | null; avg_rating: number | null
-  followers_count: number; open_to_barter: boolean
+  followers_count: number; stories_views: number; completed_deals_count: number; open_to_barter: boolean
 }
 
 const AVATAR_BG   = ['#fdf3e7','#e8f4fd','#f0fdf4','#fdf4ff','#fff0f0']
@@ -81,7 +81,7 @@ export default function AuthorPublicPage() {
       }
 
       // Похожие авторы: пересечение тегов lifestyle + бонус за тот же город, топ-4
-      const { data: pool } = await supabase.from('authors').select('id, name, city, occupation, lifestyle, avatar_url, avg_rating, followers_count, open_to_barter').eq('status', 'approved').neq('id', authorId).limit(200)
+      const { data: pool } = await supabase.from('authors').select('id, name, city, occupation, lifestyle, avatar_url, avg_rating, followers_count, stories_views, completed_deals_count, open_to_barter').eq('status', 'approved').neq('id', authorId).limit(200)
       if (pool && pool.length > 0) {
         const currentTags = new Set((a.lifestyle || []) as string[])
         const scored = (pool as SimilarAuthor[]).map(p => {
@@ -281,29 +281,55 @@ export default function AuthorPublicPage() {
         <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'0 clamp(16px, 5vw, 40px) clamp(20px, 4vw, 36px)' }}>
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
             <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Похожие авторы</h2>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:'14px' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:'16px' }}>
               {similarAuthors.map(s => {
                 const sci = s.id.charCodeAt(0) % 5
                 const sInitial = s.name?.[0]?.toUpperCase() || '?'
+                const hasStats = s.followers_count > 0 || s.stories_views > 0 || s.completed_deals_count > 0
                 return (
-                  <Link key={s.id} href={`/author/${s.id}`} style={{ display:'block', padding:'16px', border:'1px solid #e8e6e1', borderRadius:'14px', textDecoration:'none', color:'inherit' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px' }}>
-                      <div style={{ width:'44px', height:'44px', borderRadius:'50%', overflow:'hidden', background:AVATAR_BG[sci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'17px', fontWeight:700, color:AVATAR_TEXT[sci], flexShrink:0 }}>
+                  <Link key={s.id} href={`/author/${s.id}`} style={{ textDecoration:'none', color:'inherit', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+                    <div style={{ position:'relative', height:'64px', background:HEADER_GRADIENTS[sci] }}>
+                      <div style={{ position:'absolute', bottom:'-24px', left:'16px', width:'52px', height:'52px', borderRadius:'50%', overflow:'hidden', background:AVATAR_BG[sci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px', fontWeight:700, color:AVATAR_TEXT[sci], border:'3px solid #fff', boxShadow:'0 2px 8px rgba(0,0,0,0.1)' }}>
                         {s.avatar_url ? <img src={s.avatar_url} alt={s.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : sInitial}
                       </div>
-                      <div style={{ minWidth:0 }}>
-                        <div style={{ fontSize:'15px', fontWeight:700, color:'#1a1a1a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{s.name}</div>
-                        <div style={{ fontSize:'12px', color:'#9a9590', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>📍 {s.city}</div>
-                      </div>
                     </div>
-                    {s.lifestyle?.length > 0 && (
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:'4px' }}>
-                        {s.lifestyle.slice(0, 3).map(tag => {
-                          const tc = TAG_COLORS[tag] || defaultTag
-                          return <span key={tag} style={{ padding:'3px 9px', background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:'100px', fontSize:'11px', color:tc.color, fontWeight:600 }}>{tag}</span>
-                        })}
+                    <div style={{ padding:'30px 16px 0', flex:1, display:'flex', flexDirection:'column' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', marginBottom:'3px' }}>
+                        <span style={{ fontSize:'15px', fontWeight:700, color:'#1a1a1a' }}>{s.name}</span>
+                        {s.open_to_barter && <span style={{ padding:'2px 7px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
+                        {(s.avg_rating || s.completed_deals_count > 0) && (
+                          <span style={{ padding:'2px 7px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#c17f3e' }}>
+                            {s.avg_rating ? `★ ${s.avg_rating}` : `★ ${s.completed_deals_count} сд.`}
+                          </span>
+                        )}
                       </div>
-                    )}
+                      <div style={{ fontSize:'12px', color:'#9a9590', marginBottom:'10px' }}>📍 {s.city}{s.occupation ? ` · ${s.occupation}` : ''}</div>
+                      {s.lifestyle?.length > 0 && (
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:'4px', marginBottom:'12px' }}>
+                          {s.lifestyle.slice(0, 3).map(tag => {
+                            const tc = TAG_COLORS[tag] || defaultTag
+                            return <span key={tag} style={{ padding:'3px 9px', background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:'100px', fontSize:'11px', color:tc.color, fontWeight:600 }}>{tag}</span>
+                          })}
+                        </div>
+                      )}
+                      <div style={{ flex:1 }} />
+                      {hasStats && (
+                        <div style={{ display:'flex', borderTop:'1px solid #f0ede6', margin:'0 -16px', padding:'0' }}>
+                          {s.followers_count > 0 && (
+                            <div style={{ flex:1, padding:'10px 0', textAlign:'center', borderRight: s.stories_views > 0 ? '1px solid #f0ede6' : 'none' }}>
+                              <div style={{ fontSize:'14px', fontWeight:700, color:'#1a1a1a' }}>{s.followers_count.toLocaleString('ru')}</div>
+                              <div style={{ fontSize:'10px', color:'#9a9590' }}>подписч.</div>
+                            </div>
+                          )}
+                          {s.stories_views > 0 && (
+                            <div style={{ flex:1, padding:'10px 0', textAlign:'center' }}>
+                              <div style={{ fontSize:'14px', fontWeight:700, color:'#1a1a1a' }}>{s.stories_views.toLocaleString('ru')}</div>
+                              <div style={{ fontSize:'10px', color:'#9a9590' }}>сторис</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </Link>
                 )
               })}
