@@ -319,7 +319,7 @@ export default function CatalogPage() {
     if (mode === searchMode) return
     setSearchMode(mode)
     setAiResults(null)
-    if (mode === 'regular') setShowAdvanced(true)
+    setShowAdvanced(mode === 'regular')
   }
 
   const openModal = (author: Author) => {
@@ -464,45 +464,30 @@ export default function CatalogPage() {
           )}
         </div>
 
-        {/* Advanced panel */}
+        {/* Advanced panel — компактный тулбар, не отдельная форма */}
         {showAdvanced && (
-          <div style={{ padding:'20px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', marginBottom:'24px', display:'flex', flexDirection:'column', gap:'16px' }}>
-            <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
-              {searchMode === 'ai' && (
-                <div style={{ flex:'1', minWidth:'160px' }}>
-                  <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Город</label>
-                  <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Владивосток" style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-                </div>
-              )}
-              <div style={{ minWidth:'140px' }}>
-                <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Сортировка</label>
-                <select value={sort} onChange={e => setSort(e.target.value)} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fff', color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
-                  <option value="relevance">По релевантности</option>
-                  <option value="new">Новые</option>
-                  <option value="followers">По подписчикам</option>
-                  <option value="rating">По рейтингу</option>
-                </select>
-              </div>
-              <div style={{ minWidth:'140px' }}>
-                <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'6px', display:'block' }}>Бартер</label>
-                <div style={{ display:'flex', gap:'4px' }}>
-                  {[{val:'all' as const,label:'Все'},{val:'yes' as const,label:'Да'},{val:'no' as const,label:'Нет'}].map(opt => (
-                    <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ flex:1, padding:'9px 0', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
-                  ))}
-                </div>
-              </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', alignItems:'center', marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #e8e6e1' }}>
+            {searchMode === 'ai' && (
+              <input value={city} onChange={e=>setCity(e.target.value)} placeholder="Город" style={{ width:'130px', padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+            )}
+            <select value={sort} onChange={e => setSort(e.target.value)} style={{ padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fff', color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
+              <option value="relevance">По релевантности</option>
+              <option value="new">Новые</option>
+              <option value="followers">По подписчикам</option>
+              <option value="rating">По рейтингу</option>
+            </select>
+            <div style={{ display:'flex', gap:'3px' }}>
+              {[{val:'all' as const,label:'Бартер: все'},{val:'yes' as const,label:'Бартер'},{val:'no' as const,label:'Без бартера'}].map(opt => (
+                <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
+              ))}
             </div>
-            <div>
-              <label style={{ fontSize:'12px', fontWeight:600, color:'#7a7570', marginBottom:'8px', display:'block' }}>Категории</label>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
-                {CATEGORIES.map(cat => {
-                  const active = cat.tags.some(t => lifestyleFilter.includes(t))
-                  return (
-                    <button key={cat.label} onClick={() => toggleCategory(cat.tags)} style={{ padding:'8px 14px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: active ? '#C56A43' : '#e0ddd8', background: active ? '#fdf3e7' : '#fff', color: active ? '#C56A43' : '#5a5650' }}>{cat.label}</button>
-                  )
-                })}
-              </div>
-            </div>
+            <div style={{ width:'1px', height:'22px', background:'#e0ddd8', margin:'0 2px' }} />
+            {CATEGORIES.map(cat => {
+              const active = cat.tags.some(t => lifestyleFilter.includes(t))
+              return (
+                <button key={cat.label} onClick={() => toggleCategory(cat.tags)} style={{ padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: active ? '#C56A43' : '#e0ddd8', background: active ? '#fdf3e7' : '#fff', color: active ? '#C56A43' : '#5a5650' }}>{cat.label}</button>
+              )
+            })}
           </div>
         )}
 
