@@ -548,11 +548,6 @@ export default function CatalogPage() {
                 <option value="followers">По подписчикам</option>
                 <option value="rating">По рейтингу</option>
               </select>
-              <div style={{ display:'flex', gap:'3px' }}>
-                {[{val:'all' as const,label:'Бартер: все'},{val:'yes' as const,label:'Бартер'},{val:'no' as const,label:'Без бартера'}].map(opt => (
-                  <button key={opt.val} onClick={()=>setBarter(opt.val)} style={{ padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: barter===opt.val?'#1a1a1a':'#e0ddd8', background: barter===opt.val?'#1a1a1a':'#fff', color: barter===opt.val?'#fff':'#5a5650' }}>{opt.label}</button>
-                ))}
-              </div>
               <div style={{ width:'1px', height:'22px', background:'#e0ddd8', margin:'0 2px' }} />
               <div style={{ minWidth:'220px' }}>
                 <div style={{ fontSize:'11px', color:'#9a9590', marginBottom:'4px' }}>
