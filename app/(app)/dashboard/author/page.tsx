@@ -99,8 +99,13 @@ export default function AuthorRequestsPage() {
     }
   }
 
-  const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0)
-  const newRequestsCount = requests.filter(r => r.status === 'new').length
+  const newRequestIds = new Set(requests.filter(r => r.status === 'new').map(r => r.id))
+  const newRequestsCount = newRequestIds.size
+  // Непрочитанные сообщения считаем только для заявок, которые уже НЕ new —
+  // иначе заявка со статусом new + непрочитанное сообщение внутри считается дважды
+  const totalUnread = Object.entries(unreadCounts)
+    .filter(([reqId]) => !newRequestIds.has(reqId))
+    .reduce((sum, [, count]) => sum + count, 0)
   const badgeCount = totalUnread + newRequestsCount
 
   const OPEN: string[] = OPEN_STATUSES
