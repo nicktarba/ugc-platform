@@ -94,6 +94,9 @@ export default function AuthorPublicPage() {
         setSimilarAuthors(similar)
       }
 
+      // Логируем просмотр профиля (fire and forget, не блокирует UX)
+      supabase.from('profile_views').insert([{ author_id: authorId, viewer_id: userId || null }])
+
       setLoading(false)
     }
     init()

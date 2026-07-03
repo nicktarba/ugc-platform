@@ -17,6 +17,7 @@ export default function AuthorRequestsPage() {
   const [businessNames, setBusinessNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [showHistory, setShowHistory] = useState(false)
+  const [stats, setStats] = useState({ viewsTotal: 0, views7d: 0, views30d: 0, requestsTotal: 0, requests30d: 0, completed: 0 })
 
   useEffect(() => {
     if (!profile) { setLoading(false); return }
@@ -24,6 +25,28 @@ export default function AuthorRequestsPage() {
       const { data: r, error: reqErr } = await supabase.from('requests').select('id, business_id, business_email, author_id, message, budget, deadline, status, created_at').eq('author_id', profile.id).order('created_at', { ascending: false })
       if (reqErr) toast.error('Не удалось загрузить заявки. Проверь соединение.')
       setRequests(r || [])
+
+      // Статистика по заявкам
+      const allReqs = r || []
+      const now = new Date()
+      const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const requests30d = allReqs.filter(req => new Date(req.created_at) >= d30).length
+      const completed = allReqs.filter(req => req.status === 'completed').length
+
+      // Просмотры профиля
+      const { count: viewsTotal } = await supabase.from('profile_views').select('id', { count: 'exact', head: true }).eq('author_id', profile.id)
+      const d7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const { count: views7d } = await supabase.from('profile_views').select('id', { count: 'exact', head: true }).eq('author_id', profile.id).gte('created_at', d7.toISOString())
+      const { count: views30d } = await supabase.from('profile_views').select('id', { count: 'exact', head: true }).eq('author_id', profile.id).gte('created_at', d30.toISOString())
+
+      setStats({
+        viewsTotal: viewsTotal || 0,
+        views7d: views7d || 0,
+        views30d: views30d || 0,
+        requestsTotal: allReqs.length,
+        requests30d,
+        completed,
+      })
 
       if (r && r.length > 0) {
         const bizIds = [...new Set(r.map(req => req.business_id))]
@@ -96,6 +119,30 @@ export default function AuthorRequestsPage() {
             {badgeCount > 0 && <span style={{ padding:'2px 12px', background:'#c17f3e', borderRadius:'100px', fontSize:'14px', fontWeight:700, color:'#fff' }}>{badgeCount} новых</span>}
           </h1>
         </div>
+
+        {/* Статистика автора */}
+        {profile && (stats.viewsTotal > 0 || stats.requestsTotal > 0) && (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:'12px', marginBottom:'24px' }}>
+            <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'16px', textAlign:'center' }}>
+              <div style={{ fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{stats.viewsTotal}</div>
+              <div style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>просмотров всего</div>
+              {stats.views7d > 0 && <div style={{ fontSize:'11px', color:'#c17f3e', marginTop:'4px' }}>+{stats.views7d} за 7 дней</div>}
+            </div>
+            <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'16px', textAlign:'center' }}>
+              <div style={{ fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{stats.requestsTotal}</div>
+              <div style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>заявок всего</div>
+              {stats.requests30d > 0 && <div style={{ fontSize:'11px', color:'#c17f3e', marginTop:'4px' }}>+{stats.requests30d} за 30 дней</div>}
+            </div>
+            <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'16px', textAlign:'center' }}>
+              <div style={{ fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{stats.completed}</div>
+              <div style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>сделок закрыто</div>
+            </div>
+            <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'16px', textAlign:'center' }}>
+              <div style={{ fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{stats.viewsTotal > 0 ? Math.round((stats.requestsTotal / stats.viewsTotal) * 100) : 0}%</div>
+              <div style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>конверсия в заявку</div>
+            </div>
+          </div>
+        )}
 
         {profile?.status === 'pending' && (
           <div style={{ padding:'12px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'24px', fontSize:'14px', color:'#c17f3e', fontWeight:500 }}>
