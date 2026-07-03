@@ -85,6 +85,10 @@ export default function ChatPage() {
           // не декрементируем — сообщение пришло пока открыт чат, бейдж не рос
         }
       })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `request_id=eq.${requestId}` }, (payload) => {
+        const updated = payload.new as Msg
+        setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, read: updated.read } : m))
+      })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests', filter: `id=eq.${requestId}` }, (payload) => {
         setRequest(prev => prev ? { ...prev, status: (payload.new as { status: string }).status } : prev)
       })
@@ -317,7 +321,9 @@ export default function ChatPage() {
                 borderRadius: isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
               }}>
                 <p style={{ fontSize:'14px', lineHeight:1.6 }}>{m.text}</p>
-                <p style={{ fontSize:'11px', color: isMine ? 'rgba(255,255,255,0.5)' : '#9a9590', marginTop:'6px', textAlign:'right' }}>{time}</p>
+                <p style={{ fontSize:'11px', color: isMine ? 'rgba(255,255,255,0.5)' : '#9a9590', marginTop:'6px', textAlign:'right' }}>
+                  {time}{isMine && <span style={{ marginLeft:'6px' }}>{m.read ? '✓✓' : '✓'}</span>}
+                </p>
               </div>
             )
           })}
