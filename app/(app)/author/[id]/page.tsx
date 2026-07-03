@@ -69,6 +69,7 @@ export default function AuthorPublicPage() {
   const [sending, setSending] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [similarAuthors, setSimilarAuthors] = useState<SimilarAuthor[]>([])
+  const [visibleSimilarCount, setVisibleSimilarCount] = useState(6)
 
   useEffect(() => {
     const init = async () => {
@@ -89,7 +90,7 @@ export default function AuthorPublicPage() {
           const sameCity = p.city === a.city ? 1 : 0
           return { author: p, score: sharedTags * 2 + sameCity }
         })
-        const similar = scored.filter(s => s.score > 0).sort((x, y) => y.score - x.score).slice(0, 4).map(s => s.author)
+        const similar = scored.filter(s => s.score > 0).sort((x, y) => y.score - x.score).slice(0, 8).map(s => s.author)
         setSimilarAuthors(similar)
       }
 
@@ -132,6 +133,7 @@ export default function AuthorPublicPage() {
       <style>{`
         @media (max-width: 768px) {
           .author-grid { grid-template-columns: 1fr !important; }
+          .similar-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -281,8 +283,8 @@ export default function AuthorPublicPage() {
         <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'0 clamp(16px, 5vw, 40px) clamp(20px, 4vw, 36px)' }}>
           <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
             <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Похожие авторы</h2>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:'16px' }}>
-              {similarAuthors.map(s => {
+            <div className="similar-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'16px' }}>
+              {similarAuthors.slice(0, visibleSimilarCount).map(s => {
                 const sci = s.id.charCodeAt(0) % 5
                 const sInitial = s.name?.[0]?.toUpperCase() || '?'
                 const hasStats = s.followers_count > 0 || s.stories_views > 0 || s.completed_deals_count > 0
@@ -334,6 +336,13 @@ export default function AuthorPublicPage() {
                 )
               })}
             </div>
+            {visibleSimilarCount < similarAuthors.length && (
+              <div style={{ textAlign:'center', paddingTop:'20px' }}>
+                <button onClick={() => setVisibleSimilarCount(prev => prev + 6)} style={{ padding:'10px 28px', background:'#fff', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', fontWeight:600, color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
+                  Показать ещё ({similarAuthors.length - visibleSimilarCount})
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
