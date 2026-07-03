@@ -70,6 +70,10 @@ export default function AuthorPublicPage() {
   const [notFound, setNotFound] = useState(false)
   const [similarAuthors, setSimilarAuthors] = useState<SimilarAuthor[]>([])
   const [visibleSimilarCount, setVisibleSimilarCount] = useState(6)
+  const [complaintOpen, setComplaintOpen] = useState(false)
+  const [complaintReason, setComplaintReason] = useState('')
+  const [complaintComment, setComplaintComment] = useState('')
+  const [complaintSending, setComplaintSending] = useState(false)
 
   useEffect(() => {
     const init = async () => {
@@ -221,6 +225,9 @@ export default function AuthorPublicPage() {
                   <Link href={`/register?redirect=${encodeURIComponent(`/author/${authorId}`)}`} style={{ display:'block', padding:'12px', background:'#C56A43', borderRadius:'12px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600, textAlign:'center' }}>Войти чтобы написать</Link>
                 )}
                 <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Ссылка скопирована') }} style={{ width:'100%', padding:'10px', background:'none', border:'1.5px solid #e0ddd8', borderRadius:'12px', color:'#7a7570', fontSize:'13px', fontWeight:500, cursor:'pointer', fontFamily:'inherit', marginTop:'8px' }}>📋 Поделиться профилем</button>
+                {userId && (
+                  <button onClick={() => setComplaintOpen(true)} style={{ width:'100%', padding:'8px', background:'none', border:'none', color:'#9a9590', fontSize:'12px', cursor:'pointer', fontFamily:'inherit', marginTop:'8px' }}>Пожаловаться</button>
+                )}
               </div>
             </div>
           </div>
@@ -371,6 +378,35 @@ export default function AuthorPublicPage() {
               <button onClick={() => setModalOpen(false)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
               <button onClick={sendRequest} disabled={sending || !message.trim()} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: sending || !message.trim() ? '#9a9590' : '#C56A43', color:'#fff', cursor: sending || !message.trim() ? 'not-allowed' : 'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
                 {sending ? 'Отправляем...' : 'Отправить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка жалобы */}
+      {complaintOpen && (
+        <div onClick={() => setComplaintOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'420px', width:'100%' }}>
+            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Пожаловаться</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'16px' }}>
+              {['Спам или мошенничество', 'Неадекватное поведение', 'Фейковый профиль', 'Другое'].map(r => (
+                <button key={r} type="button" onClick={() => setComplaintReason(r)} style={{ padding:'10px 14px', borderRadius:'10px', border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', fontSize:'13px', textAlign:'left', borderColor: complaintReason === r ? '#1a1a1a' : '#e0ddd8', background: complaintReason === r ? '#1a1a1a' : '#fff', color: complaintReason === r ? '#fff' : '#5a5650' }}>{r}</button>
+              ))}
+            </div>
+            <textarea value={complaintComment} onChange={e => setComplaintComment(e.target.value)} placeholder="Опиши ситуацию (необязательно)" rows={3} maxLength={1000} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'16px', boxSizing:'border-box' }} />
+            <div style={{ display:'flex', gap:'10px' }}>
+              <button onClick={() => setComplaintOpen(false)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
+              <button disabled={!complaintReason || complaintSending} onClick={async () => {
+                setComplaintSending(true)
+                await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: authorId, reason: complaintReason, comment: complaintComment.trim() || null }])
+                setComplaintSending(false)
+                setComplaintOpen(false)
+                setComplaintReason('')
+                setComplaintComment('')
+                toast.success('Жалоба отправлена, мы рассмотрим её')
+              }} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: !complaintReason || complaintSending ? '#9a9590' : '#dc2626', color:'#fff', cursor: !complaintReason || complaintSending ? 'not-allowed' : 'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+                {complaintSending ? '...' : 'Отправить'}
               </button>
             </div>
           </div>
