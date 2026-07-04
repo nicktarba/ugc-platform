@@ -14,7 +14,7 @@ export default function BottomNav({ role, active, unread = 0, notifCount = 0 }: 
       ]
     : [
         { key: 'catalog', href: '/catalog', label: 'Каталог', icon: '🔍' },
-        { key: 'requests', href: '/dashboard/author', label: 'Запросы', icon: '💬', badge: unread },
+        { key: 'requests', href: '/dashboard/author', label: 'Сделки', icon: '💬', badge: unread },
         { key: 'notifications', href: '/dashboard/notifications', label: 'Уведомления', icon: '🔔', badge: notifCount },
         { key: 'profile', href: '/dashboard/author/profile', label: 'Профиль', icon: '👤' },
       ]

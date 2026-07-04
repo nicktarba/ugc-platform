@@ -120,8 +120,8 @@ export default function AuthorRequestsPage() {
         <div style={{ marginBottom:'32px' }}>
           <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет автора</div>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a', display:'flex', alignItems:'center', gap:'10px' }}>
-            Входящие запросы
-            {badgeCount > 0 && <span style={{ padding:'2px 12px', background:'#c17f3e', borderRadius:'100px', fontSize:'14px', fontWeight:700, color:'#fff' }}>{badgeCount} новых</span>}
+            Сделки
+            {badgeCount > 0 && <span style={{ padding:'2px 12px', background:'#c17f3e', borderRadius:'100px', fontSize:'14px', fontWeight:700, color:'#fff' }}>{badgeCount}</span>}
           </h1>
         </div>
 
@@ -189,37 +189,77 @@ export default function AuthorRequestsPage() {
               </div>
             ) : (
               <>
-                {activeRequests.length === 0 ? (
-                  <p style={{ fontSize:'13px', color:'#9a9590', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>Нет активных запросов</p>
-                ) : (
-                  <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>
-                    {activeRequests.map(r => {
-                      const unread = unreadCounts[r.id] || 0
-                      const isNew = r.status === 'new' || unread > 0
-                      const sBadge = authorStatusBadge(r.status)
-                      return (
-                        <Link key={r.id} href={`/dashboard/request/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: isNew ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
-                            <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
-                            <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
-                              {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
-                              {r.status === 'new' && unread === 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff', whiteSpace:'nowrap' }}>Новое</span>}
-                              {sBadge && <span style={{ padding:'2px 10px', background:sBadge.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:sBadge.color, whiteSpace:'nowrap' }}>{sBadge.text}</span>}
-                            </div>
-                          </div>
-                          <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
-                            <div style={{ display:'flex', gap:'12px' }}>
-                              {r.budget && <span>💰 {r.budget}</span>}
-                              {r.deadline && <span>📅 {formatDate(r.deadline)}</span>}
-                            </div>
-                            <span>{formatRelative(r.created_at)}</span>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
+                {/* Сделки — accepted */}
+                {(() => {
+                  const deals = requests.filter(r => r.status === 'accepted')
+                  if (deals.length === 0) return null
+                  return (
+                    <div style={{ marginBottom:'20px' }}>
+                      <div style={{ fontSize:'13px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px', textTransform:'uppercase', letterSpacing:'0.04em' }}>Сделки ({deals.length})</div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                        {deals.map(r => {
+                          const unread = unreadCounts[r.id] || 0
+                          return (
+                            <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background: unread > 0 ? '#f0fdf4' : '#fafaf9', border:'1px solid #bbf7d0', borderRadius:'14px' }}>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
+                                <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
+                                <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
+                                  {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
+                                  <span style={{ padding:'2px 10px', background:'#f0fdf4', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a', whiteSpace:'nowrap' }}>В работе</span>
+                                </div>
+                              </div>
+                              <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
+                                <div style={{ display:'flex', gap:'12px' }}>
+                                  {r.budget && <span>💰 {r.budget}</span>}
+                                  {r.deadline && <span>📅 {formatDate(r.deadline)}</span>}
+                                </div>
+                                <span>{formatRelative(r.created_at)}</span>
+                              </div>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Запросы — new, viewed */}
+                {(() => {
+                  const incoming = requests.filter(r => r.status === 'new' || r.status === 'viewed')
+                  if (incoming.length === 0 && requests.filter(r => r.status === 'accepted').length > 0) return null
+                  if (incoming.length === 0) return <p style={{ fontSize:'13px', color:'#9a9590', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>Нет новых запросов</p>
+                  return (
+                    <div style={{ marginBottom:'20px' }}>
+                      <div style={{ fontSize:'13px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px', textTransform:'uppercase', letterSpacing:'0.04em' }}>Запросы ({incoming.length})</div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                        {incoming.map(r => {
+                          const unread = unreadCounts[r.id] || 0
+                          const isNew = r.status === 'new' || unread > 0
+                          return (
+                            <Link key={r.id} href={`/dashboard/chat/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: isNew ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
+                                <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
+                                <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
+                                  {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
+                                  {r.status === 'new' && unread === 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff', whiteSpace:'nowrap' }}>Новое</span>}
+                                </div>
+                              </div>
+                              <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
+                                <div style={{ display:'flex', gap:'12px' }}>
+                                  {r.budget && <span>💰 {r.budget}</span>}
+                                  {r.deadline && <span>📅 {formatDate(r.deadline)}</span>}
+                                </div>
+                                <span>{formatRelative(r.created_at)}</span>
+                              </div>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {historyRequests.length > 0 && (
                   <>
@@ -231,7 +271,7 @@ export default function AuthorRequestsPage() {
                         {historyRequests.map(r => {
                           const sBadge = authorStatusBadge(r.status)
                           return (
-                            <Link key={r.id} href={`/dashboard/request/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
+                            <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
                                 <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
                                 {sBadge && <span style={{ padding:'2px 10px', background:sBadge.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:sBadge.color, whiteSpace:'nowrap' }}>{sBadge.text}</span>}

@@ -404,7 +404,7 @@ export default function CatalogPage() {
     setRequestMap({ ...requestMap, [modalAuthor.id]: inserted.id })
     setModalAuthor(null)
     toast.success('Заявка отправлена')
-    router.push(`/dashboard/request/${inserted.id}`)
+    router.push(`/dashboard/chat/${inserted.id}`)
   }
 
   const toggleFavorite = async (authorId: string) => {
@@ -704,7 +704,7 @@ export default function CatalogPage() {
                       <Link href={`/author/${a.id}`} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'9px', border:'1.5px solid #e0ddd8', borderRadius:'12px', textDecoration:'none', color:'#5a5650', fontSize:'13px', fontWeight:500 }}>Профиль</Link>
                       {userRole === 'business' && (
                         requestMap[a.id] ? (
-                          <Link href={`/dashboard/request/${requestMap[a.id]}`} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'9px', background:'#f0ede6', borderRadius:'12px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>К заявке</Link>
+                          <Link href={`/dashboard/chat/${requestMap[a.id]}`} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'9px', background:'#f0ede6', borderRadius:'12px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>К заявке</Link>
                         ) : (
                           <button onClick={() => openModal(a)} style={{ flex:1, padding:'9px', background:'#C56A43', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Написать</button>
                         )

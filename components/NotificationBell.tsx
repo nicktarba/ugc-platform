@@ -86,7 +86,7 @@ export default function NotificationBell({ userId }: { userId: string }) {
     setOpen(false)
     if (n.data?.request_id) {
       if (n.type === 'new_message') router.push(`/dashboard/chat/${n.data.request_id}`)
-      else router.push(`/dashboard/request/${n.data.request_id}`)
+      else router.push(`/dashboard/chat/${n.data.request_id}`)
     } else if (n.type === 'author_approved' || n.type === 'author_rejected') {
       router.push('/dashboard/author/profile')
     }

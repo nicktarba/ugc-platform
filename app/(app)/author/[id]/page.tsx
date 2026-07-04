@@ -115,7 +115,7 @@ export default function AuthorPublicPage() {
     }]).select('id').single()
     setSending(false)
     if (error || !inserted) { toast.error('Не удалось отправить. Попробуй ещё раз.'); return }
-    router.push(`/dashboard/request/${inserted.id}`)
+    router.push(`/dashboard/chat/${inserted.id}`)
   }
 
   if (loading) return <ProfileSkeleton />
@@ -216,7 +216,7 @@ export default function AuthorPublicPage() {
               <div style={{ padding:'14px 0 0' }}>
                 {userRole === 'business' && (
                   hasOpenDeal ? (
-                    <Link href={`/dashboard/request/${hasOpenDeal}`} style={{ display:'block', padding:'12px', background:'#f0ede6', borderRadius:'12px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:600, textAlign:'center' }}>К заявке →</Link>
+                    <Link href={`/dashboard/chat/${hasOpenDeal}`} style={{ display:'block', padding:'12px', background:'#f0ede6', borderRadius:'12px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:600, textAlign:'center' }}>К заявке →</Link>
                   ) : (
                     <button onClick={() => { if (!businessProfile?.company_name || !businessProfile?.inn) { toast.error('Сначала заполни профиль компании'); return }; setModalOpen(true) }} style={{ width:'100%', padding:'12px', background:'#C56A43', border:'none', borderRadius:'12px', color:'#fff', fontSize:'14px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Написать</button>
                   )

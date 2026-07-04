@@ -174,7 +174,7 @@ export default function ChatPage() {
       .eq('business_id', userId).eq('author_id', request.author_id)
       .in("status", OPEN).neq('id', requestId).maybeSingle()
 
-    if (existing) { router.push(`/dashboard/request/${existing.id}`); return }
+    if (existing) { router.push(`/dashboard/chat/${existing.id}`); return }
 
     const { data: inserted, error } = await supabase.from('requests').insert([{
       business_id: userId,
@@ -185,7 +185,7 @@ export default function ChatPage() {
     }]).select('id').single()
     setUpdatingStatus(false)
     if (!error && inserted) {
-      router.push(`/dashboard/request/${inserted.id}`)
+      router.push(`/dashboard/chat/${inserted.id}`)
     } else {
       toast.error('Не удалось создать новый запрос. Попробуй ещё раз.')
     }
@@ -215,7 +215,7 @@ export default function ChatPage() {
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
       <div style={{ maxWidth:'700px', margin:'0 auto', padding:'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
         <div style={{ marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px' }}>
-          <Link href={`/dashboard/request/${requestId}`} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
+          <Link href={userRole === 'business' ? '/dashboard/business' : '/dashboard/author'} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', flex:1 }}>{otherName}</h1>
           <button onClick={() => setComplaintOpen(true)} style={{ padding:'6px 12px', background:'none', border:'1px solid #e0ddd8', borderRadius:'8px', color:'#9a9590', fontSize:'12px', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Пожаловаться</button>
         </div>

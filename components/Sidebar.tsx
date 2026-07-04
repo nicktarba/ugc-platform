@@ -49,7 +49,7 @@ export default function Sidebar({ role, email, userId, badgeCount = 0, authorId 
   </>)
 
   const authorNav = () => (<>
-    {navItem('/dashboard/author', '💬', 'Запросы', badgeCount || undefined)}
+    {navItem('/dashboard/author', '💬', 'Сделки', badgeCount || undefined)}
     {navItem('/catalog', '🔍', 'Каталог')}
     {navItem('/dashboard/author/profile', '👤', 'Профиль')}
   </>)
