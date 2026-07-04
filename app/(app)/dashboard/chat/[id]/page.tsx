@@ -130,6 +130,10 @@ export default function ChatPage() {
   }
 
   const [confirmAction, setConfirmAction] = useState<'declined'|'cancelled'|'completed'|null>(null)
+  const [complaintOpen, setComplaintOpen] = useState(false)
+  const [complaintReason, setComplaintReason] = useState('')
+  const [complaintComment, setComplaintComment] = useState('')
+  const [complaintSending, setComplaintSending] = useState(false)
 
   const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
     if (status === 'declined' || status === 'cancelled' || status === 'completed') {
@@ -212,7 +216,8 @@ export default function ChatPage() {
       <div style={{ maxWidth:'700px', margin:'0 auto', padding:'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
         <div style={{ marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px' }}>
           <Link href={`/dashboard/request/${requestId}`} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a' }}>{otherName}</h1>
+          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', flex:1 }}>{otherName}</h1>
+          <button onClick={() => setComplaintOpen(true)} style={{ padding:'6px 12px', background:'none', border:'1px solid #e0ddd8', borderRadius:'8px', color:'#9a9590', fontSize:'12px', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Пожаловаться</button>
         </div>
 
         {request && (
@@ -362,6 +367,37 @@ export default function ChatPage() {
               <button onClick={() => setConfirmAction(null)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Назад</button>
               <button onClick={confirmStatusUpdate} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: confirmAction === 'completed' ? '#16a34a' : '#dc2626', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
                 {updatingStatus ? '...' : confirmAction === 'declined' ? 'Отклонить' : confirmAction === 'cancelled' ? 'Отменить' : 'Завершить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка жалобы */}
+      {complaintOpen && (
+        <div onClick={() => setComplaintOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'420px', width:'100%' }}>
+            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Пожаловаться</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'16px' }}>
+              {['Нарушение договорённостей', 'Спам или мошенничество', 'Неадекватное поведение', 'Другое'].map(r => (
+                <button key={r} type="button" onClick={() => setComplaintReason(r)} style={{ padding:'10px 14px', borderRadius:'10px', border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', fontSize:'13px', textAlign:'left' as const, borderColor: complaintReason === r ? '#1a1a1a' : '#e0ddd8', background: complaintReason === r ? '#1a1a1a' : '#fff', color: complaintReason === r ? '#fff' : '#5a5650' }}>{r}</button>
+              ))}
+            </div>
+            <textarea value={complaintComment} onChange={e => setComplaintComment(e.target.value)} placeholder="Опиши ситуацию (необязательно)" rows={3} maxLength={1000} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'16px', boxSizing:'border-box' }} />
+            <div style={{ display:'flex', gap:'10px' }}>
+              <button onClick={() => setComplaintOpen(false)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
+              <button disabled={!complaintReason || complaintSending} onClick={async () => {
+                setComplaintSending(true)
+                const targetAuthorId = userRole === 'business' ? request?.author_id : null
+                const targetBusinessId = userRole === 'author' ? request?.business_id : null
+                await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: targetAuthorId, target_business_id: targetBusinessId, reason: complaintReason, comment: complaintComment.trim() || null }])
+                setComplaintSending(false)
+                setComplaintOpen(false)
+                setComplaintReason('')
+                setComplaintComment('')
+                toast.success('Жалоба отправлена, мы рассмотрим её')
+              }} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: !complaintReason || complaintSending ? '#9a9590' : '#dc2626', color:'#fff', cursor: !complaintReason || complaintSending ? 'not-allowed' : 'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
+                {complaintSending ? '...' : 'Отправить'}
               </button>
             </div>
           </div>
