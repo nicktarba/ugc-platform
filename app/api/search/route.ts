@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
 
 const cache = new Map<string, { result: unknown; ts: number }>()
 const CACHE_TTL = 24 * 60 * 60 * 1000
@@ -103,6 +104,9 @@ reason должен объяснять СВЯЗЬ С ЗАПРОСОМ, а не �
 
     const response = { results }
     cache.set(cacheKey, { result: response, ts: Date.now() })
+
+    // Логируем запрос (fire and forget, не блокирует ответ)
+    supabase.from('search_logs').insert([{ query: cacheKey, mode: 'ai', results_count: results.length }]).then(() => {})
 
     if (cache.size > 500) {
       const now = Date.now()

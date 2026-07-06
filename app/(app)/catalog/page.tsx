@@ -388,6 +388,11 @@ export default function CatalogPage() {
 
     setFiltered(base)
     setVisibleCount(12)
+
+    // Логируем обычный поиск (fire and forget, с дебаунсом через тот же useEffect)
+    if (searchMode === 'regular' && search.trim().length >= 2 && !aiResults) {
+      supabase.from('search_logs').insert([{ query: search.trim().toLowerCase(), mode: 'regular', results_count: base.length }])
+    }
   }, [authors, search, city, barter, lifestyleFilter, sort, aiResults, searchMode, minFollowers, maxFollowers])
 
   useEffect(() => {
