@@ -193,17 +193,8 @@ export default function ChatPage() {
 
   const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
 
-  const statusInfo = (status: string) => {
-    if (status === 'accepted') return { text: '✓ Сделка принята', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
-    if (status === 'declined') return { text: '✕ Сделка отклонена', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' }
-    if (status === 'cancelled') return { text: 'Сделка отменена', color: '#7a7570', bg: '#f0ede6', border: '#e0ddd8' }
-    if (status === 'completed') return { text: '✓ Сделка завершена', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' }
-    return null
-  }
-
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
-  const sInfo = request ? statusInfo(request.status) : null
   const authorRejected = request?.authors?.status === 'rejected'
   const dealClosed = request ? CLOSED.includes(request.status) : false
   const showAuthorActions = userRole === 'author' && request && (request.status === 'new' || request.status === 'viewed') && !authorRejected
@@ -219,47 +210,6 @@ export default function ChatPage() {
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', flex:1 }}>{otherName}</h1>
           <button onClick={() => setComplaintOpen(true)} style={{ padding:'6px 12px', background:'none', border:'1px solid #e0ddd8', borderRadius:'8px', color:'#9a9590', fontSize:'12px', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Пожаловаться</button>
         </div>
-
-        {request && (
-          <div style={{ padding:'14px 16px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px' }}>
-            <p style={{ fontSize:'14px', color:'#1a1a1a', fontWeight:600, lineHeight:1.5, marginBottom: (request.budget || request.deadline) ? '10px' : 0 }}>{truncate(request.message, 140)}</p>
-            {(request.budget || request.deadline) && (
-              <div style={{ display:'flex', gap:'20px', flexWrap:'wrap', paddingTop:'10px', borderTop:'1px solid #f0ede6' }}>
-                {request.budget && (
-                  <div>
-                    <div style={{ fontSize:'11px', color:'#9a9590' }}>Бюджет</div>
-                    <div style={{ fontSize:'15px', fontWeight:600, color:'#1a1a1a' }}>{request.budget}</div>
-                  </div>
-                )}
-                {request.deadline && (
-                  <div>
-                    <div style={{ fontSize:'11px', color:'#9a9590' }}>Срок</div>
-                    <div style={{ fontSize:'15px', fontWeight:600, color:'#1a1a1a' }}>{new Date(request.deadline).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })}</div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {sInfo && (
-          <div style={{ padding:'10px 16px', background:sInfo.bg, border:`1px solid ${sInfo.border}`, borderRadius:'12px', marginBottom:'16px', fontSize:'13px', fontWeight:600, color:sInfo.color }}>
-            {sInfo.text}
-          </div>
-        )}
-
-        {dealClosed && (
-          <div style={{ padding:'14px 16px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px' }}>
-            <div style={{ fontSize:'13px', color:'#7a7570', marginBottom: userRole === 'business' ? '12px' : 0 }}>
-              Сделка закрыта — переписка доступна только для просмотра.
-            </div>
-            {userRole === 'business' && (
-              <button onClick={startNewDeal} disabled={updatingStatus} style={{ padding:'10px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:updatingStatus?'not-allowed':'pointer', fontFamily:'inherit' }}>
-                Начать новую сделку
-              </button>
-            )}
-          </div>
-        )}
 
         {authorRejected && !dealClosed && (
           <div style={{ padding:'10px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginBottom:'16px', fontSize:'13px', fontWeight:600, color:'#dc2626' }}>
@@ -299,7 +249,47 @@ export default function ChatPage() {
           </div>
         )}
 
+        {dealClosed && (
+          <div style={{ padding:'14px 16px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px' }}>
+            <div style={{ fontSize:'13px', color:'#7a7570', marginBottom: userRole === 'business' ? '12px' : 0 }}>
+              Сделка закрыта — переписка доступна только для просмотра.
+            </div>
+            {userRole === 'business' && (
+              <button onClick={startNewDeal} disabled={updatingStatus} style={{ padding:'10px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:updatingStatus?'not-allowed':'pointer', fontFamily:'inherit' }}>
+                Начать новую сделку
+              </button>
+            )}
+          </div>
+        )}
+
         <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px', minHeight:'300px' }}>
+          {/* Инфо о сделке как первое системное сообщение */}
+          {request && (
+            <div style={{ alignSelf:'center', maxWidth:'85%', padding:'12px 18px', background:'#f0ede6', borderRadius:'14px', textAlign:'center' }}>
+              <p style={{ fontSize:'13px', color:'#5a5650', lineHeight:1.6, marginBottom: (request.budget || request.deadline) ? '8px' : 0 }}>{request.message}</p>
+              {(request.budget || request.deadline) && (
+                <div style={{ display:'flex', justifyContent:'center', gap:'16px', flexWrap:'wrap', fontSize:'12px', color:'#7a7570' }}>
+                  {request.budget && <span>💰 {request.budget}</span>}
+                  {request.deadline && <span>📅 {new Date(request.deadline).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })}</span>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Системное сообщение о статусе */}
+          {request && request.status === 'accepted' && (
+            <div style={{ alignSelf:'center', padding:'6px 16px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Предложение принято, сделка открыта</div>
+          )}
+          {request && request.status === 'completed' && (
+            <div style={{ alignSelf:'center', padding:'6px 16px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Сделка завершена</div>
+          )}
+          {request && request.status === 'declined' && (
+            <div style={{ alignSelf:'center', padding:'6px 16px', background:'#fef2f2', borderRadius:'100px', fontSize:'12px', color:'#dc2626', fontWeight:600 }}>Предложение отклонено</div>
+          )}
+          {request && request.status === 'cancelled' && (
+            <div style={{ alignSelf:'center', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'12px', color:'#7a7570', fontWeight:600 }}>Сделка отменена</div>
+          )}
+
           {hasMore && (
             <div style={{ textAlign:'center', padding:'8px 0' }}>
               <button onClick={loadEarlier} disabled={loadingMore} style={{ padding:'6px 16px', background:'#fff', border:'1px solid #e0ddd8', borderRadius:'100px', fontSize:'12px', fontWeight:500, color:'#7a7570', cursor:'pointer', fontFamily:'inherit' }}>
