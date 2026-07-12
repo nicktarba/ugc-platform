@@ -10,21 +10,74 @@ import { CatalogSkeleton } from '@/components/Skeleton'
 type Author = { id:string; name:string; city:string; instagram_url:string; telegram_url:string|null; telegram_followers:number; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean; avatar_url:string|null; completed_deals_count:number; avg_rating:number|null; reviews_count:number }
 
 const TAG_COLORS: Record<string, { bg:string; color:string; border:string }> = {
+  // Спорт и здоровье — зелёный
   'Активный спорт': { bg:'#ecfdf5', color:'#047857', border:'#a7f3d0' },
+  'Фитнес и тренировки': { bg:'#ecfdf5', color:'#047857', border:'#a7f3d0' },
+  'Йога и пилатес': { bg:'#ecfdf5', color:'#047857', border:'#a7f3d0' },
+  'Единоборства': { bg:'#ecfdf5', color:'#047857', border:'#a7f3d0' },
+  'Танцы': { bg:'#ecfdf5', color:'#047857', border:'#a7f3d0' },
   'ЗОЖ и питание': { bg:'#ecfdf5', color:'#047857', border:'#a7f3d0' },
+  'Нутрициология': { bg:'#ecfdf5', color:'#047857', border:'#a7f3d0' },
+  'Сёрфинг и водный спорт': { bg:'#ecfdf5', color:'#047857', border:'#a7f3d0' },
+  // Еда — оранжевый
   'Кофе и кафе': { bg:'#fdf3e7', color:'#b45309', border:'#f5dcb8' },
   'Рестораны': { bg:'#fdf3e7', color:'#b45309', border:'#f5dcb8' },
+  'Кондитерская': { bg:'#fdf3e7', color:'#b45309', border:'#f5dcb8' },
+  'Бар': { bg:'#fdf3e7', color:'#b45309', border:'#f5dcb8' },
+  'Суши и азиатская кухня': { bg:'#fdf3e7', color:'#b45309', border:'#f5dcb8' },
+  'Домашняя кухня': { bg:'#fdf3e7', color:'#b45309', border:'#f5dcb8' },
+  // Путешествия и авто — голубой
   'Путешествия': { bg:'#e8f4fd', color:'#1a6fa8', border:'#b5d4f4' },
+  'Кемпинг и походы': { bg:'#e8f4fd', color:'#1a6fa8', border:'#b5d4f4' },
+  'Отели и курорты': { bg:'#e8f4fd', color:'#1a6fa8', border:'#b5d4f4' },
   'Авто': { bg:'#e8f4fd', color:'#1a6fa8', border:'#b5d4f4' },
+  'Мотоциклы': { bg:'#e8f4fd', color:'#1a6fa8', border:'#b5d4f4' },
+  'Автосервис': { bg:'#e8f4fd', color:'#1a6fa8', border:'#b5d4f4' },
+  // Мода и красота — фиолетовый
   'Мода и стиль': { bg:'#fdf4ff', color:'#7c3aed', border:'#e9d5ff' },
   'Красота и уход': { bg:'#fdf4ff', color:'#7c3aed', border:'#e9d5ff' },
+  'Барбершоп': { bg:'#fdf4ff', color:'#7c3aed', border:'#e9d5ff' },
+  'Маникюр': { bg:'#fdf4ff', color:'#7c3aed', border:'#e9d5ff' },
+  'Ювелирка и аксессуары': { bg:'#fdf4ff', color:'#7c3aed', border:'#e9d5ff' },
+  'Искусство': { bg:'#fdf4ff', color:'#7c3aed', border:'#e9d5ff' },
+  // Семья — красный
   'Семья и дети': { bg:'#fff0f0', color:'#dc2626', border:'#fecaca' },
+  'Беременность и материнство': { bg:'#fff0f0', color:'#dc2626', border:'#fecaca' },
+  'Детское развитие': { bg:'#fff0f0', color:'#dc2626', border:'#fecaca' },
+  // Технологии и бизнес — синий
   'Технологии': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  'Гаджеты': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  'Игры и киберспорт': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  'Стриминг': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  'Бизнес': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  'Маркетинг и SMM': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  'Финансы и инвестиции': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  'Недвижимость': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  // Культура — жёлтый
   'Музыка': { bg:'#fef3cd', color:'#92400e', border:'#fde68a' },
   'Кино и сериалы': { bg:'#fef3cd', color:'#92400e', border:'#fde68a' },
+  'Фотография': { bg:'#fef3cd', color:'#92400e', border:'#fde68a' },
+  'Видеопродакшн': { bg:'#fef3cd', color:'#92400e', border:'#fde68a' },
+  // Остальное — нейтральный
   'Книги': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
-  'Искусство': { bg:'#fdf4ff', color:'#7c3aed', border:'#e9d5ff' },
-  'Бизнес': { bg:'#f0f4ff', color:'#3b5bdb', border:'#c3d4f7' },
+  'Собаки': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Кошки': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Ветеринария': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Образование и курсы': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Языки': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Психология': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Медицина': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Стоматология': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Массаж и СПА': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Интерьер и декор': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Ремонт': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Мебель': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Садоводство': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Рыбалка': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Охота': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Свадьбы и торжества': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Флористика': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
+  'Организация мероприятий': { bg:'#f0ede6', color:'#5a5650', border:'#d4d0c8' },
 }
 const defaultTag = { bg:'#f0ede6', color:'#7a7570', border:'#d4d0c8' }
 
@@ -276,7 +329,9 @@ export default function CatalogPage() {
     const expanded = new Set(words)
     for (const w of words) {
       for (const [trigger, related] of Object.entries(CONCEPT_MAP)) {
-        if (w.startsWith(trigger) || trigger.startsWith(w.slice(0, 4))) {
+        // Минимум 4 символа совпадения, чтобы "бар" не матчил "барбершоп",
+        // а "зал" не матчил "залив". Точное совпадение коротких триггеров (3 символа) допускается.
+        if (w === trigger || (trigger.length >= 4 && w.startsWith(trigger)) || (w.length >= 4 && trigger.startsWith(w.slice(0, Math.max(4, Math.floor(w.length * 0.5)))))) {
           related.forEach(r => expanded.add(r))
         }
       }
@@ -342,7 +397,6 @@ export default function CatalogPage() {
       base = ids.map(id => authors.find(a => a.id === id)).filter(Boolean) as Author[]
     } else if (searchMode === 'regular' && search.trim()) {
       const searchWords = search.toLowerCase().split(/\s+/).filter(w => w.length > 1)
-      const allWords = expandSearch(searchWords)
       const scored = authors.map(a => {
         let score = 0
         let hits = 0
@@ -353,10 +407,6 @@ export default function CatalogPage() {
           if (fieldText.includes(w)) { score += 6; hits++; continue }
           const root = w.slice(0, Math.max(4, Math.floor(w.length * 0.6)))
           if (fieldWords.some(fw => fw.startsWith(root) || w.startsWith(fw.slice(0, Math.max(4, Math.floor(fw.length * 0.6)))))) { score += 5; hits++; continue }
-        }
-        for (const w of allWords) {
-          if (searchWords.includes(w)) continue
-          if (fieldText.includes(w)) { score += 3; hits++ }
         }
         if (hits > 0) {
           if (a.avg_rating) score += a.avg_rating
@@ -489,14 +539,18 @@ export default function CatalogPage() {
   }
 
   const CATEGORIES = [
-    { label: '🍽 Еда', tags: ['Кофе и кафе', 'Рестораны', 'ЗОЖ и питание'] },
-    { label: '💪 Спорт', tags: ['Активный спорт'] },
-    { label: '✈️ Путешествия', tags: ['Путешествия'] },
-    { label: '👗 Стиль', tags: ['Мода и стиль', 'Красота и уход'] },
-    { label: '🚗 Авто', tags: ['Авто'] },
-    { label: '💻 Тех и бизнес', tags: ['Технологии', 'Бизнес'] },
-    { label: '🎵 Культура', tags: ['Музыка', 'Кино и сериалы', 'Книги', 'Искусство'] },
-    { label: '👨‍👩‍👧 Семья', tags: ['Семья и дети'] },
+    { label: '🍽 Еда', tags: ['Кофе и кафе', 'Рестораны', 'Кондитерская', 'Бар', 'Суши и азиатская кухня', 'Домашняя кухня'] },
+    { label: '💪 Спорт', tags: ['Активный спорт', 'Фитнес и тренировки', 'Йога и пилатес', 'Единоборства', 'Танцы', 'ЗОЖ и питание', 'Нутрициология'] },
+    { label: '👗 Стиль', tags: ['Мода и стиль', 'Красота и уход', 'Барбершоп', 'Маникюр', 'Ювелирка и аксессуары'] },
+    { label: '✈️ Путешествия', tags: ['Путешествия', 'Кемпинг и походы', 'Отели и курорты'] },
+    { label: '🚗 Авто', tags: ['Авто', 'Мотоциклы', 'Автосервис'] },
+    { label: '💻 Тех', tags: ['Технологии', 'Гаджеты', 'Игры и киберспорт', 'Стриминг'] },
+    { label: '📈 Бизнес', tags: ['Бизнес', 'Маркетинг и SMM', 'Финансы и инвестиции', 'Недвижимость'] },
+    { label: '🎵 Культура', tags: ['Музыка', 'Кино и сериалы', 'Книги', 'Искусство', 'Фотография', 'Видеопродакшн'] },
+    { label: '👨‍👩‍👧 Семья', tags: ['Семья и дети', 'Беременность и материнство', 'Детское развитие'] },
+    { label: '🐾 Животные', tags: ['Собаки', 'Кошки', 'Ветеринария'] },
+    { label: '🏠 Дом', tags: ['Интерьер и декор', 'Ремонт', 'Мебель', 'Садоводство'] },
+    { label: '🏥 Здоровье', tags: ['Медицина', 'Стоматология', 'Массаж и СПА', 'Психология'] },
   ]
 
   const toggleCategory = (tags: string[]) => {

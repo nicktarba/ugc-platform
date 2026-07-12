@@ -7,7 +7,24 @@ import { isValidUrl } from '@/lib/format'
 import { useApp } from '../../../AppContext'
 import ReviewsList from '@/components/ReviewsList'
 
-const LIFESTYLE = ['Активный спорт','ЗОЖ и питание','Кофе и кафе','Рестораны','Путешествия','Авто','Мода и стиль','Красота и уход','Семья и дети','Технологии','Музыка','Кино и сериалы','Книги','Искусство','Бизнес']
+const LIFESTYLE_GROUPS = [
+  { label: '🍽 Еда и напитки', tags: ['Кофе и кафе', 'Рестораны', 'Кондитерская', 'Бар', 'Суши и азиатская кухня', 'Домашняя кухня'] },
+  { label: '💪 Спорт и здоровье', tags: ['Активный спорт', 'Фитнес и тренировки', 'Йога и пилатес', 'Единоборства', 'Танцы', 'ЗОЖ и питание', 'Нутрициология'] },
+  { label: '👗 Стиль и красота', tags: ['Мода и стиль', 'Красота и уход', 'Барбершоп', 'Маникюр', 'Ювелирка и аксессуары'] },
+  { label: '🏠 Дом и интерьер', tags: ['Интерьер и декор', 'Ремонт', 'Мебель', 'Садоводство'] },
+  { label: '👨‍👩‍👧 Семья', tags: ['Семья и дети', 'Беременность и материнство', 'Детское развитие'] },
+  { label: '🚗 Авто и мото', tags: ['Авто', 'Мотоциклы', 'Автосервис'] },
+  { label: '✈️ Путешествия', tags: ['Путешествия', 'Кемпинг и походы', 'Отели и курорты'] },
+  { label: '💻 Технологии', tags: ['Технологии', 'Гаджеты', 'Игры и киберспорт', 'Стриминг'] },
+  { label: '📈 Бизнес', tags: ['Бизнес', 'Маркетинг и SMM', 'Финансы и инвестиции', 'Недвижимость'] },
+  { label: '🎵 Культура', tags: ['Музыка', 'Кино и сериалы', 'Книги', 'Искусство', 'Фотография', 'Видеопродакшн'] },
+  { label: '🐾 Животные', tags: ['Собаки', 'Кошки', 'Ветеринария'] },
+  { label: '🎓 Образование', tags: ['Образование и курсы', 'Языки', 'Психология'] },
+  { label: '🏥 Медицина', tags: ['Медицина', 'Стоматология', 'Массаж и СПА'] },
+  { label: '🌿 Outdoor', tags: ['Рыбалка', 'Охота', 'Сёрфинг и водный спорт'] },
+  { label: '💐 События', tags: ['Свадьбы и торжества', 'Флористика', 'Организация мероприятий'] },
+]
+const LIFESTYLE = LIFESTYLE_GROUPS.flatMap(g => g.tags)
 
 export default function AuthorProfilePage() {
   const toast = useToast()
@@ -277,11 +294,18 @@ export default function AuthorProfilePage() {
               <div><label style={lbl}>Просмотры сторис</label><input name="stories_views" type="number" value={form.stories_views} onChange={handleChange} placeholder="300" style={inp} /></div>
               <div><label style={lbl}>Кем работаешь</label><input name="occupation" value={form.occupation} onChange={handleChange} placeholder="Фитнес-тренер, студент, дизайнер..." style={inp} maxLength={200} /></div>
               <div>
-                <label style={lbl}>Стиль жизни</label>
-                <p style={{ fontSize:'13px', color:'#9a9590', marginBottom:'10px' }}>Выбери всё что подходит</p>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:'8px' }}>
-                  {LIFESTYLE.map(item => (
-                    <button key={item} type="button" onClick={() => toggleLifestyle(item)} style={{ padding:'7px 14px', borderRadius:'100px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: form.lifestyle.includes(item) ? '#c17f3e' : '#e0ddd8', background: form.lifestyle.includes(item) ? '#fdf3e7' : '#fff', color: form.lifestyle.includes(item) ? '#c17f3e' : '#5a5650' }}>{item}</button>
+                <label style={lbl}>Интересы и темы контента</label>
+                <p style={{ fontSize:'13px', color:'#9a9590', marginBottom:'12px' }}>Выбери всё что подходит — чем точнее, тем проще бизнесу тебя найти</p>
+                <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+                  {LIFESTYLE_GROUPS.map(group => (
+                    <div key={group.label}>
+                      <div style={{ fontSize:'12px', fontWeight:700, color:'#7a7570', marginBottom:'6px' }}>{group.label}</div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
+                        {group.tags.map(item => (
+                          <button key={item} type="button" onClick={() => toggleLifestyle(item)} style={{ padding:'6px 12px', borderRadius:'100px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: form.lifestyle.includes(item) ? '#c17f3e' : '#e0ddd8', background: form.lifestyle.includes(item) ? '#fdf3e7' : '#fff', color: form.lifestyle.includes(item) ? '#c17f3e' : '#5a5650' }}>{item}</button>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
