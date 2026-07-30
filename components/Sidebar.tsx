@@ -24,12 +24,9 @@ export default function Sidebar({ role, email, userId, badgeCount = 0, authorId 
   const initial = email?.[0]?.toUpperCase() || '?'
 
   const isActive = (href: string) => {
-    // Публичный профиль автора
     if (href.startsWith('/author/')) return pathname.startsWith('/author/')
-    // Чат и карточка заявки — подсвечиваем "Сделки" / "Запросы"
     if (href === '/dashboard/business' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
     if (href === '/dashboard/author' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
-    // Точное совпадение для всего остального
     return pathname === href
   }
 
@@ -63,7 +60,9 @@ export default function Sidebar({ role, email, userId, badgeCount = 0, authorId 
     <aside className="sidebar">
       <div style={{ padding:'20px 16px 16px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px' }}>
-          <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
+          <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>
+            СВОИ <span style={{ fontSize:'14px', fontWeight:500, color:'#9a9590' }}>UGC</span>
+          </Link>
           {userId && <NotificationBell userId={userId} />}
         </div>
 
@@ -97,4 +96,3 @@ export default function Sidebar({ role, email, userId, badgeCount = 0, authorId 
     </aside>
   )
 }
-

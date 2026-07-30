@@ -2,12 +2,12 @@ import type { Metadata } from 'next'
 import './globals.css'
 import ToastProvider from '@/components/Toast'
 export const metadata: Metadata = {
-  title: 'ugcmarket — живые авторы для бизнеса',
+  title: 'СВОИ UGC — живые авторы для бизнеса',
   description: 'Маркетплейс микро-авторов и UGC-блогеров. Найди автора с живой аудиторией для рекламы и коллабораций.',
   openGraph: {
-    title: 'ugcmarket — живые авторы для бизнеса',
+    title: 'СВОИ UGC — живые авторы для бизнеса',
     description: 'Маркетплейс микро-авторов и UGC-блогеров. Найди автора с живой аудиторией для рекламы и коллабораций.',
-    siteName: 'ugcmarket',
+    siteName: 'СВОИ UGC',
     locale: 'ru_RU',
     type: 'website',
   },
@@ -24,4 +24,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   )
 }
-
