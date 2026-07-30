@@ -24,6 +24,23 @@ type RequestInfo = {
 const OPEN: string[] = OPEN_STATUSES
 const CLOSED: string[] = CLOSED_STATUSES
 
+function StarRating({ value, onChange, size = 28 }: { value: number; onChange: (v: number) => void; size?: number }) {
+  const [hover, setHover] = useState(0)
+  return (
+    <span style={{ display: 'inline-flex', gap: '4px', cursor: 'pointer' }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <span
+          key={n}
+          onMouseEnter={() => setHover(n)}
+          onMouseLeave={() => setHover(0)}
+          onClick={() => onChange(n)}
+          style={{ fontSize: size, color: n <= (hover || value) ? '#c17f3e' : '#e0ddd8', transition: 'color .15s', userSelect: 'none' }}
+        >★</span>
+      ))}
+    </span>
+  )
+}
+
 export default function ChatPage() {
   const params = useParams()
   const router = useRouter()
@@ -45,6 +62,13 @@ export default function ChatPage() {
   const PAGE_SIZE = 50
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  // Review state
+  const [reviewRating, setReviewRating] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewSending, setReviewSending] = useState(false)
+  const [reviewSent, setReviewSent] = useState(false)
+  const [existingReview, setExistingReview] = useState<{ rating: number; comment: string | null } | null>(null)
+
   // Рефетч статуса заявки из базы
   const refetchRequestStatus = async () => {
     const { data } = await supabase.from('requests').select('status').eq('id', requestId).single()
@@ -64,6 +88,12 @@ export default function ChatPage() {
       const { data: req } = await supabase.from('requests').select('*, authors(name, user_id, status)').eq('id', requestId).single()
       if (!req) { router.push('/'); return }
       setRequest(req as unknown as RequestInfo)
+
+      // Проверяем существующий отзыв (для бизнеса)
+      if (role === 'business' && req.status === 'completed') {
+        const { data: rev } = await supabase.from('reviews').select('rating, comment').eq('request_id', requestId).eq('business_id', uid).maybeSingle()
+        if (rev) setExistingReview(rev)
+      }
 
       const { data: msgs, error: msgsErr } = await supabase.from('messages').select('id, request_id, sender_id, sender_role, text, created_at, read').eq('request_id', requestId).order('created_at', { ascending: false }).limit(PAGE_SIZE)
       if (msgsErr) toast.error('Не удалось загрузить сообщения.')
@@ -197,6 +227,44 @@ export default function ChatPage() {
     }
   }
 
+  // Отправка отзыва
+  const submitReview = async () => {
+    if (!reviewRating || !userId || !request) return
+    setReviewSending(true)
+    const { error } = await supabase.from('reviews').insert([{
+      business_id: userId,
+      author_id: request.author_id,
+      request_id: requestId,
+      rating: reviewRating,
+      comment: reviewComment.trim() || null,
+    }])
+    if (error) {
+      setReviewSending(false)
+      if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        toast.error('Ты уже оставил отзыв по этой сделке')
+        setExistingReview({ rating: reviewRating, comment: reviewComment.trim() || null })
+      } else {
+        toast.error('Не удалось отправить отзыв. Попробуй ещё раз.')
+      }
+      return
+    }
+
+    // Пересчитываем avg_rating и reviews_count автора
+    const { data: allReviews } = await supabase.from('reviews').select('rating').eq('author_id', request.author_id)
+    if (allReviews && allReviews.length > 0) {
+      const avg = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+      await supabase.from('authors').update({
+        avg_rating: Math.round(avg * 10) / 10,
+        reviews_count: allReviews.length,
+      }).eq('id', request.author_id)
+    }
+
+    setReviewSending(false)
+    setReviewSent(true)
+    setExistingReview({ rating: reviewRating, comment: reviewComment.trim() || null })
+    toast.success('Отзыв отправлен!')
+  }
+
   const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
   const backHref = userRole === 'business' ? '/dashboard/business' : '/dashboard/author/deals'
 
@@ -204,10 +272,12 @@ export default function ChatPage() {
 
   const authorRejected = request?.authors?.status === 'rejected'
   const dealClosed = request ? CLOSED.includes(request.status) : false
+  const dealCompleted = request?.status === 'completed'
   const showAuthorActions = userRole === 'author' && request && (request.status === 'new' || request.status === 'viewed') && !authorRejected
   const showAcceptedActions = request && request.status === 'accepted'
   const showBusinessWithdraw = userRole === 'business' && request && (request.status === 'new' || request.status === 'viewed')
   const canChat = !authorRejected && !dealClosed
+  const showReviewForm = userRole === 'business' && dealCompleted && !existingReview && !reviewSent
 
   return (
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
@@ -266,6 +336,51 @@ export default function ChatPage() {
                 Начать новую сделку
               </button>
             )}
+          </div>
+        )}
+
+        {/* Форма отзыва — для бизнеса после завершения сделки */}
+        {showReviewForm && (
+          <div style={{ padding:'20px', background:'#fff', border:'1.5px solid #c17f3e', borderRadius:'16px', marginBottom:'16px' }}>
+            <div style={{ fontSize:'15px', fontWeight:700, color:'#1a1a1a', marginBottom:'4px' }}>Оставь отзыв об авторе</div>
+            <p style={{ fontSize:'13px', color:'#7a7570', marginBottom:'14px' }}>Как прошло сотрудничество? Это поможет другим компаниям.</p>
+            <div style={{ marginBottom:'14px' }}>
+              <StarRating value={reviewRating} onChange={setReviewRating} />
+              {reviewRating > 0 && <span style={{ fontSize:'13px', color:'#9a9590', marginLeft:'10px' }}>{['', 'Плохо', 'Так себе', 'Нормально', 'Хорошо', 'Отлично'][reviewRating]}</span>}
+            </div>
+            <textarea
+              value={reviewComment}
+              onChange={e => setReviewComment(e.target.value)}
+              placeholder="Комментарий (необязательно)"
+              rows={2}
+              maxLength={1000}
+              style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'12px', boxSizing:'border-box' }}
+            />
+            <button
+              onClick={submitReview}
+              disabled={reviewSending || !reviewRating}
+              style={{ padding:'10px 24px', border:'none', borderRadius:'100px', background: reviewSending || !reviewRating ? '#9a9590' : '#c17f3e', color:'#fff', fontSize:'14px', fontWeight:600, cursor: reviewSending || !reviewRating ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}
+            >
+              {reviewSending ? 'Отправляем...' : 'Отправить отзыв'}
+            </button>
+          </div>
+        )}
+
+        {/* Уже оставленный отзыв */}
+        {userRole === 'business' && dealCompleted && (existingReview || reviewSent) && (
+          <div style={{ padding:'16px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'12px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'12px' }}>
+            <span style={{ fontSize:'20px' }}>✅</span>
+            <div>
+              <div style={{ fontSize:'13px', fontWeight:600, color:'#16a34a' }}>Отзыв отправлен</div>
+              <div style={{ display:'inline-flex', gap:'2px', marginTop:'2px' }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <span key={n} style={{ fontSize: 14, color: n <= (existingReview?.rating || reviewRating) ? '#c17f3e' : '#e0ddd8' }}>★</span>
+                ))}
+              </div>
+              {(existingReview?.comment || reviewComment) && (
+                <p style={{ fontSize:'12px', color:'#5a5650', marginTop:'4px' }}>{existingReview?.comment || reviewComment}</p>
+              )}
+            </div>
           </div>
         )}
 
