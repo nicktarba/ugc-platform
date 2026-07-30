@@ -271,12 +271,10 @@ export default function ChatPage() {
     <>
       <style>{`
         .chat-wrap {
+          position: fixed;
+          top: 0; right: 0; bottom: 0; left: 220px;
           display: flex; flex-direction: column; background: #fafaf9;
-          height: 100vh; overflow: hidden;
-          margin: 0 !important; padding: 0 !important;
-        }
-        @supports (height: 100dvh) {
-          .chat-wrap { height: 100dvh; }
+          z-index: 40;
         }
 
         .chat-hdr {
@@ -327,7 +325,7 @@ export default function ChatPage() {
         }
         .chat-bar button:disabled { background: #9a9590; cursor: not-allowed; }
 
-        /* Desktop: limit chat width, center it */
+        /* Desktop: wider padding */
         @media (min-width: 769px) {
           .chat-msgs { padding: 16px clamp(20px, 5vw, 60px); }
           .chat-hdr { padding: 14px clamp(20px, 5vw, 60px); }
@@ -335,9 +333,9 @@ export default function ChatPage() {
           .chat-bar { padding: 12px clamp(20px, 5vw, 60px); }
         }
 
-        /* Mobile: overlay + bottom nav space */
+        /* Mobile: full screen overlay */
         @media (max-width: 768px) {
-          .chat-wrap { position: fixed; inset: 0; z-index: 50; }
+          .chat-wrap { left: 0; z-index: 50; }
           .chat-hdr { padding: 12px 16px; }
           .chat-acts { padding: 8px 16px; }
           .chat-msgs { padding: 10px 16px; }
