@@ -252,7 +252,11 @@ export default function ChatPage() {
 
   const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
   const backHref = userRole === 'business' ? '/dashboard/business' : '/dashboard/author/deals'
-  const profileHref = userRole === 'business' && request?.author_id ? `/author/${request.author_id}` : null
+  const profileHref = userRole === 'business' && request?.author_id
+    ? `/author/${request.author_id}`
+    : userRole === 'author' && request?.business_id
+      ? `/business/${request.business_id}`
+      : null
 
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
