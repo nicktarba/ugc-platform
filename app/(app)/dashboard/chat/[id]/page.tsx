@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -61,6 +61,8 @@ export default function ChatPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const PAGE_SIZE = 50
   const bottomRef = useRef<HTMLDivElement>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // Review state
   const [reviewRating, setReviewRating] = useState(0)
@@ -69,11 +71,16 @@ export default function ChatPage() {
   const [reviewSent, setReviewSent] = useState(false)
   const [existingReview, setExistingReview] = useState<{ rating: number; comment: string | null } | null>(null)
 
-  // Рефетч статуса заявки из базы
   const refetchRequestStatus = async () => {
     const { data } = await supabase.from('requests').select('status').eq('id', requestId).single()
     if (data) setRequest(prev => prev ? { ...prev, status: data.status } : prev)
   }
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior })
+    })
+  }, [])
 
   useEffect(() => {
     const init = async () => {
@@ -89,7 +96,6 @@ export default function ChatPage() {
       if (!req) { router.push('/'); return }
       setRequest(req as unknown as RequestInfo)
 
-      // Проверяем существующий отзыв (для бизнеса)
       if (role === 'business' && req.status === 'completed') {
         const { data: rev } = await supabase.from('reviews').select('rating, comment').eq('request_id', requestId).eq('business_id', uid).maybeSingle()
         if (rev) setExistingReview(rev)
@@ -109,6 +115,13 @@ export default function ChatPage() {
     }
     init()
   }, [requestId, router])
+
+  // Scroll to bottom after initial load
+  useEffect(() => {
+    if (!loading && messages.length > 0) {
+      scrollToBottom('instant')
+    }
+  }, [loading])
 
   useEffect(() => {
     const channel = supabase
@@ -131,9 +144,22 @@ export default function ChatPage() {
     return () => { supabase.removeChannel(channel) }
   }, [requestId, userId])
 
+  // Scroll to bottom on new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (messages.length > 0) scrollToBottom()
+  }, [messages.length])
+
+  // Handle mobile keyboard: resize visual viewport
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const onResize = () => {
+      // When keyboard opens, scroll to bottom
+      scrollToBottom('instant')
+    }
+    vv.addEventListener('resize', onResize)
+    return () => vv.removeEventListener('resize', onResize)
+  }, [scrollToBottom])
 
   const loadEarlier = async () => {
     if (!messages.length || loadingMore) return
@@ -159,6 +185,9 @@ export default function ChatPage() {
     if (!error && data) {
       setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data as Msg])
       setText('')
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto'
+      }
     } else {
       toast.error('Не удалось отправить сообщение. Попробуй ещё раз.')
     }
@@ -205,38 +234,25 @@ export default function ChatPage() {
   const startNewDeal = async () => {
     if (!request || !userId) return
     setUpdatingStatus(true)
-
     const { data: existing } = await supabase.from('requests').select('id')
       .eq('business_id', userId).eq('author_id', request.author_id)
       .in("status", OPEN).neq('id', requestId).maybeSingle()
-
     if (existing) { router.push(`/dashboard/chat/${existing.id}`); return }
-
     const { data: inserted, error } = await supabase.from('requests').insert([{
-      business_id: userId,
-      business_email: userEmail,
-      author_id: request.author_id,
-      message: 'Хотим обсудить новое сотрудничество',
-      status: 'new',
+      business_id: userId, business_email: userEmail, author_id: request.author_id,
+      message: 'Хотим обсудить новое сотрудничество', status: 'new',
     }]).select('id').single()
     setUpdatingStatus(false)
-    if (!error && inserted) {
-      router.push(`/dashboard/chat/${inserted.id}`)
-    } else {
-      toast.error('Не удалось создать новый запрос. Попробуй ещё раз.')
-    }
+    if (!error && inserted) router.push(`/dashboard/chat/${inserted.id}`)
+    else toast.error('Не удалось создать новый запрос. Попробуй ещё раз.')
   }
 
-  // Отправка отзыва
   const submitReview = async () => {
     if (!reviewRating || !userId || !request) return
     setReviewSending(true)
     const { error } = await supabase.from('reviews').insert([{
-      business_id: userId,
-      author_id: request.author_id,
-      request_id: requestId,
-      rating: reviewRating,
-      comment: reviewComment.trim() || null,
+      business_id: userId, author_id: request.author_id, request_id: requestId,
+      rating: reviewRating, comment: reviewComment.trim() || null,
     }])
     if (error) {
       setReviewSending(false)
@@ -248,17 +264,13 @@ export default function ChatPage() {
       }
       return
     }
-
-    // Пересчитываем avg_rating и reviews_count автора
     const { data: allReviews } = await supabase.from('reviews').select('rating').eq('author_id', request.author_id)
     if (allReviews && allReviews.length > 0) {
       const avg = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
       await supabase.from('authors').update({
-        avg_rating: Math.round(avg * 10) / 10,
-        reviews_count: allReviews.length,
+        avg_rating: Math.round(avg * 10) / 10, reviews_count: allReviews.length,
       }).eq('id', request.author_id)
     }
-
     setReviewSending(false)
     setReviewSent(true)
     setExistingReview({ rating: reviewRating, comment: reviewComment.trim() || null })
@@ -267,8 +279,9 @@ export default function ChatPage() {
 
   const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
   const backHref = userRole === 'business' ? '/dashboard/business' : '/dashboard/author/deals'
+  const profileHref = userRole === 'business' && request?.author_id ? `/author/${request.author_id}` : null
 
-  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
+  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100dvh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
   const authorRejected = request?.authors?.status === 'rejected'
   const dealClosed = request ? CLOSED.includes(request.status) : false
@@ -280,116 +293,116 @@ export default function ChatPage() {
   const showReviewForm = userRole === 'business' && dealCompleted && !existingReview && !reviewSent
 
   return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
-      <div style={{ maxWidth:'700px', margin:'0 auto', padding:'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
-        <div style={{ marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px' }}>
-          <Link href={backHref} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', flex:1 }}>{otherName}</h1>
-          <button onClick={() => setComplaintOpen(true)} style={{ padding:'6px 12px', background:'none', border:'1px solid #e0ddd8', borderRadius:'8px', color:'#9a9590', fontSize:'12px', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Пожаловаться</button>
+    <>
+      <style>{`
+        .chat-page { display: flex; flex-direction: column; height: 100dvh; height: 100vh; background: #fafaf9; overflow: hidden; }
+        @supports (height: 100dvh) { .chat-page { height: 100dvh; } }
+        .chat-header { flex-shrink: 0; padding: 12px clamp(12px, 4vw, 24px); border-bottom: 1px solid #e8e6e1; background: #fff; display: flex; align-items: center; gap: 10px; z-index: 10; }
+        .chat-actions { flex-shrink: 0; padding: 10px clamp(12px, 4vw, 24px); background: #fafaf9; }
+        .chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px clamp(12px, 4vw, 24px); display: flex; flex-direction: column; gap: 10px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+        .chat-input-bar { flex-shrink: 0; padding: 10px clamp(12px, 4vw, 24px); padding-bottom: calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid #e8e6e1; background: #fff; display: flex; gap: 10px; align-items: flex-end; }
+        .chat-input-bar textarea { flex: 1; min-width: 0; padding: 10px 16px; border: 1.5px solid #e0ddd8; border-radius: 18px; font-size: 15px; background: #fafaf9; color: #1a1a1a; outline: none; font-family: inherit; resize: none; max-height: 100px; line-height: 1.4; }
+        .chat-input-bar button { padding: 10px 20px; background: #1a1a1a; border: none; border-radius: 100px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; flex-shrink: 0; white-space: nowrap; }
+        .chat-input-bar button:disabled { background: #9a9590; cursor: not-allowed; }
+        @media (max-width: 768px) {
+          .chat-page { position: fixed; inset: 0; z-index: 50; }
+          .chat-input-bar { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+        }
+      `}</style>
+
+      <main className="chat-page">
+        {/* Header */}
+        <div className="chat-header">
+          <Link href={backHref} style={{ fontSize:'20px', color:'#7a7570', textDecoration:'none', flexShrink:0, lineHeight:1 }}>←</Link>
+          {profileHref ? (
+            <Link href={profileHref} style={{ fontFamily:'Fraunces, serif', fontSize:'18px', fontWeight:700, color:'#1a1a1a', textDecoration:'none', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              {otherName}
+            </Link>
+          ) : (
+            <span style={{ fontFamily:'Fraunces, serif', fontSize:'18px', fontWeight:700, color:'#1a1a1a', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{otherName}</span>
+          )}
+          <button onClick={() => setComplaintOpen(true)} style={{ padding:'5px 10px', background:'none', border:'1px solid #e0ddd8', borderRadius:'8px', color:'#9a9590', fontSize:'11px', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', flexShrink:0 }}>Пожаловаться</button>
         </div>
 
-        {authorRejected && !dealClosed && (
-          <div style={{ padding:'10px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginBottom:'16px', fontSize:'13px', fontWeight:600, color:'#dc2626' }}>
-            {userRole === 'author'
-              ? 'Твой профиль не прошёл модерацию — переписка временно недоступна. Отредактируй анкету, чтобы отправить на повторную проверку.'
-              : 'Профиль этого автора временно недоступен — переписка приостановлена.'}
-          </div>
-        )}
+        {/* Action buttons */}
+        {(showAuthorActions || showAcceptedActions || showBusinessWithdraw || dealClosed || authorRejected) && (
+          <div className="chat-actions">
+            {authorRejected && !dealClosed && (
+              <div style={{ padding:'10px 14px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginBottom:'10px', fontSize:'13px', fontWeight:600, color:'#dc2626' }}>
+                {userRole === 'author'
+                  ? 'Твой профиль не прошёл модерацию — переписка временно недоступна.'
+                  : 'Профиль этого автора временно недоступен — переписка приостановлена.'}
+              </div>
+            )}
 
-        {showAuthorActions && (
-          <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
-            <button onClick={() => updateStatus('accepted')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-              Принять предложение
-            </button>
-            <button onClick={() => updateStatus('declined')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-              Отклонить
-            </button>
-          </div>
-        )}
+            {showAuthorActions && (
+              <div style={{ display:'flex', gap:'10px' }}>
+                <button onClick={() => updateStatus('accepted')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Принять</button>
+                <button onClick={() => updateStatus('declined')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отклонить</button>
+              </div>
+            )}
 
-        {showBusinessWithdraw && (
-          <div style={{ marginBottom:'16px' }}>
-            <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ width:'100%', padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-              Отозвать заявку
-            </button>
-          </div>
-        )}
+            {showBusinessWithdraw && (
+              <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ width:'100%', padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отозвать заявку</button>
+            )}
 
-        {showAcceptedActions && (
-          <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
-            <button onClick={() => updateStatus('completed')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-              Завершить сделку
-            </button>
-            <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-              Отменить сделку
-            </button>
-          </div>
-        )}
+            {showAcceptedActions && (
+              <div style={{ display:'flex', gap:'10px' }}>
+                <button onClick={() => updateStatus('completed')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Завершить сделку</button>
+                <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отменить</button>
+              </div>
+            )}
 
-        {dealClosed && (
-          <div style={{ padding:'14px 16px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'16px' }}>
-            <div style={{ fontSize:'13px', color:'#7a7570', marginBottom: userRole === 'business' ? '12px' : 0 }}>
-              Сделка закрыта — переписка доступна только для просмотра.
-            </div>
-            {userRole === 'business' && (
-              <button onClick={startNewDeal} disabled={updatingStatus} style={{ padding:'10px 20px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:updatingStatus?'not-allowed':'pointer', fontFamily:'inherit' }}>
-                Начать новую сделку
-              </button>
+            {dealClosed && (
+              <div style={{ padding:'12px 14px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px' }}>
+                <div style={{ fontSize:'13px', color:'#7a7570', marginBottom: userRole === 'business' ? '10px' : 0 }}>
+                  Сделка закрыта — переписка доступна только для просмотра.
+                </div>
+                {userRole === 'business' && (
+                  <button onClick={startNewDeal} disabled={updatingStatus} style={{ padding:'9px 18px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:updatingStatus?'not-allowed':'pointer', fontFamily:'inherit' }}>Начать новую сделку</button>
+                )}
+              </div>
+            )}
+
+            {/* Review form */}
+            {showReviewForm && (
+              <div style={{ padding:'16px', background:'#fff', border:'1.5px solid #c17f3e', borderRadius:'14px', marginTop:'10px' }}>
+                <div style={{ fontSize:'14px', fontWeight:700, color:'#1a1a1a', marginBottom:'3px' }}>Оставь отзыв об авторе</div>
+                <p style={{ fontSize:'12px', color:'#7a7570', marginBottom:'12px' }}>Как прошло сотрудничество?</p>
+                <div style={{ marginBottom:'10px' }}>
+                  <StarRating value={reviewRating} onChange={setReviewRating} size={26} />
+                  {reviewRating > 0 && <span style={{ fontSize:'12px', color:'#9a9590', marginLeft:'8px' }}>{['', 'Плохо', 'Так себе', 'Нормально', 'Хорошо', 'Отлично'][reviewRating]}</span>}
+                </div>
+                <textarea value={reviewComment} onChange={e => setReviewComment(e.target.value)} placeholder="Комментарий (необязательно)" rows={2} maxLength={1000} style={{ width:'100%', padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'10px', boxSizing:'border-box' }} />
+                <button onClick={submitReview} disabled={reviewSending || !reviewRating} style={{ padding:'9px 20px', border:'none', borderRadius:'100px', background: reviewSending || !reviewRating ? '#9a9590' : '#c17f3e', color:'#fff', fontSize:'13px', fontWeight:600, cursor: reviewSending || !reviewRating ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
+                  {reviewSending ? 'Отправляем...' : 'Отправить отзыв'}
+                </button>
+              </div>
+            )}
+
+            {/* Existing review */}
+            {userRole === 'business' && dealCompleted && (existingReview || reviewSent) && (
+              <div style={{ padding:'12px 14px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'12px', marginTop:'10px', display:'flex', alignItems:'center', gap:'10px' }}>
+                <span style={{ fontSize:'18px' }}>✅</span>
+                <div>
+                  <div style={{ fontSize:'12px', fontWeight:600, color:'#16a34a' }}>Отзыв отправлен</div>
+                  <span style={{ display:'inline-flex', gap:'1px' }}>
+                    {[1,2,3,4,5].map(n => <span key={n} style={{ fontSize:13, color: n <= (existingReview?.rating || reviewRating) ? '#c17f3e' : '#e0ddd8' }}>★</span>)}
+                  </span>
+                </div>
+              </div>
             )}
           </div>
         )}
 
-        {/* Форма отзыва — для бизнеса после завершения сделки */}
-        {showReviewForm && (
-          <div style={{ padding:'20px', background:'#fff', border:'1.5px solid #c17f3e', borderRadius:'16px', marginBottom:'16px' }}>
-            <div style={{ fontSize:'15px', fontWeight:700, color:'#1a1a1a', marginBottom:'4px' }}>Оставь отзыв об авторе</div>
-            <p style={{ fontSize:'13px', color:'#7a7570', marginBottom:'14px' }}>Как прошло сотрудничество? Это поможет другим компаниям.</p>
-            <div style={{ marginBottom:'14px' }}>
-              <StarRating value={reviewRating} onChange={setReviewRating} />
-              {reviewRating > 0 && <span style={{ fontSize:'13px', color:'#9a9590', marginLeft:'10px' }}>{['', 'Плохо', 'Так себе', 'Нормально', 'Хорошо', 'Отлично'][reviewRating]}</span>}
-            </div>
-            <textarea
-              value={reviewComment}
-              onChange={e => setReviewComment(e.target.value)}
-              placeholder="Комментарий (необязательно)"
-              rows={2}
-              maxLength={1000}
-              style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'12px', boxSizing:'border-box' }}
-            />
-            <button
-              onClick={submitReview}
-              disabled={reviewSending || !reviewRating}
-              style={{ padding:'10px 24px', border:'none', borderRadius:'100px', background: reviewSending || !reviewRating ? '#9a9590' : '#c17f3e', color:'#fff', fontSize:'14px', fontWeight:600, cursor: reviewSending || !reviewRating ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}
-            >
-              {reviewSending ? 'Отправляем...' : 'Отправить отзыв'}
-            </button>
-          </div>
-        )}
-
-        {/* Уже оставленный отзыв */}
-        {userRole === 'business' && dealCompleted && (existingReview || reviewSent) && (
-          <div style={{ padding:'16px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'12px', marginBottom:'16px', display:'flex', alignItems:'center', gap:'12px' }}>
-            <span style={{ fontSize:'20px' }}>✅</span>
-            <div>
-              <div style={{ fontSize:'13px', fontWeight:600, color:'#16a34a' }}>Отзыв отправлен</div>
-              <div style={{ display:'inline-flex', gap:'2px', marginTop:'2px' }}>
-                {[1, 2, 3, 4, 5].map(n => (
-                  <span key={n} style={{ fontSize: 14, color: n <= (existingReview?.rating || reviewRating) ? '#c17f3e' : '#e0ddd8' }}>★</span>
-                ))}
-              </div>
-              {(existingReview?.comment || reviewComment) && (
-                <p style={{ fontSize:'12px', color:'#5a5650', marginTop:'4px' }}>{existingReview?.comment || reviewComment}</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px', minHeight:'300px' }}>
+        {/* Messages */}
+        <div className="chat-messages" ref={messagesRef}>
+          {/* Deal info */}
           {request && (
-            <div style={{ alignSelf:'center', maxWidth:'85%', padding:'12px 18px', background:'#f0ede6', borderRadius:'14px', textAlign:'center' }}>
-              <p style={{ fontSize:'13px', color:'#5a5650', lineHeight:1.6, marginBottom: (request.budget || request.deadline) ? '8px' : 0 }}>{request.message}</p>
+            <div style={{ alignSelf:'center', maxWidth:'85%', padding:'10px 16px', background:'#f0ede6', borderRadius:'14px', textAlign:'center' }}>
+              <p style={{ fontSize:'13px', color:'#5a5650', lineHeight:1.5, marginBottom: (request.budget || request.deadline) ? '6px' : 0 }}>{request.message}</p>
               {(request.budget || request.deadline) && (
-                <div style={{ display:'flex', justifyContent:'center', gap:'16px', flexWrap:'wrap', fontSize:'12px', color:'#7a7570' }}>
+                <div style={{ display:'flex', justifyContent:'center', gap:'14px', flexWrap:'wrap', fontSize:'12px', color:'#7a7570' }}>
                   {request.budget && <span>💰 {request.budget}</span>}
                   {request.deadline && <span>📅 {new Date(request.deadline).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })}</span>}
                 </div>
@@ -397,31 +410,34 @@ export default function ChatPage() {
             </div>
           )}
 
-          {request && request.status === 'accepted' && (
-            <div style={{ alignSelf:'center', padding:'6px 16px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Предложение принято, сделка открыта</div>
+          {/* Status pills */}
+          {request?.status === 'accepted' && (
+            <div style={{ alignSelf:'center', padding:'5px 14px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Предложение принято, сделка открыта</div>
           )}
-          {request && request.status === 'completed' && (
-            <div style={{ alignSelf:'center', padding:'6px 16px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Сделка завершена</div>
+          {request?.status === 'completed' && (
+            <div style={{ alignSelf:'center', padding:'5px 14px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Сделка завершена</div>
           )}
-          {request && request.status === 'declined' && (
-            <div style={{ alignSelf:'center', padding:'6px 16px', background:'#fef2f2', borderRadius:'100px', fontSize:'12px', color:'#dc2626', fontWeight:600 }}>Предложение отклонено</div>
+          {request?.status === 'declined' && (
+            <div style={{ alignSelf:'center', padding:'5px 14px', background:'#fef2f2', borderRadius:'100px', fontSize:'12px', color:'#dc2626', fontWeight:600 }}>Предложение отклонено</div>
           )}
-          {request && request.status === 'cancelled' && (
-            <div style={{ alignSelf:'center', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'12px', color:'#7a7570', fontWeight:600 }}>Сделка отменена</div>
+          {request?.status === 'cancelled' && (
+            <div style={{ alignSelf:'center', padding:'5px 14px', background:'#f0ede6', borderRadius:'100px', fontSize:'12px', color:'#7a7570', fontWeight:600 }}>Сделка отменена</div>
           )}
 
           {hasMore && (
-            <div style={{ textAlign:'center', padding:'8px 0' }}>
-              <button onClick={loadEarlier} disabled={loadingMore} style={{ padding:'6px 16px', background:'#fff', border:'1px solid #e0ddd8', borderRadius:'100px', fontSize:'12px', fontWeight:500, color:'#7a7570', cursor:'pointer', fontFamily:'inherit' }}>
+            <div style={{ textAlign:'center', padding:'4px 0' }}>
+              <button onClick={loadEarlier} disabled={loadingMore} style={{ padding:'5px 14px', background:'#fff', border:'1px solid #e0ddd8', borderRadius:'100px', fontSize:'12px', fontWeight:500, color:'#7a7570', cursor:'pointer', fontFamily:'inherit' }}>
                 {loadingMore ? 'Загружаем...' : '↑ Ранние сообщения'}
               </button>
             </div>
           )}
+
           {messages.length === 0 && (
             <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <p style={{ fontSize:'14px', color:'#9a9590', textAlign:'center', lineHeight:1.6 }}>Сообщений пока нет. Напиши первым, чтобы начать диалог.</p>
+              <p style={{ fontSize:'14px', color:'#9a9590', textAlign:'center', lineHeight:1.6 }}>Сообщений пока нет. Напиши первым.</p>
             </div>
           )}
+
           {messages.map(m => {
             const isMine = m.sender_id === userId
             const time = new Date(m.created_at).toLocaleString('ru', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' })
@@ -429,15 +445,15 @@ export default function ChatPage() {
               <div key={m.id} style={{
                 alignSelf: isMine ? 'flex-end' : 'flex-start',
                 maxWidth: '80%',
-                padding: '14px 18px',
+                padding: '12px 16px',
                 background: isMine ? '#1a1a1a' : '#fff',
                 color: isMine ? '#fff' : '#1a1a1a',
                 border: isMine ? 'none' : '1px solid #e8e6e1',
                 borderRadius: isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
               }}>
-                <p style={{ fontSize:'14px', lineHeight:1.6 }}>{m.text}</p>
-                <p style={{ fontSize:'11px', color: isMine ? 'rgba(255,255,255,0.5)' : '#9a9590', marginTop:'6px', textAlign:'right' }}>
-                  {time}{isMine && <span style={{ marginLeft:'6px' }}>{m.read ? '✓✓' : '✓'}</span>}
+                <p style={{ fontSize:'14px', lineHeight:1.5 }}>{m.text}</p>
+                <p style={{ fontSize:'11px', color: isMine ? 'rgba(255,255,255,0.45)' : '#9a9590', marginTop:'4px', textAlign:'right' }}>
+                  {time}{isMine && <span style={{ marginLeft:'5px' }}>{m.read ? '✓✓' : '✓'}</span>}
                 </p>
               </div>
             )
@@ -445,33 +461,36 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
+        {/* Input bar */}
         {canChat && (
-          <div style={{ display:'flex', gap:'12px', alignItems:'flex-end', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
+          <div className="chat-input-bar">
             <textarea
+              ref={inputRef}
               value={text}
               onChange={e => setText(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-              placeholder="Написать сообщение..."
+              onFocus={() => setTimeout(() => scrollToBottom('instant'), 300)}
+              placeholder="Сообщение..."
               rows={1}
               maxLength={5000}
-              style={{ flex:1, minWidth:0, padding:'14px 20px', border:'1.5px solid #e0ddd8', borderRadius:'18px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'none', maxHeight:'120px', lineHeight:'1.4' }}
-              onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px' }}
+              onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 100) + 'px' }}
             />
-            <button onClick={sendMessage} disabled={sending || !text.trim()} style={{ padding:'14px 28px', background: sending || !text.trim() ? '#9a9590' : '#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'15px', fontWeight:600, cursor: sending || !text.trim() ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
-              Отправить
+            <button onClick={sendMessage} disabled={sending || !text.trim()}>
+              {sending ? '...' : 'Отправить'}
             </button>
           </div>
         )}
-      </div>
+      </main>
 
+      {/* Confirm modal */}
       {confirmAction && (
         <div onClick={() => setConfirmAction(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'380px', width:'100%' }}>
-            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'24px', maxWidth:'360px', width:'100%' }}>
+            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>
               {confirmAction === 'declined' ? 'Отклонить заявку?' : confirmAction === 'cancelled' ? 'Отменить сделку?' : 'Завершить сделку?'}
             </h3>
-            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>
-              {confirmAction === 'completed' ? 'Сделка будет отмечена как завершённая. Переписка закроется.' : 'Переписка закроется. История сообщений останется доступна.'}
+            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'18px', lineHeight:1.5 }}>
+              {confirmAction === 'completed' ? 'Сделка будет отмечена как завершённая.' : 'Переписка закроется. История останется.'}
             </p>
             <div style={{ display:'flex', gap:'10px' }}>
               <button onClick={() => setConfirmAction(null)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Назад</button>
@@ -483,16 +502,17 @@ export default function ChatPage() {
         </div>
       )}
 
+      {/* Complaint modal */}
       {complaintOpen && (
         <div onClick={() => setComplaintOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'420px', width:'100%' }}>
-            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Пожаловаться</h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'16px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'24px', maxWidth:'400px', width:'100%' }}>
+            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'14px' }}>Пожаловаться</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:'6px', marginBottom:'14px' }}>
               {['Нарушение договорённостей', 'Спам или мошенничество', 'Неадекватное поведение', 'Другое'].map(r => (
                 <button key={r} type="button" onClick={() => setComplaintReason(r)} style={{ padding:'10px 14px', borderRadius:'10px', border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', fontSize:'13px', textAlign:'left' as const, borderColor: complaintReason === r ? '#1a1a1a' : '#e0ddd8', background: complaintReason === r ? '#1a1a1a' : '#fff', color: complaintReason === r ? '#fff' : '#5a5650' }}>{r}</button>
               ))}
             </div>
-            <textarea value={complaintComment} onChange={e => setComplaintComment(e.target.value)} placeholder="Опиши ситуацию (необязательно)" rows={3} maxLength={1000} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'16px', boxSizing:'border-box' }} />
+            <textarea value={complaintComment} onChange={e => setComplaintComment(e.target.value)} placeholder="Опиши ситуацию (необязательно)" rows={3} maxLength={1000} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'14px', boxSizing:'border-box' }} />
             <div style={{ display:'flex', gap:'10px' }}>
               <button onClick={() => setComplaintOpen(false)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
               <button disabled={!complaintReason || complaintSending} onClick={async () => {
@@ -512,6 +532,6 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-    </main>
+    </>
   )
 }
