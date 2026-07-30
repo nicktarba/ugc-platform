@@ -250,6 +250,29 @@ export default function ChatPage() {
     toast.success('Отзыв отправлен!')
   }
 
+  const [workDoneSent, setWorkDoneSent] = useState(false)
+
+  const sendWorkDone = async () => {
+    if (!request || !userId) return
+    setUpdatingStatus(true)
+    // Send system message in chat
+    await supabase.from('messages').insert([{
+      request_id: requestId, sender_id: userId, sender_role: 'author',
+      text: '✅ Работа выполнена. Жду подтверждения и завершения сделки.',
+    }])
+    // Send notification to business
+    await supabase.from('notifications').insert([{
+      user_id: request.business_id,
+      type: 'work_done',
+      title: 'Автор отметил работу как выполненную',
+      body: `${request.authors?.name || 'Автор'} завершил работу. Проверь результат и заверши сделку.`,
+      data: { request_id: requestId },
+    }])
+    setUpdatingStatus(false)
+    setWorkDoneSent(true)
+    toast.success('Бизнес получит уведомление')
+  }
+
   const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
   const backHref = userRole === 'business' ? '/dashboard/business' : '/dashboard/author/deals'
   const profileHref = userRole === 'business' && request?.author_id
@@ -264,7 +287,9 @@ export default function ChatPage() {
   const dealClosed = request ? CLOSED.includes(request.status) : false
   const dealCompleted = request?.status === 'completed'
   const showAuthorActions = userRole === 'author' && request && (request.status === 'new' || request.status === 'viewed') && !authorRejected
-  const showAcceptedActions = request && request.status === 'accepted'
+  const showAcceptedBusiness = userRole === 'business' && request?.status === 'accepted'
+  const showAcceptedAuthor = userRole === 'author' && request?.status === 'accepted' && !authorRejected
+  const showAcceptedActions = showAcceptedBusiness || showAcceptedAuthor
   const showBusinessWithdraw = userRole === 'business' && request && (request.status === 'new' || request.status === 'viewed')
   const canChat = !authorRejected && !dealClosed
   const showReviewForm = userRole === 'business' && dealCompleted && !existingReview && !reviewSent
@@ -381,10 +406,24 @@ export default function ChatPage() {
               </div>
             )}
 
-            {showAcceptedActions && (
+            {showAcceptedBusiness && (
               <div style={{ display:'flex', gap:'10px', marginBottom:'8px' }}>
                 <button onClick={() => updateStatus('completed')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Завершить сделку</button>
                 <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отменить</button>
+              </div>
+            )}
+
+            {showAcceptedAuthor && !workDoneSent && (
+              <div style={{ display:'flex', gap:'10px', marginBottom:'8px' }}>
+                <button onClick={sendWorkDone} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#c17f3e', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Работа выполнена</button>
+                <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отменить</button>
+              </div>
+            )}
+
+            {showAcceptedAuthor && workDoneSent && (
+              <div style={{ padding:'12px 14px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'12px', marginBottom:'8px', display:'flex', alignItems:'center', gap:'10px' }}>
+                <span style={{ fontSize:'16px' }}>✅</span>
+                <div style={{ fontSize:'13px', color:'#16a34a', fontWeight:600 }}>Ожидаем подтверждения от бизнеса</div>
               </div>
             )}
 
