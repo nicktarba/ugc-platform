@@ -45,6 +45,12 @@ export default function ChatPage() {
   const PAGE_SIZE = 50
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  // Рефетч статуса заявки из базы
+  const refetchRequestStatus = async () => {
+    const { data } = await supabase.from('requests').select('status').eq('id', requestId).single()
+    if (data) setRequest(prev => prev ? { ...prev, status: data.status } : prev)
+  }
+
   useEffect(() => {
     const init = async () => {
       const { data: userData } = await supabase.auth.getUser()
@@ -82,7 +88,6 @@ export default function ChatPage() {
         setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
         if (userId && newMsg.sender_id !== userId) {
           await supabase.from('messages').update({ read: true }).eq('id', newMsg.id)
-          // не декрементируем — сообщение пришло пока открыт чат, бейдж не рос
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `request_id=eq.${requestId}` }, (payload) => {
@@ -147,6 +152,7 @@ export default function ChatPage() {
       toast.success('Предложение принято')
     } else {
       toast.error(parseStatusError(error))
+      await refetchRequestStatus()
     }
   }
 
@@ -162,6 +168,7 @@ export default function ChatPage() {
       toast.success(labels[confirmAction])
     } else {
       toast.error(parseStatusError(error))
+      await refetchRequestStatus()
     }
   }
 
@@ -169,7 +176,6 @@ export default function ChatPage() {
     if (!request || !userId) return
     setUpdatingStatus(true)
 
-    // Если уже есть другая открытая сделка с этим автором — переходим в неё
     const { data: existing } = await supabase.from('requests').select('id')
       .eq('business_id', userId).eq('author_id', request.author_id)
       .in("status", OPEN).neq('id', requestId).maybeSingle()
@@ -192,6 +198,7 @@ export default function ChatPage() {
   }
 
   const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
+  const backHref = userRole === 'business' ? '/dashboard/business' : '/dashboard/author/deals'
 
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
 
@@ -206,7 +213,7 @@ export default function ChatPage() {
     <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
       <div style={{ maxWidth:'700px', margin:'0 auto', padding:'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 40px)', width:'100%', flex:1, display:'flex', flexDirection:'column' }}>
         <div style={{ marginBottom:'12px', display:'flex', alignItems:'center', gap:'12px' }}>
-          <Link href={userRole === 'business' ? '/dashboard/business' : '/dashboard/author'} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
+          <Link href={backHref} style={{ fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>← Назад</Link>
           <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', flex:1 }}>{otherName}</h1>
           <button onClick={() => setComplaintOpen(true)} style={{ padding:'6px 12px', background:'none', border:'1px solid #e0ddd8', borderRadius:'8px', color:'#9a9590', fontSize:'12px', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Пожаловаться</button>
         </div>
@@ -263,7 +270,6 @@ export default function ChatPage() {
         )}
 
         <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'12px', marginBottom:'20px', minHeight:'300px' }}>
-          {/* Инфо о сделке как первое системное сообщение */}
           {request && (
             <div style={{ alignSelf:'center', maxWidth:'85%', padding:'12px 18px', background:'#f0ede6', borderRadius:'14px', textAlign:'center' }}>
               <p style={{ fontSize:'13px', color:'#5a5650', lineHeight:1.6, marginBottom: (request.budget || request.deadline) ? '8px' : 0 }}>{request.message}</p>
@@ -276,7 +282,6 @@ export default function ChatPage() {
             </div>
           )}
 
-          {/* Системное сообщение о статусе */}
           {request && request.status === 'accepted' && (
             <div style={{ alignSelf:'center', padding:'6px 16px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Предложение принято, сделка открыта</div>
           )}
@@ -363,7 +368,6 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Модалка жалобы */}
       {complaintOpen && (
         <div onClick={() => setComplaintOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'420px', width:'100%' }}>
@@ -396,4 +400,3 @@ export default function ChatPage() {
     </main>
   )
 }
-
