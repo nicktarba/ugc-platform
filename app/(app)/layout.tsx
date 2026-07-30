@@ -94,8 +94,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/dashboard/business/favorites') ? 'favorites'
     : pathname.startsWith('/dashboard/business/profile') ? 'profile'
     : pathname.startsWith('/dashboard/author/profile') ? 'profile'
+    : pathname.startsWith('/dashboard/author/deals') ? 'deals'
+    : pathname === '/dashboard/author' ? 'home'
     : pathname.startsWith('/dashboard/notifications') ? 'notifications'
     : pathname === '/catalog' ? 'catalog'
+    : (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))
+      ? (userRole === 'author' ? 'deals' : 'requests')
     : 'requests'
 
   const navRole: 'business' | 'author' | null =
@@ -122,4 +126,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </AppContext.Provider>
   )
 }
-

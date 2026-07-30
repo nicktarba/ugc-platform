@@ -13,9 +13,10 @@ export default function BottomNav({ role, active, unread = 0, notifCount = 0 }: 
         { key: 'profile', href: '/dashboard/business/profile', label: 'Профиль', icon: '👤' },
       ]
     : [
+        { key: 'home', href: '/dashboard/author', label: 'Главная', icon: '🏠' },
+        { key: 'deals', href: '/dashboard/author/deals', label: 'Сделки', icon: '💬', badge: unread },
         { key: 'catalog', href: '/catalog', label: 'Каталог', icon: '🔍' },
-        { key: 'requests', href: '/dashboard/author', label: 'Сделки', icon: '💬', badge: unread },
-        { key: 'notifications', href: '/dashboard/notifications', label: 'Уведомления', icon: '🔔', badge: notifCount },
+        { key: 'notifications', href: '/dashboard/notifications', label: 'Увед.', icon: '🔔', badge: notifCount },
         { key: 'profile', href: '/dashboard/author/profile', label: 'Профиль', icon: '👤' },
       ]
 
@@ -39,4 +40,3 @@ export default function BottomNav({ role, active, unread = 0, notifCount = 0 }: 
     </>
   )
 }
-

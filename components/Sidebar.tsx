@@ -26,7 +26,9 @@ export default function Sidebar({ role, email, userId, badgeCount = 0, authorId 
   const isActive = (href: string) => {
     if (href.startsWith('/author/')) return pathname.startsWith('/author/')
     if (href === '/dashboard/business' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
-    if (href === '/dashboard/author' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
+    if (href === '/dashboard/author/deals' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
+    if (href === '/dashboard/author' && pathname === '/dashboard/author') return true
+    if (href === '/dashboard/author') return false
     return pathname === href
   }
 
@@ -46,7 +48,8 @@ export default function Sidebar({ role, email, userId, badgeCount = 0, authorId 
   </>)
 
   const authorNav = () => (<>
-    {navItem('/dashboard/author', '💬', 'Сделки', badgeCount || undefined)}
+    {navItem('/dashboard/author', '🏠', 'Главная')}
+    {navItem('/dashboard/author/deals', '💬', 'Сделки', badgeCount || undefined)}
     {navItem('/catalog', '🔍', 'Каталог')}
     {navItem('/dashboard/author/profile', '👤', 'Профиль')}
   </>)
