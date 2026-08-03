@@ -1,9 +1,13 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import AuthShell from '@/components/AuthShell'
 import { supabase } from '@/lib/supabase'
+import { getAuthErrorMessage } from '@/lib/auth-errors'
 import { useToast } from '@/components/Toast'
+import styles from '../public.module.css'
 
 function LoginForm() {
   const router = useRouter()
@@ -13,80 +17,127 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (searchParams.get('reset') === 'success') {
-      toast.success('Пароль успешно обновлён — войди с новым паролем')
-    }
-  }, [])
+  const resetSuccessful = searchParams.get('reset') === 'success'
 
-  // Безопасный редирект: только внутренние пути, чтобы никто не подсунул внешний URL через параметр
+  useEffect(() => {
+    if (resetSuccessful) {
+      toast.success('Пароль обновлён. Теперь войдите с новым паролем.')
+    }
+  }, [resetSuccessful])
+
   const getSafeRedirect = (): string | null => {
     const redirect = searchParams.get('redirect')
     if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) return redirect
     return null
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const redirectValue = searchParams.get('redirect')
+  const redirectQuery = redirectValue ? `?redirect=${encodeURIComponent(redirectValue)}` : ''
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setLoading(true)
     setError('')
 
-    const { data, error: err } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password })
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: form.email.trim(),
+        password: form.password,
+      })
 
-    if (err) { setError('Неверный email или пароль'); setLoading(false); return }
+      if (authError) {
+        setError(getAuthErrorMessage(authError, 'login'))
+        return
+      }
 
-    const redirectTo = getSafeRedirect()
-    if (redirectTo) { router.push(redirectTo); setLoading(false); return }
+      const redirectTo = getSafeRedirect()
+      if (redirectTo) {
+        router.push(redirectTo)
+        return
+      }
 
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user?.id).single()
-    const role = profile?.role || data.user?.user_metadata?.role
-    if (role === 'author') router.push('/dashboard/author')
-    else if (role === 'admin') router.push('/dashboard/admin')
-    else router.push("/dashboard/business")
-    setLoading(false)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .maybeSingle()
+
+      const role = profile?.role || data.user.user_metadata?.role
+      if (role === 'author') router.push('/dashboard/author')
+      else if (role === 'admin') router.push('/dashboard/admin')
+      else router.push('/dashboard/business')
+      router.refresh()
+    } catch (caught) {
+      setError(getAuthErrorMessage(caught instanceof Error ? caught : null, 'login'))
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const inp = { width: '100%', padding: '12px 16px', border: '1.5px solid #e0ddd8', borderRadius: '12px', fontSize: '15px', background: '#fff', color: '#1a1a1a', outline: 'none', fontFamily: 'inherit' }
-  const lbl = { display: 'block' as const, fontSize: '14px', fontWeight: 600, color: '#1a1a1a', marginBottom: '8px' }
-
-  // Ссылка на регистрацию несёт тот же redirect дальше
-  const redirectQuery = searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''
-
   return (
-    <main style={{ background: '#fafaf9', minHeight: '100vh' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom: '1px solid #e8e6e1', background: '#fafaf9' }}>
-        <Link href="/" style={{ fontFamily: 'Fraunces, serif', fontSize: '22px', fontWeight: 700, color: '#1a1a1a', textDecoration: 'none' }}>ugcmarket</Link>
-        <Link href={`/register${redirectQuery}`} style={{ padding: '8px 20px', background: '#1a1a1a', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '14px', fontWeight: 500 }}>Регистрация</Link>
-      </nav>
-
-      <div style={{ maxWidth: '480px', margin: '0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
-        <Link href="/" style={{ fontSize:'13px', color:'#9a9590', textDecoration:'none', display:'inline-block', marginBottom:'16px' }}>← На главную</Link>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '8px' }}>Вход</h1>
-        <p style={{ fontSize: '15px', color: '#7a7570', marginBottom: '40px' }}>Нет аккаунта? <Link href={`/register${redirectQuery}`} style={{ color: '#1a1a1a', fontWeight: 600 }}>Зарегистрироваться</Link></p>
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label style={lbl}>Email *</label>
-              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required placeholder="you@example.com" style={inp} />
-            </div>
-            <div>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
-                <label style={lbl}>Пароль *</label>
-                <Link href="/forgot-password" style={{ fontSize:'13px', color:'#7a7570', textDecoration:'none' }}>Забыл пароль?</Link>
-              </div>
-              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required placeholder="Твой пароль" style={inp} />
-            </div>
-
-            {error && <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', color: '#dc2626', fontSize: '14px' }}>{error}</div>}
-
-            <button type="submit" disabled={loading} style={{ padding: '14px', background: loading ? '#9a9590' : '#1a1a1a', borderRadius: '100px', border: 'none', color: '#fff', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-              {loading ? 'Входим...' : 'Войти'}
-            </button>
-          </div>
-        </form>
+    <AuthShell
+      eyebrow="Возвращайтесь к работе"
+      title={<>Все сделки и авторы <em>в одном месте</em></>}
+      description="Войдите, чтобы продолжить поиск авторов, отвечать на предложения и управлять сотрудничествами."
+      points={[
+        'Каталог и избранные авторы',
+        'Предложения, чат и статусы сделки',
+        'Профиль и история сотрудничеств',
+        'Один аккаунт на компьютере и телефоне',
+      ]}
+      alternateLabel="Ещё нет аккаунта?"
+      alternateHref={`/register${redirectQuery}`}
+      alternateAction="Регистрация"
+    >
+      <Link className={styles.formBack} href="/">← На главную</Link>
+      <div className={styles.formHeader}>
+        <span className={styles.formEyebrow}>Личный кабинет</span>
+        <h2>Вход</h2>
+        <p>
+          Нет аккаунта?{' '}
+          <Link href={`/register${redirectQuery}`}>Зарегистрироваться</Link>
+        </p>
       </div>
-    </main>
+
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.field}>
+          <label htmlFor="login-email">Email</label>
+          <input
+            id="login-email"
+            className={styles.input}
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+            placeholder="name@example.ru"
+            required
+          />
+        </div>
+
+        <div className={styles.field}>
+          <div className={styles.fieldRow}>
+            <label htmlFor="login-password">Пароль</label>
+            <Link href="/forgot-password">Забыли пароль?</Link>
+          </div>
+          <input
+            id="login-password"
+            className={styles.input}
+            type="password"
+            autoComplete="current-password"
+            value={form.password}
+            onChange={(event) => setForm({ ...form, password: event.target.value })}
+            placeholder="Введите пароль"
+            required
+          />
+        </div>
+
+        {error && <div className={styles.error} role="alert">{error}</div>}
+
+        <button className={styles.primaryButton} type="submit" disabled={loading}>
+          {loading ? 'Входим...' : 'Войти'}
+        </button>
+      </form>
+    </AuthShell>
   )
 }
 
@@ -97,4 +148,3 @@ export default function LoginPage() {
     </Suspense>
   )
 }
-

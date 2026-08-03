@@ -1,26 +1,66 @@
+import Link from 'next/link'
 import AppHeader from '@/components/AppHeader'
+import Footer from '@/components/Footer'
+import styles from '../public.module.css'
+
+const helpCards = [
+  {
+    icon: '01',
+    title: 'Аккаунт и профиль',
+    text: 'Регистрация, вход, восстановление пароля и заполнение профиля автора или бизнеса.',
+    href: '/register',
+    action: 'Создать аккаунт',
+  },
+  {
+    icon: '02',
+    title: 'Поиск авторов',
+    text: 'Обычный поиск, ИИ-подбор, фильтры, избранное и просмотр публичных профилей.',
+    href: '/catalog',
+    action: 'Открыть каталог',
+  },
+  {
+    icon: '03',
+    title: 'Предложения и сделки',
+    text: 'Отправка предложения, согласование условий, сообщения, статусы и отзывы после работы.',
+    href: '/login',
+    action: 'Войти в кабинет',
+  },
+]
 
 export default function SupportPage() {
   return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
+    <main className={styles.publicPage}>
       <AppHeader />
 
-      <div style={{ maxWidth:'600px', margin:'0 auto', padding:'clamp(40px, 10vw, 80px) clamp(16px, 5vw, 40px)', textAlign:'center' }}>
-        <div style={{ fontSize:'40px', marginBottom:'24px' }}>💬</div>
-        <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Поддержка</h1>
-        <p style={{ fontSize:'16px', color:'#7a7570', marginBottom:'40px', lineHeight:1.7 }}>
-          Если что-то не работает, есть вопрос или предложение по платформе — напиши нам, ответим как можно скорее.
+      <section className={styles.supportHero}>
+        <span className={styles.supportEyebrow}>Помощь по платформе</span>
+        <h1>Разберёмся вместе</h1>
+        <p>
+          Здесь собраны основные разделы платформы. Выберите нужную тему, чтобы перейти к действию.
+          Прямые контакты поддержки будут добавлены перед публичным запуском.
         </p>
+      </section>
 
-        <div style={{ display:'flex', flexDirection:'column', gap:'12px', alignItems:'center' }}>
-          <a href="https://t.me/your_support_username" target="_blank" rel="noopener noreferrer" style={{ padding:'14px 20px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'15px', fontWeight:600, width:'min(240px, 100%)', whiteSpace:'nowrap', textAlign:'center' }}>
-            Написать в Telegram
-          </a>
-          <a href="mailto:support@ugcmarket.ru" style={{ padding:'14px 20px', border:'1.5px solid #d4d0c8', borderRadius:'100px', textDecoration:'none', color:'#1a1a1a', fontSize:'15px', fontWeight:500, width:'min(240px, 100%)', whiteSpace:'nowrap', textAlign:'center' }}>
-            support@ugcmarket.ru
-          </a>
+      <section className={styles.supportGrid}>
+        {helpCards.map((card) => (
+          <article className={styles.supportCard} key={card.title}>
+            <span className={styles.supportCardIcon}>{card.icon}</span>
+            <h2>{card.title}</h2>
+            <p>{card.text}</p>
+            <Link href={card.href}>{card.action} →</Link>
+          </article>
+        ))}
+
+        <div className={styles.supportNotice}>
+          <div>
+            <strong>Контакты поддержки пока не опубликованы</strong>
+            <p>Мы не показываем выдуманный Telegram или несуществующий email. Рабочие контакты появятся здесь перед запуском.</p>
+          </div>
+          <span>Страница подготовлена</span>
         </div>
-      </div>
+      </section>
+
+      <Footer />
     </main>
   )
 }

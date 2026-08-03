@@ -7,6 +7,8 @@ import { useToast } from '@/components/Toast'
 import { useApp } from '../../AppContext'
 import { ProfileSkeleton } from '@/components/Skeleton'
 import ReviewsList from '@/components/ReviewsList'
+import UiIcon from '@/components/UiIcon'
+import styles from './author.module.css'
 
 type Author = {
   id: string; name: string; city: string
@@ -56,7 +58,7 @@ export default function AuthorPublicPage() {
   const params = useParams()
   const router = useRouter()
   const toast = useToast()
-  const { userId, userEmail, userRole, businessProfile } = useApp()
+  const { userId, userEmail, userRole, businessProfile, authorProfile } = useApp()
   const authorId = params.id as string
 
   const [author, setAuthor] = useState<Author | null>(null)
@@ -120,12 +122,12 @@ export default function AuthorPublicPage() {
 
   if (loading) return <ProfileSkeleton />
   if (notFound) return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ textAlign:'center', maxWidth:'400px', padding:'40px 20px' }}>
-        <div style={{ fontSize:'48px', marginBottom:'16px' }}>🔍</div>
-        <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'28px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px' }}>Автор не найден</h1>
-        <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'24px', lineHeight:1.6 }}>Возможно, профиль был удалён или ещё не прошёл модерацию.</p>
-        <Link href="/catalog" style={{ display:'inline-block', padding:'12px 28px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Перейти в каталог</Link>
+    <main className={styles.notFoundPage}>
+      <div className={styles.notFoundCard}>
+        <div><UiIcon name="search" width={30} height={30} /></div>
+        <h1>Автор не найден</h1>
+        <p>Возможно, профиль удалён или ещё не прошёл модерацию.</p>
+        <Link href="/catalog">Вернуться в каталог</Link>
       </div>
     </main>
   )
@@ -133,281 +135,234 @@ export default function AuthorPublicPage() {
 
   const ci = author.id.charCodeAt(0) % 5
   const initial = author.name?.[0]?.toUpperCase() || '?'
-  const inp = { width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' as const }
+  const isOwnAuthorProfile = userRole === 'author' && authorProfile?.id === authorId
+  const primaryAction = userRole === 'business'
+    ? hasOpenDeal
+      ? <Link href={`/dashboard/chat/${hasOpenDeal}`} className={styles.primaryAction}>Открыть текущую сделку</Link>
+      : <button type="button" className={styles.primaryAction} onClick={() => { if (!businessProfile?.company_name || !businessProfile?.inn) { toast.error('Сначала заполни профиль компании'); return }; setModalOpen(true) }}>Предложить сотрудничество</button>
+    : !userId
+      ? <Link href={`/register?redirect=${encodeURIComponent(`/author/${authorId}`)}`} className={styles.primaryAction}>Связаться с автором</Link>
+      : null
 
   return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <style>{`
-        @media (max-width: 768px) {
-          .author-grid { grid-template-columns: 1fr !important; }
-          .similar-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-
-      <div style={{ maxWidth:'920px', margin:'0 auto', padding:'clamp(20px, 4vw, 36px) clamp(16px, 5vw, 40px)' }}>
-
-        {/* Назад */}
-        <div style={{ marginBottom:'16px' }}>
-          <Link href="/catalog" style={{ fontSize:'13px', color:'#9a9590', textDecoration:'none' }}>← Каталог</Link>
-        </div>
-
-        {/* Two-column grid */}
-        <div className="author-grid" style={{ display:'grid', gridTemplateColumns:'280px 1fr', gap:'16px', alignItems:'start' }}>
-
-          {/* ═══ LEFT COLUMN ═══ */}
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', overflow:'hidden', position:'sticky', top:'20px' }}>
-
-            {/* Gradient header + avatar */}
-            <div style={{ height:'100px', background: HEADER_GRADIENTS[ci], position:'relative' }}>
-              <div style={{ position:'absolute', bottom:'-36px', left:'50%', transform:'translateX(-50%)' }}>
-                <div style={{ width:'80px', height:'80px', borderRadius:'50%', overflow:'hidden', background:AVATAR_BG[ci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'32px', fontWeight:700, color:AVATAR_TEXT[ci], border:'4px solid #fff', boxShadow:'0 2px 12px rgba(0,0,0,0.1)' }}>
-                  {author.avatar_url ? <img src={author.avatar_url} alt={author.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : initial}
-                </div>
-              </div>
-            </div>
-
-            {/* Info */}
-            <div style={{ padding:'44px 20px 20px', textAlign:'center' }}>
-              <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', margin:'0 0 4px' }}>{author.name}</h1>
-              <div style={{ fontSize:'13px', color:'#9a9590', marginBottom:'12px' }}>
-                📍 {author.city}{author.occupation ? ` · ${author.occupation}` : ''}
-              </div>
-
-              {/* Badges */}
-              <div style={{ display:'flex', justifyContent:'center', gap:'6px', flexWrap:'wrap', marginBottom:'16px' }}>
-                {author.open_to_barter && <span style={{ padding:'3px 10px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a' }}>✓ Бартер</span>}
-                {author.avg_rating && <span style={{ padding:'3px 10px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#c17f3e' }}>★ {author.avg_rating} · {author.reviews_count} отз.</span>}
-                {!author.avg_rating && author.completed_deals_count > 0 && <span style={{ padding:'3px 10px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#c17f3e' }}>{author.completed_deals_count} {author.completed_deals_count === 1 ? 'сделка' : 'сделок'}</span>}
-              </div>
-
-              {/* Stats mini */}
-              <div style={{ display:'flex', justifyContent:'center', gap:'0', borderTop:'1px solid #f0ede6', borderBottom:'1px solid #f0ede6', margin:'0 -20px', padding:'0' }}>
-                {author.followers_count > 0 && (
-                  <div style={{ flex:1, padding:'10px 6px', textAlign:'center', borderRight:'1px solid #f0ede6' }}>
-                    <div style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a' }}>{author.followers_count.toLocaleString('ru')}</div>
-                    <div style={{ fontSize:'10px', color:'#9a9590' }}>подписч.</div>
-                  </div>
-                )}
-                {author.stories_views > 0 && (
-                  <div style={{ flex:1, padding:'10px 6px', textAlign:'center', borderRight: author.completed_deals_count > 0 ? '1px solid #f0ede6' : 'none' }}>
-                    <div style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a' }}>{author.stories_views.toLocaleString('ru')}</div>
-                    <div style={{ fontSize:'10px', color:'#9a9590' }}>сторис</div>
-                  </div>
-                )}
-                {author.completed_deals_count > 0 && (
-                  <div style={{ flex:1, padding:'10px 6px', textAlign:'center' }}>
-                    <div style={{ fontSize:'16px', fontWeight:700, color:'#c17f3e' }}>{author.completed_deals_count}</div>
-                    <div style={{ fontSize:'10px', color:'#9a9590' }}>сделок</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Social links */}
-              <div style={{ display:'flex', flexDirection:'column', gap:'6px', padding:'14px 0 0' }}>
-                {author.instagram_url && (
-                  <a href={author.instagram_url} target="_blank" rel="noopener noreferrer" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', padding:'8px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'13px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>📸 Instagram</a>
-                )}
-                {author.telegram_url && (
-                  <a href={author.telegram_url} target="_blank" rel="noopener noreferrer" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'6px', padding:'8px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'13px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>✈️ Telegram</a>
-                )}
-              </div>
-
-              {/* CTA */}
-              <div style={{ padding:'14px 0 0' }}>
-                {userRole === 'business' && (
-                  hasOpenDeal ? (
-                    <Link href={`/dashboard/chat/${hasOpenDeal}`} style={{ display:'block', padding:'12px', background:'#f0ede6', borderRadius:'12px', textDecoration:'none', color:'#1a1a1a', fontSize:'14px', fontWeight:600, textAlign:'center' }}>К заявке →</Link>
-                  ) : (
-                    <button onClick={() => { if (!businessProfile?.company_name || !businessProfile?.inn) { toast.error('Сначала заполни профиль компании'); return }; setModalOpen(true) }} style={{ width:'100%', padding:'12px', background:'#C56A43', border:'none', borderRadius:'12px', color:'#fff', fontSize:'14px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Написать</button>
-                  )
-                )}
-                {!userId && (
-                  <Link href={`/register?redirect=${encodeURIComponent(`/author/${authorId}`)}`} style={{ display:'block', padding:'12px', background:'#C56A43', borderRadius:'12px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600, textAlign:'center' }}>Войти чтобы написать</Link>
-                )}
-                <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Ссылка скопирована') }} style={{ width:'100%', padding:'10px', background:'none', border:'1.5px solid #e0ddd8', borderRadius:'12px', color:'#7a7570', fontSize:'13px', fontWeight:500, cursor:'pointer', fontFamily:'inherit', marginTop:'8px' }}>📋 Поделиться профилем</button>
-                {userId && (
-                  <button onClick={() => setComplaintOpen(true)} style={{ width:'100%', padding:'8px', background:'none', border:'none', color:'#9a9590', fontSize:'12px', cursor:'pointer', fontFamily:'inherit', marginTop:'8px' }}>Пожаловаться</button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ═══ RIGHT COLUMN ═══ */}
-          <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
-
-            {/* О себе */}
-            {author.bio && (
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
-                <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px' }}>О себе</h2>
-                <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.7, margin:0, whiteSpace:'pre-line' }}>{author.bio}</p>
-              </div>
-            )}
-
-            {/* Стиль жизни */}
-            {author.lifestyle?.length > 0 && (
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
-                <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px' }}>Стиль жизни</h2>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
-                  {author.lifestyle.map(tag => {
-                    const tc = TAG_COLORS[tag] || defaultTag
-                    return <span key={tag} style={{ padding:'5px 14px', background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:'100px', fontSize:'13px', color:tc.color, fontWeight:600 }}>{tag}</span>
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Хобби */}
-            {author.hobbies && (
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
-                <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px' }}>Хобби</h2>
-                <p style={{ fontSize:'14px', color:'#5a5650', margin:0 }}>{author.hobbies}</p>
-              </div>
-            )}
-
-            {/* Telegram stats */}
-            {author.telegram_followers > 0 && (
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px', display:'flex', alignItems:'center', gap:'16px' }}>
-                <div>
-                  <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Telegram-канал</div>
-                  <div style={{ fontSize:'24px', fontWeight:700, color:'#1a1a1a' }}>{author.telegram_followers.toLocaleString('ru')} <span style={{ fontSize:'14px', fontWeight:500, color:'#9a9590' }}>подписчиков</span></div>
-                </div>
-              </div>
-            )}
-
-            {/* Отзывы */}
-            {author.reviews_count > 0 && (
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
-                <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>
-                  Отзывы
-                  {author.avg_rating && <span style={{ fontSize:'15px', fontWeight:500, color:'#c17f3e', marginLeft:'8px' }}>★ {author.avg_rating}</span>}
-                </h2>
-                <ReviewsList authorId={author.id} avgRating={author.avg_rating} reviewsCount={author.reviews_count} currentUserId={userId} />
-              </div>
-            )}
-          </div>
-        </div>
+    <main className={styles.page}>
+      <div className={styles.mobileTopbar}>
+        <Link href="/" className={styles.mobileBrand}>СВОИ <span>UGC</span></Link>
+        <Link href="/catalog" className={styles.mobileCatalog}><UiIcon name="search" width={17} height={17} /> Каталог</Link>
       </div>
 
-      {/* Похожие авторы — отдельная полноширинная секция под сеткой, не втиснута в узкую колонку */}
-      {similarAuthors.length > 0 && (
-        <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'0 clamp(16px, 5vw, 40px) clamp(20px, 4vw, 36px)' }}>
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px' }}>
-            <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Похожие авторы</h2>
-            <div className="similar-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'16px' }}>
-              {similarAuthors.slice(0, visibleSimilarCount).map(s => {
-                const sci = s.id.charCodeAt(0) % 5
-                const sInitial = s.name?.[0]?.toUpperCase() || '?'
-                const hasStats = s.followers_count > 0 || s.stories_views > 0 || s.completed_deals_count > 0
-                return (
-                  <Link key={s.id} href={`/author/${s.id}`} style={{ textDecoration:'none', color:'inherit', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-                    <div style={{ position:'relative', height:'64px', background:HEADER_GRADIENTS[sci] }}>
-                      <div style={{ position:'absolute', bottom:'-24px', left:'16px', width:'52px', height:'52px', borderRadius:'50%', overflow:'hidden', background:AVATAR_BG[sci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'20px', fontWeight:700, color:AVATAR_TEXT[sci], border:'3px solid #fff', boxShadow:'0 2px 8px rgba(0,0,0,0.1)' }}>
-                        {s.avatar_url ? <img src={s.avatar_url} alt={s.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : sInitial}
-                      </div>
+      <div className={styles.container}>
+        <Link href="/catalog" className={styles.backLink}><UiIcon name="arrowLeft" width={17} height={17} /> Вернуться в каталог</Link>
+
+        <section className={styles.profileHero}>
+          <div className={styles.profileMedia}>
+            {author.avatar_url ? <img src={author.avatar_url} alt={author.name} /> : (
+              <div className={styles.profileFallback} style={{ background: HEADER_GRADIENTS[ci] }}>{initial}</div>
+            )}
+            <div className={styles.mediaShade} />
+            <span className={styles.verifiedBadge}><UiIcon name="check" width={14} height={14} /> Профиль прошёл модерацию</span>
+          </div>
+
+          <div className={styles.profileIntro}>
+            <div className={styles.introTop}>
+              <div>
+                <span className={styles.eyebrow}>UGC-автор</span>
+                <h1>{author.name}</h1>
+                <p className={styles.location}><UiIcon name="pin" width={16} height={16} /> {author.city}{author.occupation ? ` · ${author.occupation}` : ''}</p>
+              </div>
+              <div className={styles.quickActions}>
+                <button type="button" onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Ссылка скопирована') }} aria-label="Поделиться профилем"><UiIcon name="share" width={18} height={18} /></button>
+                {userId && !isOwnAuthorProfile && <button type="button" onClick={() => setComplaintOpen(true)} aria-label="Пожаловаться"><UiIcon name="flag" width={18} height={18} /></button>}
+              </div>
+            </div>
+
+            <div className={styles.statusRow}>
+              {author.open_to_barter && <span className={styles.barterBadge}><UiIcon name="check" width={13} height={13} /> Рассматривает бартер</span>}
+              {author.avg_rating && <span className={styles.ratingBadge}><UiIcon name="star" width={13} height={13} /> {author.avg_rating} · {author.reviews_count} {author.reviews_count === 1 ? 'отзыв' : 'отзывов'}</span>}
+              {!author.avg_rating && author.completed_deals_count > 0 && <span className={styles.dealsBadge}>{author.completed_deals_count} {author.completed_deals_count === 1 ? 'сделка' : 'сделок'}</span>}
+            </div>
+
+            {author.bio && <p className={styles.lead}>{author.bio}</p>}
+
+            {author.lifestyle?.length > 0 && (
+              <div className={styles.heroTags}>
+                {author.lifestyle.slice(0, 7).map(tag => {
+                  const colors = TAG_COLORS[tag] || defaultTag
+                  return <span key={tag} style={{ background: colors.bg, color: colors.color, borderColor: colors.border }}>{tag}</span>
+                })}
+                {author.lifestyle.length > 7 && <span className={styles.moreTag}>+{author.lifestyle.length - 7}</span>}
+              </div>
+            )}
+
+            <div className={styles.statsGrid}>
+              <div><UiIcon name="users" width={18} height={18} /><span><strong>{author.followers_count > 0 ? author.followers_count.toLocaleString('ru') : 'Не указано'}</strong><small>подписчиков Instagram</small></span></div>
+              <div><UiIcon name="eye" width={18} height={18} /><span><strong>{author.stories_views > 0 ? author.stories_views.toLocaleString('ru') : 'Не указано'}</strong><small>просмотров stories</small></span></div>
+              <div><UiIcon name="briefcase" width={18} height={18} /><span><strong>{author.completed_deals_count || 'Пока нет'}</strong><small>завершённых сделок</small></span></div>
+            </div>
+
+            <div className={styles.heroFooter}>
+              <div className={styles.socialLinks}>
+                {author.instagram_url && <a href={author.instagram_url} target="_blank" rel="noopener noreferrer"><UiIcon name="instagram" width={18} height={18} /> Instagram <UiIcon name="external" width={13} height={13} /></a>}
+                {author.telegram_url && <a href={author.telegram_url} target="_blank" rel="noopener noreferrer"><UiIcon name="telegram" width={18} height={18} /> Telegram <UiIcon name="external" width={13} height={13} /></a>}
+              </div>
+              {primaryAction}
+            </div>
+          </div>
+        </section>
+
+        <div className={styles.contentGrid}>
+          <div className={styles.mainColumn}>
+            {(author.bio || author.hobbies) && (
+              <section className={styles.contentCard}>
+                <span className={styles.sectionEyebrow}>Знакомство с автором</span>
+                <h2>О профиле</h2>
+                {author.bio && <p className={styles.bodyText}>{author.bio}</p>}
+                {author.hobbies && <div className={styles.hobbies}><strong>Интересы и хобби</strong><p>{author.hobbies}</p></div>}
+              </section>
+            )}
+
+            {author.lifestyle?.length > 0 && (
+              <section className={styles.contentCard}>
+                <span className={styles.sectionEyebrow}>Тематики</span>
+                <h2>Контент и стиль жизни</h2>
+                <div className={styles.allTags}>
+                  {author.lifestyle.map(tag => {
+                    const colors = TAG_COLORS[tag] || defaultTag
+                    return <span key={tag} style={{ background: colors.bg, color: colors.color, borderColor: colors.border }}>{tag}</span>
+                  })}
+                </div>
+              </section>
+            )}
+
+            {author.reviews_count > 0 ? (
+              <section className={styles.contentCard}>
+                <div className={styles.sectionHeadingRow}>
+                  <div><span className={styles.sectionEyebrow}>Опыт сотрудничества</span><h2>Отзывы бизнеса</h2></div>
+                  {author.avg_rating && <span className={styles.bigRating}><UiIcon name="star" width={17} height={17} /> {author.avg_rating}</span>}
+                </div>
+                <ReviewsList authorId={author.id} avgRating={author.avg_rating} reviewsCount={author.reviews_count} currentUserId={userId} />
+              </section>
+            ) : (
+              <section className={`${styles.contentCard} ${styles.noReviews}`}>
+                <div><UiIcon name="star" width={22} height={22} /></div>
+                <span><strong>Отзывов пока нет</strong><small>Они появятся после завершённых сделок на платформе.</small></span>
+              </section>
+            )}
+          </div>
+
+          <aside className={styles.sideColumn}>
+            {(userRole !== 'author' || isOwnAuthorProfile) && (
+              <div className={`${styles.actionCard} ${isOwnAuthorProfile ? styles.ownActionCard : ''}`}>
+                {isOwnAuthorProfile ? (
+                  <>
+                    <span className={styles.sectionEyebrow}>Ваш публичный профиль</span>
+                    <h2>Профиль опубликован</h2>
+                    <p>Так эту страницу видит бизнес. Поддерживайте фото, описание и статистику актуальными, чтобы получать более подходящие предложения.</p>
+                    <div className={styles.ownProfileActions}>
+                      <Link href="/dashboard/author/profile" className={styles.primaryAction}>Редактировать профиль</Link>
+                      <button type="button" className={styles.secondaryAction} onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Ссылка скопирована') }}>Скопировать ссылку</button>
                     </div>
-                    <div style={{ padding:'30px 16px 0', flex:1, display:'flex', flexDirection:'column' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', marginBottom:'3px' }}>
-                        <span style={{ fontSize:'15px', fontWeight:700, color:'#1a1a1a' }}>{s.name}</span>
-                        {s.open_to_barter && <span style={{ padding:'2px 7px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
-                        {(s.avg_rating || s.completed_deals_count > 0) && (
-                          <span style={{ padding:'2px 7px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#c17f3e' }}>
-                            {s.avg_rating ? `★ ${s.avg_rating}` : `★ ${s.completed_deals_count} сд.`}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize:'12px', color:'#9a9590', marginBottom:'10px' }}>📍 {s.city}{s.occupation ? ` · ${s.occupation}` : ''}</div>
-                      {s.lifestyle?.length > 0 && (
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:'4px', marginBottom:'12px' }}>
-                          {s.lifestyle.slice(0, 3).map(tag => {
-                            const tc = TAG_COLORS[tag] || defaultTag
-                            return <span key={tag} style={{ padding:'3px 9px', background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:'100px', fontSize:'11px', color:tc.color, fontWeight:600 }}>{tag}</span>
-                          })}
-                        </div>
-                      )}
-                      <div style={{ flex:1 }} />
-                      {hasStats && (
-                        <div style={{ display:'flex', borderTop:'1px solid #f0ede6', margin:'0 -16px', padding:'0' }}>
-                          {s.followers_count > 0 && (
-                            <div style={{ flex:1, padding:'10px 0', textAlign:'center', borderRight: s.stories_views > 0 ? '1px solid #f0ede6' : 'none' }}>
-                              <div style={{ fontSize:'14px', fontWeight:700, color:'#1a1a1a' }}>{s.followers_count.toLocaleString('ru')}</div>
-                              <div style={{ fontSize:'10px', color:'#9a9590' }}>подписч.</div>
-                            </div>
-                          )}
-                          {s.stories_views > 0 && (
-                            <div style={{ flex:1, padding:'10px 0', textAlign:'center' }}>
-                              <div style={{ fontSize:'14px', fontWeight:700, color:'#1a1a1a' }}>{s.stories_views.toLocaleString('ru')}</div>
-                              <div style={{ fontSize:'10px', color:'#9a9590' }}>сторис</div>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                    <ul>
+                      <li><UiIcon name="check" width={15} height={15} /> Профиль виден бизнесу в каталоге</li>
+                      <li><UiIcon name="check" width={15} height={15} /> Новые предложения появятся в разделе «Сделки»</li>
+                      <li><UiIcon name="check" width={15} height={15} /> Завершённые сделки и отзывы повышают рейтинг</li>
+                    </ul>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.sectionEyebrow}>Начать сотрудничество</span>
+                    <h2>Обсудите задачу напрямую</h2>
+                    <p>Отправьте предложение, укажите бюджет и срок. Дальше общение и статусы сделки будут доступны в чате.</p>
+                    {primaryAction}
+                    <ul>
+                      <li><UiIcon name="check" width={15} height={15} /> Контакты и история сделки в одном месте</li>
+                      <li><UiIcon name="check" width={15} height={15} /> Можно договориться об оплате или бартере</li>
+                      <li><UiIcon name="check" width={15} height={15} /> Отзыв после завершения сотрудничества</li>
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
+
+            {author.telegram_followers > 0 && (
+              <div className={styles.telegramCard}>
+                <UiIcon name="telegram" width={23} height={23} />
+                <div><span>Telegram-аудитория</span><strong>{author.telegram_followers.toLocaleString('ru')}</strong><small>подписчиков</small></div>
+              </div>
+            )}
+          </aside>
+        </div>
+
+        {similarAuthors.length > 0 && (
+          <section className={styles.similarSection}>
+            <div className={styles.similarHeading}>
+              <div><span className={styles.sectionEyebrow}>Другие варианты</span><h2>Похожие авторы</h2></div>
+              <Link href="/catalog">Весь каталог <UiIcon name="arrowRight" width={16} height={16} /></Link>
+            </div>
+            <div className={styles.similarGrid}>
+              {similarAuthors.slice(0, visibleSimilarCount).map(similar => {
+                const similarIndex = similar.id.charCodeAt(0) % HEADER_GRADIENTS.length
+                return (
+                  <Link key={similar.id} href={`/author/${similar.id}`} className={styles.similarCard}>
+                    <div className={styles.similarMedia}>
+                      {similar.avatar_url ? <img src={similar.avatar_url} alt={similar.name} /> : <div style={{ background: HEADER_GRADIENTS[similarIndex] }}>{similar.name?.[0]?.toUpperCase() || '?'}</div>}
+                      {similar.open_to_barter && <span>Бартер</span>}
+                    </div>
+                    <div className={styles.similarBody}>
+                      <strong>{similar.name}</strong>
+                      <p><UiIcon name="pin" width={13} height={13} /> {similar.city}{similar.occupation ? ` · ${similar.occupation}` : ''}</p>
+                      <div><span>{similar.followers_count > 0 ? `${similar.followers_count.toLocaleString('ru')} подписчиков` : 'Аудитория не указана'}</span>{similar.avg_rating && <span><UiIcon name="star" width={12} height={12} /> {similar.avg_rating}</span>}</div>
                     </div>
                   </Link>
                 )
               })}
             </div>
-            {visibleSimilarCount < similarAuthors.length && (
-              <div style={{ textAlign:'center', paddingTop:'20px' }}>
-                <button onClick={() => setVisibleSimilarCount(prev => prev + 6)} style={{ padding:'10px 28px', background:'#fff', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', fontWeight:600, color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
-                  Показать ещё ({similarAuthors.length - visibleSimilarCount})
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+            {visibleSimilarCount < similarAuthors.length && <button type="button" className={styles.showMoreSimilar} onClick={() => setVisibleSimilarCount(current => current + 6)}>Показать ещё</button>}
+          </section>
+        )}
+      </div>
 
-      {/* Modal */}
+      {primaryAction && <div className={styles.mobileStickyAction}>{primaryAction}</div>}
+
       {modalOpen && (
-        <div onClick={() => setModalOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'480px', width:'100%' }}>
-            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Написать {author.name}</h3>
-            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'16px', lineHeight:1.6 }}>Расскажи что предлагаешь — автор увидит в кабинете.</p>
-            <textarea value={message} onChange={e => setMessage(e.target.value)} rows={4} maxLength={3000} placeholder="Предлагаем сотрудничество..." style={{ width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'12px' }} />
-            <div style={{ display:'flex', gap:'10px', marginBottom:'16px' }}>
-              <div style={{ flex:1 }}>
-                <label style={{ display:'block', fontSize:'12px', color:'#9a9590', marginBottom:'5px', fontWeight:500 }}>Бюджет</label>
-                <input value={budget} onChange={e => setBudget(e.target.value)} placeholder="напр. 5000 ₽" style={inp} />
-              </div>
-              <div style={{ flex:1 }}>
-                <label style={{ display:'block', fontSize:'12px', color:'#9a9590', marginBottom:'5px', fontWeight:500 }}>Срок</label>
-                <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} style={inp} />
-              </div>
+        <div className={styles.modalBackdrop} onClick={() => setModalOpen(false)}>
+          <div className={styles.modal} onClick={event => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="author-request-title">
+            <button type="button" className={styles.modalClose} onClick={() => setModalOpen(false)} aria-label="Закрыть"><UiIcon name="close" width={20} height={20} /></button>
+            <span className={styles.modalEyebrow}>Новое предложение</span>
+            <h2 id="author-request-title">Написать {author.name}</h2>
+            <p>Расскажите о бизнесе и задаче. После отправки вы перейдёте в чат с автором.</p>
+            <label className={styles.modalField}><span>Сообщение</span><textarea value={message} onChange={event => setMessage(event.target.value)} rows={5} maxLength={3000} placeholder="Что нужно снять, какой формат и результат ожидаете?" /></label>
+            <div className={styles.modalGrid}>
+              <label className={styles.modalField}><span>Бюджет</span><input value={budget} onChange={event => setBudget(event.target.value)} placeholder="Например, 5 000 ₽" /></label>
+              <label className={styles.modalField}><span>Желаемый срок</span><input type="date" value={deadline} onChange={event => setDeadline(event.target.value)} /></label>
             </div>
-            <div style={{ display:'flex', gap:'10px' }}>
-              <button onClick={() => setModalOpen(false)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
-              <button onClick={sendRequest} disabled={sending || !message.trim()} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: sending || !message.trim() ? '#9a9590' : '#C56A43', color:'#fff', cursor: sending || !message.trim() ? 'not-allowed' : 'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-                {sending ? 'Отправляем...' : 'Отправить'}
-              </button>
-            </div>
+            <div className={styles.modalActions}><button type="button" onClick={() => setModalOpen(false)}>Отмена</button><button type="button" className={styles.modalPrimary} onClick={sendRequest} disabled={sending || !message.trim()}>{sending ? 'Отправляем…' : 'Отправить предложение'}</button></div>
           </div>
         </div>
       )}
 
-      {/* Модалка жалобы */}
       {complaintOpen && (
-        <div onClick={() => setComplaintOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'420px', width:'100%' }}>
-            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>Пожаловаться</h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'16px' }}>
-              {['Спам или мошенничество', 'Неадекватное поведение', 'Фейковый профиль', 'Другое'].map(r => (
-                <button key={r} type="button" onClick={() => setComplaintReason(r)} style={{ padding:'10px 14px', borderRadius:'10px', border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', fontSize:'13px', textAlign:'left', borderColor: complaintReason === r ? '#1a1a1a' : '#e0ddd8', background: complaintReason === r ? '#1a1a1a' : '#fff', color: complaintReason === r ? '#fff' : '#5a5650' }}>{r}</button>
+        <div className={styles.modalBackdrop} onClick={() => setComplaintOpen(false)}>
+          <div className={`${styles.modal} ${styles.complaintModal}`} onClick={event => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="complaint-title">
+            <button type="button" className={styles.modalClose} onClick={() => setComplaintOpen(false)} aria-label="Закрыть"><UiIcon name="close" width={20} height={20} /></button>
+            <span className={styles.modalEyebrow}>Обратная связь</span>
+            <h2 id="complaint-title">Пожаловаться на профиль</h2>
+            <p>Выберите причину. Жалоба не будет показана автору.</p>
+            <div className={styles.reasonList}>
+              {['Спам или мошенничество', 'Неадекватное поведение', 'Фейковый профиль', 'Другое'].map(reason => (
+                <button key={reason} type="button" className={complaintReason === reason ? styles.reasonActive : ''} onClick={() => setComplaintReason(reason)}>{reason}{complaintReason === reason && <UiIcon name="check" width={15} height={15} />}</button>
               ))}
             </div>
-            <textarea value={complaintComment} onChange={e => setComplaintComment(e.target.value)} placeholder="Опиши ситуацию (необязательно)" rows={3} maxLength={1000} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'16px', boxSizing:'border-box' }} />
-            <div style={{ display:'flex', gap:'10px' }}>
-              <button onClick={() => setComplaintOpen(false)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
-              <button disabled={!complaintReason || complaintSending} onClick={async () => {
+            <label className={styles.modalField}><span>Комментарий, если нужен</span><textarea value={complaintComment} onChange={event => setComplaintComment(event.target.value)} rows={3} maxLength={1000} placeholder="Опишите ситуацию" /></label>
+            <div className={styles.modalActions}>
+              <button type="button" onClick={() => setComplaintOpen(false)}>Отмена</button>
+              <button type="button" className={styles.dangerButton} disabled={!complaintReason || complaintSending} onClick={async () => {
                 setComplaintSending(true)
-                await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: authorId, reason: complaintReason, comment: complaintComment.trim() || null }])
+                const { error } = await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: authorId, reason: complaintReason, comment: complaintComment.trim() || null }])
                 setComplaintSending(false)
-                setComplaintOpen(false)
-                setComplaintReason('')
-                setComplaintComment('')
-                toast.success('Жалоба отправлена, мы рассмотрим её')
-              }} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: !complaintReason || complaintSending ? '#9a9590' : '#dc2626', color:'#fff', cursor: !complaintReason || complaintSending ? 'not-allowed' : 'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-                {complaintSending ? '...' : 'Отправить'}
-              </button>
+                if (error) { toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.'); return }
+                setComplaintOpen(false); setComplaintReason(''); setComplaintComment(''); toast.success('Жалоба отправлена, мы рассмотрим её')
+              }}>{complaintSending ? 'Отправляем…' : 'Отправить жалобу'}</button>
             </div>
           </div>
         </div>
@@ -415,4 +370,3 @@ export default function AuthorPublicPage() {
     </main>
   )
 }
-

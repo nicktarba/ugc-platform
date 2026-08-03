@@ -2,17 +2,20 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import UiIcon from '@/components/UiIcon'
 import { useApp } from '../../AppContext'
+import styles from '../dashboard.module.css'
 
 type Notification = {
   id: string; type: string; title: string; body: string | null
   data: { request_id?: string }; read: boolean; created_at: string
 }
 
-const ICONS: Record<string, string> = {
-  new_request: '📩', request_accepted: '✅', request_declined: '❌',
-  request_cancelled: '🚫', request_completed: '🎉', new_message: '💬',
-  new_review: '⭐', author_approved: '✓', author_rejected: '⚠️',
+type IconName = Parameters<typeof UiIcon>[0]['name']
+const ICONS: Record<string, IconName> = {
+  new_request: 'message', request_accepted: 'check', request_declined: 'close',
+  request_cancelled: 'flag', request_completed: 'star', new_message: 'message',
+  new_review: 'star', author_approved: 'shield', author_rejected: 'flag',
 }
 
 export default function NotificationsPage() {
@@ -30,15 +33,11 @@ export default function NotificationsPage() {
       await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
       setNotifCount(0)
     })()
-  }, [userId])
+  }, [userId, setNotifCount])
 
   const handleClick = (n: Notification) => {
-    if (n.data?.request_id) {
-      if (n.type === 'new_message') router.push(`/dashboard/chat/${n.data.request_id}`)
-      else router.push(`/dashboard/chat/${n.data.request_id}`)
-    } else if (n.type === 'author_approved' || n.type === 'author_rejected') {
-      router.push('/dashboard/author/profile')
-    }
+    if (n.data?.request_id) router.push(`/dashboard/chat/${n.data.request_id}`)
+    else if (n.type === 'author_approved' || n.type === 'author_rejected') router.push('/dashboard/author/profile')
   }
 
   const timeAgo = (iso: string) => {
@@ -50,40 +49,40 @@ export default function NotificationsPage() {
   }
 
   return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <div style={{ maxWidth:'600px', margin:'0 auto', padding:'clamp(24px, 5vw, 40px) clamp(16px, 5vw, 24px)' }}>
-        <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'28px', fontWeight:700, color:'#1a1a1a', marginBottom:'20px' }}>Уведомления</h1>
+    <main className={styles.page}>
+      <div className={`${styles.container} ${styles.narrow}`}>
+        <header className={styles.pageHeader}>
+          <div className={styles.headerCopy}>
+            <div className={styles.eyebrow}>Центр событий</div>
+            <h1 className={styles.title}>Уведомления</h1>
+            <p className={styles.subtitle}>Новые сообщения, изменения статусов, отзывы и решения по модерации.</p>
+          </div>
+        </header>
 
         {loading ? (
-          <div style={{ textAlign:'center', padding:'40px', color:'#9a9590', fontSize:'14px' }}>Загрузка...</div>
+          <section className={styles.panel}><div className={styles.empty}><span className={styles.emptyIcon}><UiIcon name="bell" width={22} height={22}/></span><p className={styles.emptyText}>Загружаем уведомления...</p></div></section>
         ) : notifications.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'40px', color:'#9a9590', fontSize:'14px' }}>Уведомлений пока нет</div>
+          <section className={styles.panel}><div className={styles.empty}><span className={styles.emptyIcon}><UiIcon name="bell" width={22} height={22}/></span><h2 className={styles.emptyTitle}>Уведомлений пока нет</h2><p className={styles.emptyText}>Здесь появятся важные события по профилю, сообщениям и сделкам.</p></div></section>
         ) : (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', overflow:'hidden' }}>
-            {notifications.map((n, i) => (
-              <div
-                key={n.id}
-                onClick={() => handleClick(n)}
-                style={{
-                  padding:'14px 16px', cursor: n.data?.request_id ? 'pointer' : 'default',
-                  display:'flex', gap:'12px', alignItems:'flex-start',
-                  background: n.read ? 'transparent' : '#fdf8f3',
-                  borderBottom: i < notifications.length - 1 ? '1px solid #f7f5f0' : 'none',
-                }}
-              >
-                <span style={{ fontSize:'20px', flexShrink:0, marginTop:'2px' }}>{ICONS[n.type] || '📌'}</span>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:'14px', fontWeight: n.read ? 500 : 700, color:'#1a1a1a', marginBottom:'3px' }}>{n.title}</div>
-                  {n.body && <div style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5 }}>{n.body}</div>}
-                  <div style={{ fontSize:'12px', color:'#b5b0a8', marginTop:'4px' }}>{timeAgo(n.created_at)}</div>
-                </div>
-                {!n.read && <div style={{ width:'8px', height:'8px', borderRadius:'50%', background:'#c17f3e', flexShrink:0, marginTop:'8px' }} />}
-              </div>
-            ))}
-          </div>
+          <section className={styles.notificationList}>
+            {notifications.map(n => {
+              const clickable = !!n.data?.request_id || n.type === 'author_approved' || n.type === 'author_rejected'
+              return (
+                <button key={n.id} type="button" onClick={() => handleClick(n)} className={`${styles.notification} ${clickable ? styles.notificationClickable : ''} ${!n.read ? styles.notificationUnread : ''}`}>
+                  <span className={styles.notificationIcon}><UiIcon name={ICONS[n.type] || 'bell'} width={18} height={18}/></span>
+                  <span className={styles.notificationCopy}>
+                    <span className={styles.notificationTitle}>{n.title}</span>
+                    {n.body && <span className={styles.notificationBody}>{n.body}</span>}
+                    <span className={styles.notificationTime}>{timeAgo(n.created_at)}</span>
+                  </span>
+                  {!n.read && <span className={styles.notificationDot}/>}
+                  {clickable && <UiIcon name="arrowRight" width={16} height={16} style={{ color:'var(--app-muted-soft)', marginTop: 9, flexShrink: 0 }}/>}
+                </button>
+              )
+            })}
+          </section>
         )}
       </div>
     </main>
   )
 }
-

@@ -1,257 +1,397 @@
 'use client'
-import { useEffect, useState } from 'react'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
+import LoadingScreen from '@/components/LoadingScreen'
+import UiIcon from '@/components/UiIcon'
+import styles from './admin.module.css'
 
 type Author = {
-  id: string; user_id: string | null; name: string; city: string; instagram_url: string
-  followers_count: number; stories_views: number; occupation: string; lifestyle: string[]
-  hobbies: string; bio: string; open_to_barter: boolean; status: string; created_at: string
+  id: string
+  user_id: string | null
+  name: string
+  city: string
+  instagram_url: string | null
+  telegram_url: string | null
+  followers_count: number
+  stories_views: number
+  occupation: string | null
+  lifestyle: string[] | null
+  hobbies: string | null
+  bio: string | null
+  open_to_barter: boolean
+  status: string
+  rejection_reason: string | null
+  avatar_url: string | null
+  created_at: string
 }
+
 type UserProfile = { id: string; email: string; role: string; created_at: string }
+
+type Complaint = {
+  id: string
+  reporter_id: string
+  target_author_id: string | null
+  target_business_id: string | null
+  reason: string
+  comment: string | null
+  status: string
+  created_at: string
+}
+
+type Tab = 'pending' | 'authors' | 'users' | 'complaints'
+
+const formatDate = (date: string) => new Date(date).toLocaleDateString('ru-RU', {
+  day: 'numeric', month: 'short', year: 'numeric',
+})
+
+const shortNumber = (value: number) => new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 }).format(value || 0)
 
 export default function AdminDashboard() {
   const router = useRouter()
   const toast = useToast()
-  const [user, setUser] = useState<{ email?: string } | null>(null)
   const [authors, setAuthors] = useState<Author[]>([])
   const [users, setUsers] = useState<UserProfile[]>([])
-  const [tab, setTab] = useState<'pending'|'authors'|'users'>('pending')
-  const [adminSearch, setAdminSearch] = useState('')
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [tab, setTab] = useState<Tab>('pending')
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [rejectModal, setRejectModal] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+
+  const loadData = useCallback(async () => {
+    const [authorsResult, usersResult, complaintsResult] = await Promise.all([
+      supabase.from('authors').select('id, user_id, name, city, instagram_url, telegram_url, followers_count, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, status, rejection_reason, avatar_url, created_at').order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id, email, role, created_at').order('created_at', { ascending: false }),
+      supabase.from('complaints').select('id, reporter_id, target_author_id, target_business_id, reason, comment, status, created_at').order('created_at', { ascending: false }),
+    ])
+
+    if (authorsResult.error) throw authorsResult.error
+    if (usersResult.error) throw usersResult.error
+
+    setAuthors((authorsResult.data as Author[]) || [])
+    setUsers((usersResult.data as UserProfile[]) || [])
+    setComplaints(complaintsResult.error ? [] : ((complaintsResult.data as Complaint[]) || []))
+  }, [])
 
   useEffect(() => {
     const init = async () => {
       const { data } = await supabase.auth.getUser()
-      if (!data.user) { router.push('/login?redirect=%2Fdashboard%2Fadmin'); return }
+      if (!data.user) {
+        router.replace('/login?redirect=%2Fdashboard%2Fadmin')
+        return
+      }
 
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-      if (profile?.role !== 'admin') { setDenied(true); setLoading(false); return }
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle()
+      if (profile?.role !== 'admin') {
+        setDenied(true)
+        setLoading(false)
+        return
+      }
 
-      setUser(data.user)
-      await loadData()
-      setLoading(false)
+      try {
+        await loadData()
+      } catch {
+        toast.error('Не удалось загрузить данные админки.')
+      } finally {
+        setLoading(false)
+      }
     }
-    init()
-  }, [router])
 
-  const loadData = async () => {
-    const { data: a } = await supabase.from('authors').select('id, user_id, name, city, instagram_url, telegram_url, followers_count, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, status, avatar_url, created_at').order('created_at', { ascending: false })
-    setAuthors(a || [])
-    const { data: u } = await supabase.from('profiles').select('id, email, role, created_at').order('created_at', { ascending: false })
-    setUsers(u || [])
+    void init()
+  }, [loadData, router, toast])
+
+  const refresh = async () => {
+    setRefreshing(true)
+    try {
+      await loadData()
+      toast.success('Данные обновлены')
+    } catch {
+      toast.error('Не удалось обновить данные.')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const updateAuthorStatus = async (id: string, status: 'approved' | 'rejected', reason?: string) => {
+    const update: { status: string; rejection_reason: string | null } = {
+      status,
+      rejection_reason: status === 'rejected' ? (reason || null) : null,
+    }
+    const { error } = await supabase.from('authors').update(update).eq('id', id)
+    if (error) {
+      toast.error('Не удалось изменить статус анкеты.')
+      return
+    }
+    setAuthors(current => current.map(author => author.id === id ? { ...author, ...update } : author))
+    toast.success(status === 'approved' ? 'Анкета опубликована' : 'Анкета отправлена на исправление')
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/')
+    router.replace('/')
   }
 
-  const setStatus = async (id: string, status: string, reason?: string) => {
-    const update: Record<string, string> = { status }
-    if (reason) update.rejection_reason = reason
-    const { error } = await supabase.from('authors').update(update).eq('id', id)
-    if (error) { toast.error('Не удалось изменить статус анкеты.'); return }
-    setAuthors(authors.map(a => a.id === id ? { ...a, status } : a))
-    toast.success(status === 'approved' ? 'Анкета одобрена' : 'Анкета отклонена')
+  const updateComplaintStatus = async (id: string, status: 'reviewed' | 'dismissed') => {
+    const { error } = await supabase.from('complaints').update({ status }).eq('id', id)
+    if (error) {
+      toast.error('Не удалось изменить статус жалобы.')
+      return
+    }
+    setComplaints(current => current.map(item => item.id === id ? { ...item, status } : item))
+    toast.success(status === 'reviewed' ? 'Жалоба отмечена как рассмотренная' : 'Жалоба отклонена')
   }
 
-  const [rejectModal, setRejectModal] = useState<string | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
+  const emailById = useMemo(() => Object.fromEntries(users.map(user => [user.id, user.email])), [users])
+  const authorById = useMemo(() => Object.fromEntries(authors.map(author => [author.id, author])), [authors])
+  const pending = useMemo(() => authors.filter(author => author.status === 'pending'), [authors])
+  const newComplaints = useMemo(() => complaints.filter(item => item.status === 'new'), [complaints])
 
-  const statusBadge = (status: string) => {
-    if (status === 'approved') return { text: 'Опубликован', color: '#16a34a', bg: '#f0fdf4' }
-    if (status === 'pending') return { text: 'На модерации', color: '#c17f3e', bg: '#fdf3e7' }
-    if (status === 'rejected') return { text: 'Отклонён', color: '#dc2626', bg: '#fef2f2' }
-    return { text: status, color: '#9a9590', bg: '#f0ede6' }
-  }
+  const normalizedSearch = search.trim().toLowerCase()
+  const filteredAuthors = useMemo(() => authors.filter(author => {
+    if (!normalizedSearch) return true
+    return [author.name, author.city, author.instagram_url, author.occupation, author.bio]
+      .some(value => value?.toLowerCase().includes(normalizedSearch))
+  }), [authors, normalizedSearch])
+  const filteredUsers = useMemo(() => users.filter(user => !normalizedSearch || `${user.email} ${user.role}`.toLowerCase().includes(normalizedSearch)), [users, normalizedSearch])
+  const filteredComplaints = useMemo(() => complaints.filter(item => !normalizedSearch || `${item.reason} ${item.comment || ''} ${emailById[item.reporter_id] || ''}`.toLowerCase().includes(normalizedSearch)), [complaints, emailById, normalizedSearch])
 
-  const roleBadge = (role: string) => {
-    if (role === 'admin') return { text: 'Админ', color: '#7c3aed', bg: '#f5f3ff' }
-    if (role === 'business') return { text: 'Бизнес', color: '#2563eb', bg: '#eff6ff' }
-    return { text: 'Автор', color: '#7a7570', bg: '#f0ede6' }
-  }
+  if (loading) return <LoadingScreen />
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' })
-
-  const emailById: Record<string, string> = {}
-  users.forEach(u => { emailById[u.id] = u.email })
-
-  const pending = authors.filter(a => a.status === 'pending')
-  const filteredAuthors = authors.filter(a => {
-    if (!adminSearch) return true
-    const s = adminSearch.toLowerCase()
-    return a.name?.toLowerCase().includes(s) || a.city?.toLowerCase().includes(s) || a.instagram_url?.toLowerCase().includes(s)
-  })
-
-  const btn = { padding:'8px 18px', borderRadius:'100px', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit', border:'none' }
-
-  const AuthorCard = ({ a }: { a: Author }) => {
-    const sBadge = statusBadge(a.status)
-    const email = a.user_id ? (emailById[a.user_id] || '—') : '—'
+  if (denied) {
     return (
-      <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'20px' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'12px', gap:'12px', flexWrap:'wrap' }}>
-          <div>
-            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'2px' }}>{a.name || '(без имени)'}</h3>
-            <span style={{ fontSize:'13px', color:'#9a9590' }}>📍 {a.city || '—'} · ✉️ {email}</span>
-          </div>
-          <span style={{ padding:'4px 12px', background:sBadge.bg, borderRadius:'100px', fontSize:'12px', fontWeight:600, color:sBadge.color, whiteSpace:'nowrap' }}>{sBadge.text}</span>
-        </div>
-
-        <div style={{ display:'flex', flexWrap:'wrap', gap:'20px', marginBottom:'14px', padding:'12px 0', borderTop:'1px solid #f0ede6', borderBottom:'1px solid #f0ede6' }}>
-          <div>
-            <div style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a' }}>{a.followers_count > 0 ? a.followers_count.toLocaleString('ru') : '—'}</div>
-            <div style={{ fontSize:'11px', color:'#9a9590' }}>подписчиков</div>
-          </div>
-          <div>
-            <div style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a' }}>{a.stories_views > 0 ? a.stories_views.toLocaleString('ru') : '—'}</div>
-            <div style={{ fontSize:'11px', color:'#9a9590' }}>просмотров историй</div>
-          </div>
-          <div>
-            <div style={{ fontSize:'17px', fontWeight:700, color: a.open_to_barter ? '#16a34a' : '#9a9590' }}>{a.open_to_barter ? 'Да' : 'Нет'}</div>
-            <div style={{ fontSize:'11px', color:'#9a9590' }}>открыт к бартеру</div>
+      <main className={styles.page}>
+        <div className={styles.denied}>
+          <div className={styles.deniedCard}>
+            <div className={styles.deniedIcon}><UiIcon name="shield" width={24} height={24} /></div>
+            <h1 className={styles.deniedTitle}>Доступ закрыт</h1>
+            <p className={styles.deniedText}>Эта страница доступна только аккаунту администратора.</p>
+            <Link href="/" className={styles.primaryButton}>Вернуться на главную</Link>
           </div>
         </div>
-
-        {a.occupation && (
-          <div style={{ fontSize:'13px', color:'#5a5650', marginBottom:'6px' }}><b>Род занятий:</b> {a.occupation}</div>
-        )}
-        {a.hobbies && (
-          <div style={{ fontSize:'13px', color:'#5a5650', marginBottom:'6px' }}><b>Хобби:</b> {a.hobbies}</div>
-        )}
-        {a.bio && (
-          <div style={{ fontSize:'13px', color:'#5a5650', marginBottom:'10px' }}><b>О себе:</b> <span style={{ color:'#7a7570' }}>{a.bio}</span></div>
-        )}
-
-        {a.lifestyle?.length > 0 && (
-          <div style={{ display:'flex', flexWrap:'wrap', gap:'6px', marginBottom:'12px' }}>
-            {a.lifestyle.map(tag => <span key={tag} style={{ padding:'3px 10px', background:'#f0ede6', borderRadius:'100px', fontSize:'11px', color:'#7a7570', fontWeight:500 }}>{tag}</span>)}
-          </div>
-        )}
-
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
-          <span style={{ fontSize:'12px', color:'#9a9590' }}>Анкета создана: {formatDate(a.created_at)}</span>
-          <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
-            {a.instagram_url && <a href={a.instagram_url} target="_blank" rel="noopener noreferrer" style={{ ...btn, border:'1.5px solid #e0ddd8', background:'#fff', color:'#1a1a1a' }}>Instagram →</a>}
-            {a.status !== 'approved' && <button onClick={() => setStatus(a.id, 'approved')} style={{ ...btn, background:'#16a34a', color:'#fff' }}>Одобрить</button>}
-            {a.status !== 'rejected' && <button onClick={() => { setRejectModal(a.id); setRejectReason('') }} style={{ ...btn, background:'#fff', border:'1.5px solid #e0ddd8', color:'#5a5650' }}>Отклонить</button>}
-          </div>
-        </div>
-      </div>
+      </main>
     )
   }
 
-  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', background:'#fafaf9', color:'#9a9590' }}>Загрузка...</div>
+  const tabs: { value: Tab; label: string; count: number }[] = [
+    { value: 'pending', label: 'На модерации', count: pending.length },
+    { value: 'authors', label: 'Все авторы', count: authors.length },
+    { value: 'users', label: 'Пользователи', count: users.length },
+    { value: 'complaints', label: 'Жалобы', count: newComplaints.length },
+  ]
 
-  if (denied) return (
-    <main style={{ minHeight:'100vh', background:'#fafaf9', display:'flex', alignItems:'center', justifyContent:'center', padding:'clamp(20px, 6vw, 40px)' }}>
-      <div style={{ textAlign:'center', maxWidth:'400px' }}>
-        <div style={{ fontSize:'40px', marginBottom:'16px' }}>🔒</div>
-        <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'28px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px' }}>Доступ запрещён</h1>
-        <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'24px' }}>У тебя нет прав администратора.</p>
-        <Link href="/" style={{ padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>На главную</Link>
-      </div>
-    </main>
-  )
+  const currentAuthors = tab === 'pending'
+    ? filteredAuthors.filter(author => author.status === 'pending')
+    : filteredAuthors
 
   return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom:'1px solid #e8e6e1', background:'#fafaf9' }}>
-        <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>ugcmarket</Link>
-        <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
-          <Link href="/support" style={{ padding:'8px 16px', fontSize:'14px', color:'#7a7570', textDecoration:'none' }}>Поддержка</Link>
-          <span style={{ fontSize:'14px', color:'#7a7570' }}>{user?.email}</span>
-          <button onClick={handleLogout} style={{ padding:'8px 20px', border:'1px solid #d4d0c8', borderRadius:'100px', background:'none', cursor:'pointer', fontSize:'14px', fontFamily:'inherit', color:'#1a1a1a' }}>Выйти</button>
+    <main className={styles.page}>
+      <div className={styles.mobileBar}>
+        <Link href="/dashboard/admin" className={styles.mobileBrand}>СВОИ <span>UGC</span></Link>
+        <div className={styles.mobileActions}>
+          <Link href="/catalog" className={styles.mobileAction} aria-label="Каталог авторов"><UiIcon name="search" width={18} height={18} /></Link>
+          <button type="button" className={styles.mobileAction} onClick={handleLogout} aria-label="Выйти"><UiIcon name="logout" width={18} height={18} /></button>
         </div>
-      </nav>
-
-      <div style={{ maxWidth:'1000px', margin:'0 auto', padding:'clamp(28px, 7vw, 48px) clamp(16px, 5vw, 40px)' }}>
-        <div style={{ marginBottom:'32px' }}>
-          <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'12px', fontWeight:500 }}>Админка</div>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>Управление платформой</h1>
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display:'flex', gap:'8px', marginBottom:'24px' }}>
-          {[
-            { val:'pending', label:`На модерации${pending.length ? ` (${pending.length})` : ''}` },
-            { val:'authors', label:`Все анкеты (${authors.length})` },
-            { val:'users', label:`Пользователи (${users.length})` },
-          ].map(t => (
-            <button key={t.val} onClick={() => setTab(t.val as 'pending'|'authors'|'users')} style={{
-              padding:'10px 20px', borderRadius:'100px', fontSize:'14px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit',
-              borderColor: tab===t.val?'#1a1a1a':'#e0ddd8', background: tab===t.val?'#1a1a1a':'#fff', color: tab===t.val?'#fff':'#5a5650',
-            }}>{t.label}</button>
-          ))}
-        </div>
-
-        {tab !== 'users' && (
-          <div style={{ marginBottom:'16px' }}>
-            <input value={adminSearch} onChange={e => setAdminSearch(e.target.value)} placeholder="Поиск по имени, городу, Instagram..." style={{ width:'100%', maxWidth:'400px', padding:'10px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }} />
+      </div>
+      <div className={styles.container}>
+        <header className={styles.header}>
+          <div>
+            <div className={styles.eyebrow}>Администрирование</div>
+            <h1 className={styles.title}>Управление платформой</h1>
+            <p className={styles.subtitle}>Проверяйте анкеты авторов, пользователей и обращения. Все действия применяются сразу.</p>
           </div>
-        )}
+          <button type="button" className={styles.refreshButton} onClick={refresh} disabled={refreshing}>
+            <UiIcon name="sliders" width={16} height={16} />
+            {refreshing ? 'Обновляем…' : 'Обновить данные'}
+          </button>
+        </header>
 
-        {/* Pending moderation */}
-        {tab === 'pending' && (
-          (adminSearch ? filteredAuthors.filter(a => a.status === 'pending') : pending).length === 0 ? (
-            <div style={{ textAlign:'center', padding:'60px', color:'#9a9590' }}>Нет анкет на модерации 🎉</div>
-          ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-              {(adminSearch ? filteredAuthors.filter(a => a.status === 'pending') : pending).map(a => <AuthorCard key={a.id} a={a} />)}
+        <section className={styles.metrics} aria-label="Статистика платформы">
+          <div className={styles.metric}>
+            <div className={styles.metricIcon}><UiIcon name="users" width={17} height={17} /></div>
+            <div className={styles.metricValue}>{authors.length}</div>
+            <div className={styles.metricLabel}>анкет авторов</div>
+          </div>
+          <div className={styles.metric}>
+            <div className={styles.metricIcon}><UiIcon name="shield" width={17} height={17} /></div>
+            <div className={styles.metricValue}>{pending.length}</div>
+            <div className={styles.metricLabel}>ожидают модерации</div>
+          </div>
+          <div className={styles.metric}>
+            <div className={styles.metricIcon}><UiIcon name="building" width={17} height={17} /></div>
+            <div className={styles.metricValue}>{users.filter(user => user.role === 'business').length}</div>
+            <div className={styles.metricLabel}>аккаунтов бизнеса</div>
+          </div>
+          <div className={styles.metric}>
+            <div className={styles.metricIcon}><UiIcon name="flag" width={17} height={17} /></div>
+            <div className={styles.metricValue}>{newComplaints.length}</div>
+            <div className={styles.metricLabel}>новых жалоб</div>
+          </div>
+        </section>
+
+        <section className={styles.panel}>
+          <div className={styles.toolbar}>
+            <div className={styles.tabs} role="tablist" aria-label="Разделы админки">
+              {tabs.map(item => (
+                <button
+                  key={item.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === item.value}
+                  className={`${styles.tab} ${tab === item.value ? styles.tabActive : ''}`}
+                  onClick={() => setTab(item.value)}
+                >
+                  {item.label}<span className={styles.tabCount}>{item.count}</span>
+                </button>
+              ))}
             </div>
-          )
-        )}
-
-        {/* All authors */}
-        {tab === 'authors' && (
-          filteredAuthors.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'60px', color:'#9a9590' }}>Анкет пока нет</div>
-          ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
-              {filteredAuthors.map(a => <AuthorCard key={a.id} a={a} />)}
+            <div className={styles.searchWrap}>
+              <UiIcon name="search" width={16} height={16} className={styles.searchIcon} />
+              <input
+                className={styles.search}
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder={tab === 'users' ? 'Поиск по email или роли' : tab === 'complaints' ? 'Поиск по жалобам' : 'Имя, город, тематика'}
+              />
             </div>
-          )
-        )}
+          </div>
 
-        {/* Users */}
-        {tab === 'users' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-            {users.map(u => {
-              const rBadge = roleBadge(u.role)
-              const authorProfile = authors.find(a => a.user_id === u.id)
-              const aBadge = authorProfile ? statusBadge(authorProfile.status) : null
-              return (
-                <div key={u.id} style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'14px', padding:'16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
-                  <div>
-                    <div style={{ fontSize:'14px', color:'#1a1a1a', fontWeight:600 }}>{u.email}</div>
-                    <div style={{ fontSize:'12px', color:'#9a9590' }}>Регистрация: {formatDate(u.created_at)}</div>
-                  </div>
-                  <div style={{ display:'flex', gap:'8px', alignItems:'center', flexWrap:'wrap' }}>
-                    <span style={{ padding:'2px 10px', background:rBadge.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:rBadge.color }}>{rBadge.text}</span>
-                    {aBadge && authorProfile && (
-                      <span style={{ padding:'2px 10px', background:aBadge.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:aBadge.color }}>Анкета: {aBadge.text}</span>
-                    )}
-                  </div>
+          <div className={styles.content}>
+            {(tab === 'pending' || tab === 'authors') && (
+              currentAuthors.length ? (
+                <div className={styles.list}>
+                  {currentAuthors.map(author => {
+                    const initials = (author.name || 'А').split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase()
+                    return (
+                      <article className={styles.authorCard} key={author.id}>
+                        <div className={styles.authorAvatar}>
+                          {author.avatar_url ? <img src={author.avatar_url} alt="" /> : initials}
+                        </div>
+                        <div className={styles.authorMain}>
+                          <div className={styles.authorHead}>
+                            <h2 className={styles.authorName}>{author.name || 'Автор без имени'}</h2>
+                            <span className={`${styles.status} ${author.status === 'approved' ? styles.statusApproved : author.status === 'rejected' ? styles.statusRejected : styles.statusPending}`}>
+                              {author.status === 'approved' ? 'Опубликован' : author.status === 'rejected' ? 'Нужны исправления' : 'На модерации'}
+                            </span>
+                          </div>
+                          <div className={styles.authorMeta}>
+                            <span><UiIcon name="pin" width={12} height={12} />{author.city || 'Город не указан'}</span>
+                            <span><UiIcon name="user" width={12} height={12} />{emailById[author.user_id || ''] || 'Email не найден'}</span>
+                            <span><UiIcon name="calendar" width={12} height={12} />{formatDate(author.created_at)}</span>
+                          </div>
+                          {author.bio && <p className={styles.authorBio}>{author.bio}</p>}
+                          <div className={styles.authorFacts}>
+                            <span className={styles.authorFact}><strong>{shortNumber(author.followers_count)}</strong> подписчиков</span>
+                            <span className={styles.authorFact}><strong>{shortNumber(author.stories_views)}</strong> просмотров</span>
+                            <span className={styles.authorFact}><strong>{author.open_to_barter ? 'Да' : 'Нет'}</strong> бартер</span>
+                            {author.occupation && <span className={styles.authorFact}><strong>{author.occupation}</strong></span>}
+                          </div>
+                          {!!author.lifestyle?.length && (
+                            <div className={styles.tags}>
+                              {author.lifestyle.slice(0, 6).map(tag => <span className={styles.tag} key={tag}>{tag}</span>)}
+                              {author.lifestyle.length > 6 && <span className={styles.tag}>+{author.lifestyle.length - 6}</span>}
+                            </div>
+                          )}
+                        </div>
+                        <div className={styles.authorActions}>
+                          <Link className={styles.secondaryButton} href={`/author/${author.id}`} target="_blank">Профиль</Link>
+                          {author.status !== 'approved' && (
+                            <button type="button" className={styles.primaryButton} onClick={() => updateAuthorStatus(author.id, 'approved')}>Одобрить</button>
+                          )}
+                          {author.status !== 'rejected' && (
+                            <button type="button" className={styles.dangerButton} onClick={() => { setRejectModal(author.id); setRejectReason('') }}>Отклонить</button>
+                          )}
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
+              ) : (
+                <EmptyState icon="shield" title={tab === 'pending' ? 'Новых анкет нет' : 'Авторы не найдены'} text={tab === 'pending' ? 'Все поступившие анкеты уже рассмотрены.' : 'Попробуйте изменить поисковый запрос.'} />
               )
-            })}
+            )}
+
+            {tab === 'users' && (
+              filteredUsers.length ? (
+                <div className={styles.list}>
+                  {filteredUsers.map(user => {
+                    const author = authors.find(item => item.user_id === user.id)
+                    return (
+                      <article className={styles.userCard} key={user.id}>
+                        <div className={styles.userIdentity}>
+                          <div className={styles.userAvatar}>{user.email?.[0]?.toUpperCase() || '?'}</div>
+                          <div>
+                            <div className={styles.userEmail}>{user.email}</div>
+                            <div className={styles.userDate}>Регистрация: {formatDate(user.created_at)}</div>
+                          </div>
+                        </div>
+                        <div className={styles.userBadges}>
+                          <span className={styles.roleBadge}>{user.role === 'business' ? 'Бизнес' : user.role === 'admin' ? 'Администратор' : 'Автор'}</span>
+                          {author && <span className={`${styles.status} ${author.status === 'approved' ? styles.statusApproved : author.status === 'rejected' ? styles.statusRejected : styles.statusPending}`}>{author.status === 'approved' ? 'Профиль опубликован' : author.status === 'rejected' ? 'Нужны исправления' : 'На модерации'}</span>}
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : <EmptyState icon="users" title="Пользователи не найдены" text="Попробуйте изменить поисковый запрос." />
+            )}
+
+            {tab === 'complaints' && (
+              filteredComplaints.length ? (
+                <div className={styles.list}>
+                  {filteredComplaints.map(item => {
+                    const targetAuthor = item.target_author_id ? authorById[item.target_author_id] : null
+                    return (
+                      <article className={styles.complaintCard} key={item.id}>
+                        <div className={styles.complaintMain}>
+                          <div className={styles.complaintTop}>
+                            <div className={styles.complaintReason}>{item.reason}</div>
+                            <span className={`${styles.status} ${item.status === 'new' ? styles.statusPending : item.status === 'dismissed' ? styles.statusRejected : styles.statusApproved}`}>
+                              {item.status === 'new' ? 'Новая' : item.status === 'dismissed' ? 'Отклонена' : 'Рассмотрена'}
+                            </span>
+                          </div>
+                          {item.comment && <p className={styles.complaintComment}>{item.comment}</p>}
+                          <div className={styles.complaintMeta}>
+                            <span>От: {emailById[item.reporter_id] || item.reporter_id.slice(0, 8)}</span>
+                            <span>На: {targetAuthor?.name || (item.target_business_id ? 'бизнес' : 'не указано')}</span>
+                            <span>{formatDate(item.created_at)}</span>
+                          </div>
+                        </div>
+                        {item.status === 'new' && (
+                          <div className={styles.complaintActions}>
+                            <button type="button" className={styles.primaryButton} onClick={() => updateComplaintStatus(item.id, 'reviewed')}>Рассмотрено</button>
+                            <button type="button" className={styles.secondaryButton} onClick={() => updateComplaintStatus(item.id, 'dismissed')}>Отклонить</button>
+                          </div>
+                        )}
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : <EmptyState icon="flag" title="Жалоб нет" text="Новые обращения пользователей появятся в этом разделе." />
+            )}
           </div>
-        )}
+        </section>
       </div>
 
       {rejectModal && (
-        <div onClick={() => setRejectModal(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'28px', maxWidth:'440px', width:'100%' }}>
-            <h3 style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'12px' }}>Причина отклонения</h3>
-            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'16px' }}>Автор увидит эту причину в своём профиле.</p>
-            <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3} placeholder="Например: недостаточно подписчиков, некорректные ссылки..." style={{ width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'16px' }} />
-            <div style={{ display:'flex', gap:'10px' }}>
-              <button onClick={() => setRejectModal(null)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
-              <button onClick={() => { setStatus(rejectModal, 'rejected', rejectReason.trim() || undefined); setRejectModal(null) }} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#dc2626', color:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отклонить</button>
+        <div className={styles.overlay} onMouseDown={() => setRejectModal(null)}>
+          <div className={styles.modal} onMouseDown={event => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="reject-title">
+            <div className={styles.modalHeader}>
+              <div>
+                <h2 className={styles.modalTitle} id="reject-title">Что нужно исправить?</h2>
+                <p className={styles.modalText}>Автор увидит комментарий в кабинете и сможет обновить профиль.</p>
+              </div>
+              <button type="button" className={styles.iconButton} onClick={() => setRejectModal(null)} aria-label="Закрыть"><UiIcon name="close" width={18} height={18} /></button>
+            </div>
+            <textarea className={styles.textarea} value={rejectReason} onChange={event => setRejectReason(event.target.value)} placeholder="Например: добавьте корректную ссылку на Instagram и заполните описание профиля" />
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.secondaryButton} onClick={() => setRejectModal(null)}>Отмена</button>
+              <button type="button" className={styles.dangerButton} onClick={() => { void updateAuthorStatus(rejectModal, 'rejected', rejectReason.trim()); setRejectModal(null) }}>Отправить на исправление</button>
             </div>
           </div>
         </div>
@@ -260,3 +400,12 @@ export default function AdminDashboard() {
   )
 }
 
+function EmptyState({ icon, title, text }: { icon: Parameters<typeof UiIcon>[0]['name']; title: string; text: string }) {
+  return (
+    <div className={styles.empty}>
+      <div className={styles.emptyIcon}><UiIcon name={icon} width={22} height={22} /></div>
+      <h2 className={styles.emptyTitle}>{title}</h2>
+      <p className={styles.emptyText}>{text}</p>
+    </div>
+  )
+}

@@ -1,101 +1,190 @@
 'use client'
-import { useState, Suspense } from 'react'
+
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import AuthShell from '@/components/AuthShell'
 import { supabase } from '@/lib/supabase'
+import { getAuthErrorMessage } from '@/lib/auth-errors'
+import styles from '../public.module.css'
+
+type Role = 'author' | 'business' | ''
 
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [form, setForm] = useState({ email: '', password: '', role: '' })
+  const [form, setForm] = useState<{ email: string; password: string; role: Role }>({
+    email: '',
+    password: '',
+    role: '',
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Безопасный редирект: только внутренние пути, чтобы никто не подсунул внешний URL через параметр
   const getSafeRedirect = (): string | null => {
     const redirect = searchParams.get('redirect')
     if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) return redirect
     return null
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!form.role) { setError('Выбери роль'); return }
+  const redirectValue = searchParams.get('redirect')
+  const redirectQuery = redirectValue ? `?redirect=${encodeURIComponent(redirectValue)}` : ''
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!form.role) {
+      setError('Выберите, как вы будете использовать платформу.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
-    const { data, error: err } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: { data: { role: form.role } }
-    })
+    try {
+      const email = form.email.trim()
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password: form.password,
+        options: { data: { role: form.role } },
+      })
 
-    if (err) { setError(err.message); setLoading(false); return }
+      if (authError) {
+        setError(getAuthErrorMessage(authError, 'register'))
+        return
+      }
 
-    if (data.user) {
-      const { error: profileErr } = await supabase.from('profiles').insert([{ id: data.user.id, email: form.email, role: form.role }])
-      if (profileErr) { setError('Ошибка создания профиля. Попробуй ещё раз.'); setLoading(false); return }
+      if (!data.user) {
+        setError('Не удалось создать аккаунт. Попробуйте ещё раз.')
+        return
+      }
+
+      const { error: profileError } = await supabase.from('profiles').insert([{
+        id: data.user.id,
+        email,
+        role: form.role,
+      }])
+
+      if (profileError) {
+        setError('Аккаунт создан, но профиль не настроен. Войдите ещё раз или обратитесь в поддержку.')
+        return
+      }
+
       const redirectTo = getSafeRedirect()
       if (redirectTo) router.push(redirectTo)
       else if (form.role === 'author') router.push('/dashboard/author')
-      else router.push("/dashboard/business")
+      else router.push('/dashboard/business')
+      router.refresh()
+    } catch (caught) {
+      setError(getAuthErrorMessage(caught instanceof Error ? caught : null, 'register'))
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
-  const inp = { width: '100%', padding: '12px 16px', border: '1.5px solid #e0ddd8', borderRadius: '12px', fontSize: '15px', background: '#fff', color: '#1a1a1a', outline: 'none', fontFamily: 'inherit' }
-  const lbl = { display: 'block' as const, fontSize: '14px', fontWeight: 600, color: '#1a1a1a', marginBottom: '8px' }
-
-  // Ссылка на логин должна нести тот же redirect дальше — иначе цепочка рвётся, если человек
-  // случайно попал на регистрацию, а у него уже есть аккаунт
-  const redirectQuery = searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''
+  const roles: Array<{ value: Exclude<Role, ''>; icon: string; title: string; description: string }> = [
+    {
+      value: 'author',
+      icon: 'А',
+      title: 'Я автор',
+      description: 'Создаю контент и хочу получать предложения от бизнеса.',
+    },
+    {
+      value: 'business',
+      icon: 'Б',
+      title: 'Я бизнес',
+      description: 'Ищу авторов и запускаю UGC-сотрудничества.',
+    },
+  ]
 
   return (
-    <main style={{ background: '#fafaf9', minHeight: '100vh' }}>
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding:'14px clamp(16px, 5vw, 40px)', borderBottom: '1px solid #e8e6e1', background: '#fafaf9' }}>
-        <Link href="/" style={{ fontFamily: 'Fraunces, serif', fontSize: '22px', fontWeight: 700, color: '#1a1a1a', textDecoration: 'none' }}>ugcmarket</Link>
-        <Link href={`/login${redirectQuery}`} style={{ padding: '8px 20px', border: '1px solid #d4d0c8', borderRadius: '100px', textDecoration: 'none', color: '#1a1a1a', fontSize: '14px', fontWeight: 500 }}>Войти</Link>
-      </nav>
-
-      <div style={{ maxWidth: '480px', margin: '0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
-        <Link href="/" style={{ fontSize:'13px', color:'#9a9590', textDecoration:'none', display:'inline-block', marginBottom:'16px' }}>← На главную</Link>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: '36px', fontWeight: 700, color: '#1a1a1a', marginBottom: '8px' }}>Регистрация</h1>
-        <p style={{ fontSize: '15px', color: '#7a7570', marginBottom: '40px' }}>Уже есть аккаунт? <Link href={`/login${redirectQuery}`} style={{ color: '#1a1a1a', fontWeight: 600 }}>Войти</Link></p>
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-            <div>
-              <label style={lbl}>Кто ты? *</label>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {[{ val: 'author', label: '✍️ Автор', desc: 'Хочу получать предложения' }, { val: 'business', label: '💼 Бизнес', desc: 'Ищу авторов для сотрудничества' }].map(opt => (
-                  <button key={opt.val} type="button" onClick={() => setForm({ ...form, role: opt.val })} style={{ flex: 1, padding: '16px', borderRadius: '16px', border: '1.5px solid', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const, borderColor: form.role === opt.val ? '#1a1a1a' : '#e0ddd8', background: form.role === opt.val ? '#1a1a1a' : '#fff', color: form.role === opt.val ? '#fff' : '#1a1a1a' }}>
-                    <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '4px' }}>{opt.label}</div>
-                    <div style={{ fontSize: '12px', opacity: 0.7 }}>{opt.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label style={lbl}>Email *</label>
-              <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required placeholder="you@example.com" style={inp} />
-            </div>
-
-            <div>
-              <label style={lbl}>Пароль *</label>
-              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required placeholder="Минимум 6 символов" style={inp} minLength={6} />
-            </div>
-
-            {error && <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', color: '#dc2626', fontSize: '14px' }}>{error}</div>}
-
-            <button type="submit" disabled={loading} style={{ padding: '14px', background: loading ? '#9a9590' : '#1a1a1a', borderRadius: '100px', border: 'none', color: '#fff', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-              {loading ? 'Создаём аккаунт...' : 'Зарегистрироваться'}
-            </button>
-          </div>
-        </form>
+    <AuthShell
+      eyebrow="Присоединяйтесь к платформе"
+      title={<>Начните сотрудничать <em>напрямую</em></>}
+      description="Бизнес находит автора, отправляет предложение и продолжает работу в чате. Автор получает новые заказы без холодных продаж."
+      points={[
+        'Регистрация для бизнеса и авторов',
+        'Поиск по городу, тематике и аудитории',
+        'Сделка и общение внутри платформы',
+        'Отзывы после завершения сотрудничества',
+      ]}
+      alternateLabel="Уже есть аккаунт?"
+      alternateHref={`/login${redirectQuery}`}
+      alternateAction="Войти"
+    >
+      <Link className={styles.formBack} href="/">← На главную</Link>
+      <div className={styles.formHeader}>
+        <span className={styles.formEyebrow}>Новый аккаунт</span>
+        <h2>Регистрация</h2>
+        <p>
+          Уже зарегистрированы?{' '}
+          <Link href={`/login${redirectQuery}`}>Войти</Link>
+        </p>
       </div>
-    </main>
+
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.field}>
+          <label>Как вы будете использовать платформу?</label>
+          <div className={styles.roleGrid}>
+            {roles.map((role) => {
+              const active = form.role === role.value
+              return (
+                <button
+                  key={role.value}
+                  type="button"
+                  className={`${styles.roleCard} ${active ? styles.roleCardActive : ''}`}
+                  onClick={() => setForm({ ...form, role: role.value })}
+                  aria-pressed={active}
+                >
+                  <span className={styles.roleIcon}>{role.icon}</span>
+                  <strong>{role.title}</strong>
+                  <p>{role.description}</p>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="register-email">Email</label>
+          <input
+            id="register-email"
+            className={styles.input}
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+            placeholder="name@example.ru"
+            required
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="register-password">Пароль</label>
+          <input
+            id="register-password"
+            className={styles.input}
+            type="password"
+            autoComplete="new-password"
+            value={form.password}
+            onChange={(event) => setForm({ ...form, password: event.target.value })}
+            placeholder="Минимум 6 символов"
+            minLength={6}
+            required
+          />
+        </div>
+
+        {error && <div className={styles.error} role="alert">{error}</div>}
+
+        <button className={styles.primaryButton} type="submit" disabled={loading}>
+          {loading ? 'Создаём аккаунт...' : 'Создать аккаунт'}
+        </button>
+
+        <p className={styles.formFooter}>
+          Создавая аккаунт, вы подтверждаете, что указываете достоверные данные.
+          Документы платформы будут добавлены перед публичным запуском.
+        </p>
+      </form>
+    </AuthShell>
   )
 }
 

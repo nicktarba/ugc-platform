@@ -1,391 +1,475 @@
 'use client'
-import { useEffect, useState } from 'react'
+
 import Link from 'next/link'
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import styles from './page.module.css'
 
-const AUTHORS = [
-  { initial: 'М', bg: '#fdf3e7', color: '#c17f3e', name: 'Михаил Т.', city: 'Краснодар', role: 'Автолюбитель · строит гоночный корч', desc: 'Снимает процесс сборки машины, тест-драйвы и покатушки. Аудитория — мужчины 22–35, любители авто и механики.', inst: '7 200', tg: '4 100', tags: ['Автосервис', 'Детейлинг', 'Шины'], extra: '★ 3 сделки', extraStyle: { background: '#fdf3e7', border: '1px solid #f5dcb8', color: '#c17f3e' } },
-  { initial: 'С', bg: '#f0fdf4', color: '#16a34a', name: 'Соня В.', city: 'Москва', role: 'Мастер красоты · блог о процедурах', desc: 'Пишет честно про косметику, показывает процедуры в салоне и домашний уход. Аудитория — девушки 20–34, интересуются красотой.', inst: '5 700', stories: '920', tags: ['Косметика', 'Салоны', 'Уход'], extra: 'Бартер', extraStyle: { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a' } },
-  { initial: 'А', bg: '#fdf4ff', color: '#7c3aed', name: 'Аня Р.', city: 'Питер', role: 'Молодая мама · жизнь с малышом', desc: 'Честно про материнство, лайфхаки и быт с ребёнком. Аудитория — мамы 24–38, ищут советы по товарам для детей.', inst: '3 400', tg: '1 200', tags: ['Детские товары', 'Питание', 'Одежда'], extra: null, extraStyle: null },
-  { initial: 'Д', bg: '#e8f4fd', color: '#1a6fa8', name: 'Даша К.', city: 'Екатеринбург', role: 'Фитнес-тренер · ЗОЖ и питание', desc: 'Тренировки, разборы питания, честные отзывы на добавки. Аудитория — активные 21–35, следят за здоровьем.', inst: '11 800', stories: '620', tags: ['Спортпит', 'Клубы', 'Одежда'], extra: 'Бартер', extraStyle: { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a' } },
+type LandingAuthor = {
+  id: string
+  name: string
+  city: string
+  occupation: string | null
+  lifestyle: string[] | null
+  followers_count: number | null
+  stories_views: number | null
+  open_to_barter: boolean | null
+  avatar_url: string | null
+  avg_rating: number | null
+  reviews_count: number | null
+}
+
+type IconName =
+  | 'search'
+  | 'users'
+  | 'chat'
+  | 'shield'
+  | 'pin'
+  | 'spark'
+  | 'heart'
+  | 'arrow'
+  | 'menu'
+  | 'close'
+  | 'check'
+  | 'briefcase'
+  | 'layers'
+  | 'rocket'
+  | 'building'
+
+const CATEGORIES = [
+  'Бьюти',
+  'Еда и напитки',
+  'Авто',
+  'Путешествия',
+  'Семья и дети',
+  'Фитнес',
+  'Технологии',
 ]
 
-const TAG = { padding: '3px 9px', background: '#f0ede6', borderRadius: '100px', fontSize: '11px', color: '#7a7570', fontWeight: 500 } as const
+const FALLBACK_COVERS = [
+  'linear-gradient(145deg, rgba(18,18,20,.06), rgba(18,18,20,.58)), url("/hero-author.png")',
+  'linear-gradient(145deg, #5d5147 0%, #252529 100%)',
+  'linear-gradient(145deg, #9b7b67 0%, #40342f 100%)',
+  'linear-gradient(145deg, #53727a 0%, #273b44 100%)',
+  'linear-gradient(145deg, #b68f77 0%, #5f4039 100%)',
+]
 
-function HeroSlider() {
-  const [i, setI] = useState(0)
-  const [anim, setAnim] = useState(true)
-
-  const cases = [
-    {
-      brandInitial: 'B', brand: 'Botanica',
-      request: 'Ищем автора для крема на натуральных маслах',
-      tags: ['Москва', 'Бьюти', 'Женщины 22–35'],
-      author: 'Алина', role: 'Москва · бьюти-мастер', followers: '600 подп.',
-      audience: 'Женщины 22–35 · уход, косметика, lifestyle',
-      matchLabel: '94%',
-    },
-    {
-      brandInitial: 'D', brand: 'DRIVE Шины',
-      request: 'Ищем автора под автомобильную аудиторию',
-      tags: ['Владивосток', 'Авто', 'Мужчины 18–27'],
-      author: 'Артём', role: 'Владивосток · 21 год', followers: '850 подп.',
-      audience: 'Мужчины 18–27 · авто, тюнинг, доработки',
-      matchLabel: '91%',
-    },
-  ]
-
-  const go = (idx: number) => {
-    const n = cases.length
-    setAnim(false)
-    setTimeout(() => { setI(((idx % n) + n) % n); setAnim(true) }, 50)
+function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
   }
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setAnim(false)
-      setTimeout(() => { setI(prev => (prev + 1) % cases.length); setAnim(true) }, 50)
-    }, 4000)
-    return () => clearInterval(timer)
-  }, [])
+  const paths: Record<IconName, ReactNode> = {
+    search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.6-3.6" /></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    chat: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /><path d="M8 10h8M8 14h5" /></>,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></>,
+    pin: <><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z" /><circle cx="12" cy="10" r="2.5" /></>,
+    spark: <><path d="m12 3-1.6 4.4L6 9l4.4 1.6L12 15l1.6-4.4L18 9l-4.4-1.6z" /><path d="m5 15-.8 2.2L2 18l2.2.8L5 21l.8-2.2L8 18l-2.2-.8z" /></>,
+    heart: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8z" />,
+    arrow: <><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></>,
+    menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
+    close: <><path d="m6 6 12 12M18 6 6 18" /></>,
+    check: <path d="m5 12 4 4L19 6" />,
+    briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18M10 12v2h4v-2" /></>,
+    layers: <><path d="m12 2 9 5-9 5-9-5z" /><path d="m3 12 9 5 9-5M3 17l9 5 9-5" /></>,
+    rocket: <><path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2" /><path d="M9 15 4 10l5.5-1.5L15 3c2.4-2.4 6-2 6-2s.4 3.6-2 6l-5.5 5.5z" /><circle cx="16" cy="6" r="1.5" /><path d="m9 15 1 5 5-5" /></>,
+    building: <><path d="M3 21h18M5 21V5l7-3v19M19 21V9l-7-2M8 9h1M8 13h1M8 17h1M15 12h1M15 16h1" /></>,
+  }
 
-  const c = cases[i]
+  return <svg {...common}>{paths[name]}</svg>
+}
 
-  return (
-    <div style={{ position: 'relative', background: '#F2E9DC', borderRadius: '24px', padding: '24px', border: '1px solid #E7D7BF' }}>
+function formatFollowers(value: number | null) {
+  const count = value ?? 0
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(count >= 10_000_000 ? 0 : 1)} млн`
+  if (count >= 1_000) return `${Math.round(count / 100) / 10} тыс.`
+  return count.toLocaleString('ru-RU')
+}
 
-      {/* Декоративные мини-карточки — внутри контейнера, в углах */}
-      <div style={{ position: 'absolute', top: '12px', right: '12px', width: '52px', height: '72px', borderRadius: '10px', background: 'repeating-linear-gradient(135deg, #E8D9C4 0 7px, #F0E5D4 7px 14px)', overflow: 'hidden', opacity: 0.7 }}>
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 5px', background: 'rgba(42,39,35,.35)' }}>
-          <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: '6px', fontWeight: 700, color: '#fff' }}>▶ Reels</span>
-        </div>
-      </div>
-      <div style={{ position: 'absolute', bottom: '60px', right: '12px', width: '44px', height: '58px', borderRadius: '8px', background: 'repeating-linear-gradient(135deg, #D8CCBA 0 6px, #E8DECE 6px 12px)', opacity: 0.6 }} />
-
-      {/* Контент слайдера */}
-      <div style={{ animation: anim ? 'ugcRise .35s ease both' : 'none', display: 'flex', flexDirection: 'column', gap: 0 }}>
-
-        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b49a7a', marginBottom: '8px', letterSpacing: '.04em', textTransform: 'uppercase' as const }}>Бренд ищет автора</div>
-
-        {/* Пузырь бренда */}
-        <div style={{ padding: '14px 16px', background: '#2A2723', borderRadius: '16px 16px 16px 4px', boxShadow: '0 4px 14px rgba(42,39,35,.15)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <span style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '9px', background: '#C56A43', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 800 }}>{c.brandInitial}</span>
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: 700, color: '#F2E7D7' }}>{c.brand}</div>
-              <div style={{ fontSize: '12px', fontWeight: 500, color: '#9e917f', marginTop: '1px' }}>{c.request}</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-            {c.tags.map(tag => (
-              <span key={tag} style={{ fontSize: '11px', fontWeight: 600, color: '#ddd0be', background: 'rgba(255,255,255,.08)', padding: '4px 10px', borderRadius: '20px' }}>{tag}</span>
-            ))}
-          </div>
-        </div>
-
-        {/* Коннектор */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 4px', marginLeft: '8px' }}>
-          <svg width="20" height="24" viewBox="0 0 20 24" fill="none">
-            <path d="M10 0 C10 10, 10 10, 16 22" stroke="#C56A43" strokeWidth="1.5" strokeDasharray="3 2.5" fill="none" strokeLinecap="round" />
-            <path d="M13 19.5 L16 22 L12 22" fill="#C56A43" />
-          </svg>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: '#C56A43' }}>ugcmarket подобрал</span>
-        </div>
-
-        {/* Карточка автора */}
-        <div style={{ background: '#fff', border: '1px solid #EDE3D3', borderRadius: '4px 16px 16px 16px', padding: '14px 16px', boxShadow: '0 4px 16px rgba(42,39,35,.08)' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0, background: 'repeating-linear-gradient(135deg, #ECDFCB 0 6px, #F4EADA 6px 12px)' }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '15px', fontWeight: 800, color: '#2A2723' }}>{c.author}</span>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#C56A43' }}>{c.followers}</span>
-              </div>
-              <div style={{ fontSize: '12px', fontWeight: 500, color: '#7a6f60', marginTop: '1px' }}>{c.role}</div>
-            </div>
-          </div>
-
-          <div style={{ fontSize: '12px', fontWeight: 500, lineHeight: 1.4, color: '#6b6358', background: '#FBF6EE', padding: '7px 11px', borderRadius: '20px', display: 'inline-block', marginBottom: '10px' }}>{c.audience}</div>
-
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '5px 11px', background: '#EEF1E2', borderRadius: '20px' }}>
-            <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#7E8B4F', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, flexShrink: 0 }}>✓</span>
-            <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#4d5234' }}>Совпадение {c.matchLabel}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Контролы — прибиты к низу */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {cases.map((_, idx) => (
-            <span key={idx} onClick={() => go(idx)} style={{ height: '5px', borderRadius: '99px', cursor: 'pointer', transition: 'width .3s, background .3s', width: idx === i ? '16px' : '5px', background: idx === i ? '#C56A43' : '#D8C9B4', display: 'inline-block' }} />
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          {[['‹', i - 1], ['›', i + 1]].map(([label, idx]) => (
-            <button key={label as string} onClick={() => go(idx as number)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid #DCCDB6', background: '#FBF7F0', color: '#2A2723', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' }}>{label}</button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
+function safeBackground(author: LandingAuthor, index: number) {
+  if (author.avatar_url && /^https?:\/\//i.test(author.avatar_url)) {
+    const escaped = author.avatar_url.replace(/["\\]/g, '')
+    return `linear-gradient(180deg, rgba(10,10,12,0) 42%, rgba(10,10,12,.82) 100%), url("${escaped}")`
+  }
+  return FALLBACK_COVERS[index % FALLBACK_COVERS.length]
 }
 
 export default function HomePage() {
   const router = useRouter()
-  const [checking, setChecking] = useState(true)
-  const [loggedInRole, setLoggedInRole] = useState<string | null>(null)
+  const [role, setRole] = useState<string | null>(null)
+  const [authReady, setAuthReady] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [authors, setAuthors] = useState<LandingAuthor[]>([])
+  const [authorsLoading, setAuthorsLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
     supabase.auth.getUser().then(({ data }) => {
-      const role = data.user?.user_metadata?.role
-      if (role) setLoggedInRole(role)
-      setChecking(false)
+      if (!mounted) return
+      setRole(data.user?.user_metadata?.role ?? null)
+      setAuthReady(true)
     })
-  }, [router])
 
-  if (checking) return <div style={{ minHeight: '100vh', background: '#FBF7F0' }} />
+    supabase
+      .from('authors')
+      .select('id, name, city, occupation, lifestyle, followers_count, stories_views, open_to_barter, avatar_url, avg_rating, reviews_count')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        if (!mounted) return
+        setAuthors((data as LandingAuthor[] | null) ?? [])
+        setAuthorsLoading(false)
+      })
 
-  const btnAmber = { padding: '13px 28px', background: '#c17f3e', borderRadius: '100px', textDecoration: 'none', color: '#fff', fontSize: '15px', fontWeight: 600, display: 'inline-block' } as const
-  const btnOutlineSmall = { padding: '13px 28px', border: '1.5px solid #DCCDB6', borderRadius: '100px', textDecoration: 'none', color: '#2A2723', fontSize: '15px', fontWeight: 600, display: 'inline-block', background: 'transparent' } as const
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [menuOpen])
+
+  const dashboardHref = useMemo(() => {
+    if (role === 'author') return '/dashboard/author'
+    if (role === 'admin') return '/dashboard/admin'
+    return '/dashboard/business'
+  }, [role])
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const value = query.trim()
+    router.push(value ? `/catalog?mode=regular&q=${encodeURIComponent(value)}` : '/catalog')
+  }
+
+  function searchCategory(category: string) {
+    router.push(`/catalog?mode=regular&q=${encodeURIComponent(category)}`)
+  }
+
+  const previewAuthors = authors.slice(0, 4)
 
   return (
-    <main style={{ background: '#FBF7F0', minHeight: '100vh', fontFamily: "'Manrope', system-ui, sans-serif" }}>
-      <style>{`
-        .lp-header { display:flex; align-items:center; justify-content:space-between; padding:14px 64px; border-bottom:1px solid rgba(42,39,35,.06); background:#FBF7F0; }
-        .lp-header nav { display:flex; align-items:center; gap:36px; }
-        .lp-burger { display:none; width:36px; height:36px; border:1px solid #e0ddd8; border-radius:10px; background:#fff; cursor:pointer; font-size:18px; align-items:center; justify-content:center; }
-        .lp-mobile-auth { display:none; gap:6px; align-items:center; }
-        .lp-mobile-menu { display:none; }
-        .lp-hero-grid { display:grid; grid-template-columns:1fr 440px; gap:48px; padding:52px 64px 56px; align-items:center; position:relative; }
-        .lp-hero-title { margin:22px 0 0; font-size:62px; font-weight:800; line-height:1.0; letter-spacing:-0.025em; color:#2A2723; }
-        .lp-hero-buttons { display:flex; gap:12px; margin-top:30px; }
-        .lp-hero-right { display:block; }
-        @media (max-width: 768px) {
-          .lp-header { padding:12px 16px; }
-          .lp-header nav { display:none; }
-          .lp-burger { display:flex; }
-          .lp-mobile-auth { display:flex; }
-          .lp-mobile-menu { position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:999; display:flex; justify-content:flex-end; }
-          .lp-mobile-menu-inner { width:260px; background:#FBF7F0; padding:20px; display:flex; flex-direction:column; gap:4px; height:100%; box-shadow:-4px 0 20px rgba(0,0,0,0.1); }
-          .lp-mobile-menu a, .lp-mobile-menu button { display:block; padding:14px 16px; border-radius:12px; font-size:15px; font-weight:600; color:#2A2723; text-decoration:none; border:none; background:none; text-align:left; cursor:pointer; font-family:inherit; }
-          .lp-mobile-menu a:hover, .lp-mobile-menu button:hover { background:#f0ede6; }
-          .lp-mobile-menu .lp-menu-cta { background:#C56A43; color:#fff; text-align:center; border-radius:12px; margin-top:8px; }
-          .lp-hero-grid { grid-template-columns:1fr; padding:28px 20px 36px; gap:24px; }
-          .lp-hero-title { font-size:36px; line-height:1.05; }
-          .lp-hero-buttons { flex-direction:column; }
-          .lp-hero-buttons a { text-align:center; justify-content:center; }
-          .lp-hero-right { display:none; }
-        }
-      `}</style>
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <Link className={styles.logo} href="/" aria-label="СВОИ UGC — главная">
+            СВОИ <span>UGC</span>
+          </Link>
 
-      {/* ═══ HEADER ═══ */}
-      <header className="lp-header">
-        <Link href="/" style={{ fontSize: '23px', fontWeight: 800, letterSpacing: '-0.02em', color: '#2A2723', textDecoration: 'none' }}>
-          ugc<span style={{ color: '#C56A43' }}>market</span>
-        </Link>
-        <nav>
-          <Link href="/catalog" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Каталог</Link>
-          <Link href="/support" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Поддержка</Link>
-          {loggedInRole ? (
-            <Link href={loggedInRole === 'author' ? '/dashboard/author' : loggedInRole === 'admin' ? '/dashboard/admin' : '/dashboard/business'} style={{ fontSize: '15px', fontWeight: 700, color: '#2A2723', textDecoration: 'none', padding: '11px 20px', border: '1.5px solid #E0D2BC', borderRadius: '12px' }}>Кабинет</Link>
-          ) : (
-            <>
-              <Link href="/login" style={{ fontSize: '15px', fontWeight: 600, color: '#514a40', textDecoration: 'none' }}>Войти</Link>
-              <Link href="/register" style={{ fontSize: '15px', fontWeight: 700, color: '#2A2723', textDecoration: 'none', padding: '11px 20px', border: '1.5px solid #E0D2BC', borderRadius: '12px' }}>Регистрация</Link>
-            </>
-          )}
-        </nav>
-        {!loggedInRole && (
-          <div className="lp-mobile-auth">
-            <Link href="/login" style={{ padding:'7px 14px', fontSize:'13px', color:'#2A2723', textDecoration:'none', fontWeight:500, border:'1px solid #E0D2BC', borderRadius:'100px' }}>Войти</Link>
-            <Link href="/register" style={{ padding:'7px 14px', background:'#C56A43', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600 }}>Регистрация</Link>
+          <nav className={styles.desktopNav} aria-label="Основная навигация">
+            <Link href="/catalog">Каталог</Link>
+            <a href="#business">Для бизнеса</a>
+            <a href="#how">Как это работает</a>
+            <a href="#authors">Для авторов</a>
+            <Link href="/support">Поддержка</Link>
+          </nav>
+
+          <div className={styles.headerActions}>
+            {authReady && role ? (
+              <Link className={styles.primaryCompact} href={dashboardHref}>Кабинет</Link>
+            ) : (
+              <>
+                <Link className={styles.loginLink} href="/login">Войти</Link>
+                <Link className={styles.primaryCompact} href="/register">Регистрация</Link>
+              </>
+            )}
+            <button className={styles.menuButton} type="button" onClick={() => setMenuOpen(true)} aria-label="Открыть меню">
+              <Icon name="menu" />
+            </button>
           </div>
-        )}
-        <button className="lp-burger" onClick={() => setMenuOpen(true)}>☰</button>
+        </div>
       </header>
 
-      {/* Mobile menu */}
       {menuOpen && (
-        <div className="lp-mobile-menu" onClick={() => setMenuOpen(false)}>
-          <div className="lp-mobile-menu-inner" onClick={e => e.stopPropagation()}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px', padding:'0 16px' }}>
-              <span style={{ fontSize:'20px', fontWeight:800, color:'#2A2723' }}>ugc<span style={{ color:'#C56A43' }}>market</span></span>
-              <button onClick={() => setMenuOpen(false)} style={{ border:'none', background:'none', fontSize:'22px', cursor:'pointer', color:'#9a9590' }}>✕</button>
+        <div className={styles.menuBackdrop} onClick={() => setMenuOpen(false)}>
+          <aside className={styles.mobileMenu} onClick={(event) => event.stopPropagation()} aria-label="Мобильное меню">
+            <div className={styles.mobileMenuHead}>
+              <span className={styles.logo}>СВОИ <span>UGC</span></span>
+              <button type="button" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню">
+                <Icon name="close" />
+              </button>
             </div>
             <Link href="/catalog" onClick={() => setMenuOpen(false)}>Каталог</Link>
+            <a href="#business" onClick={() => setMenuOpen(false)}>Для бизнеса</a>
+            <a href="#how" onClick={() => setMenuOpen(false)}>Как это работает</a>
+            <a href="#authors" onClick={() => setMenuOpen(false)}>Для авторов</a>
             <Link href="/support" onClick={() => setMenuOpen(false)}>Поддержка</Link>
-            {loggedInRole ? (
-              <Link href={loggedInRole === 'author' ? '/dashboard/author' : loggedInRole === 'admin' ? '/dashboard/admin' : '/dashboard/business'} onClick={() => setMenuOpen(false)}>Кабинет</Link>
+            <div className={styles.mobileMenuDivider} />
+            {role ? (
+              <Link className={styles.mobileMenuCta} href={dashboardHref} onClick={() => setMenuOpen(false)}>Открыть кабинет</Link>
             ) : (
               <>
                 <Link href="/login" onClick={() => setMenuOpen(false)}>Войти</Link>
-                <Link href="/register" className="lp-menu-cta" onClick={() => setMenuOpen(false)}>Регистрация</Link>
+                <Link className={styles.mobileMenuCta} href="/register" onClick={() => setMenuOpen(false)}>Зарегистрироваться</Link>
               </>
             )}
-          </div>
+          </aside>
         </div>
       )}
 
-      {/* ═══ HERO ═══ */}
-      <section style={{ position: 'relative', overflow: 'hidden', borderBottom: '1px solid rgba(42,39,35,.06)' }}>
-        <div style={{ position: 'absolute', top: '-120px', right: '-80px', width: '620px', height: '620px', borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(197,106,67,.10), rgba(197,106,67,0))', pointerEvents: 'none' }} />
-
-        <div className="lp-hero-grid">
-
-          {/* ── Левая колонка ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', background: '#F2E7D7', border: '1px solid #E7D7BF', borderRadius: '100px', fontSize: '13px', fontWeight: 600, color: '#7a5a3f' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C56A43', flexShrink: 0 }} />
-              Площадка микро-авторов · от 300 до 30 000 подписчиков
-            </div>
-
-            <h1 className="lp-hero-title">
-              Живые люди<br />
-              с{' '}
-              <span style={{ fontFamily: "'Great Vibes', cursive", fontWeight: 400, fontSize: '1.2em', color: '#C56A43', display: 'inline-block', transform: 'rotate(-2deg)', lineHeight: 0.85, padding: '0 0.04em' }}>тёплой</span>
-              <br />аудиторией
-            </h1>
-
-            <p style={{ margin: '22px 0 0', maxWidth: '500px', fontSize: '17px', fontWeight: 500, lineHeight: 1.6, color: '#4a443c' }}>
-              Ценность автора определяется не количеством подписчиков, а совпадением его стиля жизни, аудитории и контекста с задачами бизнеса.
-            </p>
-            <p style={{ margin: '10px 0 0', maxWidth: '500px', fontSize: '14px', fontWeight: 500, lineHeight: 1.6, color: '#9a8f7e' }}>
-              Выбирайте авторов по городу, профессии, хобби, темам и стилю жизни
+      <section className={styles.heroSection}>
+        <div className={styles.heroPanel}>
+          <div className={styles.heroGlow} />
+          <div className={styles.heroContent}>
+            <div className={styles.heroEyebrow}>Маркетплейс локальных UGC-авторов</div>
+            <h1>Найдите авторов <span>для вашего бизнеса</span></h1>
+            <p className={styles.heroLead}>
+              Ищите по городу, тематике и аудитории. Отправляйте предложение, обсуждайте детали и ведите сделку в одном месте.
             </p>
 
-            <div className="lp-hero-buttons">
-              <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '15px 26px', borderRadius: '13px', textDecoration: 'none', boxShadow: '0 6px 18px rgba(197,106,67,.28)' }}>Стать автором — бесплатно</Link>
-              <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#2A2723', padding: '15px 24px', borderRadius: '13px', border: '1.5px solid #DCCDB6', textDecoration: 'none', background: 'rgba(255,255,255,.6)' }}>Смотреть каталог</Link>
+            <form className={styles.searchBar} onSubmit={submitSearch}>
+              <div className={styles.searchMode}>
+                <Icon name="users" size={18} />
+                <span>Авторы</span>
+              </div>
+              <label className={styles.searchInputWrap}>
+                <Icon name="search" size={19} />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Например: кофейня во Владивостоке, мама-блогер, авто"
+                  aria-label="Поиск авторов"
+                />
+              </label>
+              <button type="submit"><Icon name="search" size={18} />Найти</button>
+            </form>
+
+            <div className={styles.categoryRow} aria-label="Популярные категории">
+              {CATEGORIES.map((category) => (
+                <button key={category} type="button" onClick={() => searchCategory(category)}>{category}</button>
+              ))}
             </div>
           </div>
 
-          {/* ── Правая колонка ── */}
-          <div className="lp-hero-right">
-            <HeroSlider />
+          <div className={styles.heroAuthors}>
+            {authorsLoading && Array.from({ length: 5 }).map((_, index) => (
+              <div className={styles.creatorSkeleton} key={index} />
+            ))}
+
+            {!authorsLoading && authors.length === 0 && (
+              <div className={styles.emptyHeroAuthors}>
+                <Icon name="spark" size={28} />
+                <strong>Каталог готов к первым авторам</strong>
+                <span>Создайте профиль и станьте одним из первых участников платформы.</span>
+                <Link href="/register">Стать автором</Link>
+              </div>
+            )}
+
+            {authors.map((author, index) => (
+              <Link
+                href={`/author/${author.id}`}
+                className={styles.creatorCard}
+                key={author.id}
+                style={{ backgroundImage: safeBackground(author, index) }}
+              >
+                <div className={styles.creatorTopline}>
+                  <span>{formatFollowers(author.followers_count)}</span>
+                  <span className={styles.creatorHeart}><Icon name="heart" size={16} /></span>
+                </div>
+                <div className={styles.creatorMeta}>
+                  <strong>{author.name}</strong>
+                  <span>{author.occupation || author.lifestyle?.[0] || 'UGC-автор'} · {author.city}</span>
+                  <div>
+                    {author.open_to_barter && <em>Бартер</em>}
+                    {author.avg_rating ? <b>★ {Number(author.avg_rating).toFixed(1)}</b> : <b>Новый профиль</b>}
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ═══ ДЛЯ АВТОРОВ ═══ */}
-      <section style={{ padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 64px)', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <div style={{ display: 'inline-block', padding: '5px 14px', background: '#F2E7D7', border: '1px solid #E7D7BF', borderRadius: '100px', fontSize: '12px', color: '#7a5a3f', fontWeight: 600, marginBottom: '14px' }}>Для авторов</div>
-          <h2 style={{ fontSize: 'clamp(26px, 5vw, 36px)', fontWeight: 800, marginBottom: '12px', lineHeight: 1.15, color: '#2A2723' }}>
-            У тебя 500 подписчиков?<br />
-            <span style={{ color: '#C56A43' }}>Это уже аудитория для бизнеса.</span>
-          </h2>
-          <p style={{ fontSize: '15px', fontWeight: 500, color: '#8a8175', maxWidth: '500px', margin: '0 auto', lineHeight: 1.7 }}>
-            Мы работаем с авторами от 300 до 30 000 подписчиков — бизнес ищёт живых людей, а не миллионников.
-          </p>
-        </div>
+      <section className={styles.trustStrip} aria-label="Возможности платформы">
+        {[
+          { icon: 'users' as IconName, title: 'Прямой контакт', text: 'Общайтесь с авторами без агентства' },
+          { icon: 'chat' as IconName, title: 'Чат и сделка', text: 'Все договорённости в одном месте' },
+          { icon: 'shield' as IconName, title: 'Модерация профилей', text: 'В каталог попадают одобренные анкеты' },
+          { icon: 'pin' as IconName, title: 'Локальный подбор', text: 'Ищите авторов по городу и тематике' },
+        ].map((item) => (
+          <div className={styles.trustItem} key={item.title}>
+            <span><Icon name={item.icon} /></span>
+            <div><strong>{item.title}</strong><small>{item.text}</small></div>
+          </div>
+        ))}
+      </section>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(420px, 100%), 1fr))', gap: '12px', marginBottom: '28px' }}>
-          {AUTHORS.map(a => (
-            <div key={a.name} style={{ background: '#fff', border: '1px solid #EFE4D3', borderRadius: '18px', padding: '20px', display: 'flex', gap: '14px' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: a.bg, color: a.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '17px', fontWeight: 800, flexShrink: 0, alignSelf: 'flex-start', marginTop: '2px' }}>{a.initial}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#2A2723', marginBottom: '2px' }}>{a.name} · {a.city}</div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#9a8f7e', marginBottom: '8px' }}>{a.role}</div>
-                <p style={{ fontSize: '13px', fontWeight: 500, color: '#5e574d', lineHeight: 1.6, marginBottom: '10px' }}>{a.desc}</p>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#9a8f7e', marginBottom: '8px' }}>
-                  {a.inst && <><strong style={{ color: '#2A2723' }}>{a.inst}</strong> inst</>}
-                  {(a as any).tg && <> · <strong style={{ color: '#2A2723' }}>{(a as any).tg}</strong> tg</>}
-                  {(a as any).stories && <> · сторис <strong style={{ color: '#2A2723' }}>{(a as any).stories}</strong></>}
-                </div>
-                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                  {a.tags.map(t => <span key={t} style={{ padding: '3px 9px', background: '#F2E7D7', borderRadius: '100px', fontSize: '11px', color: '#7a5a3f', fontWeight: 600 }}>{t}</span>)}
-                  {a.extra && <span style={{ padding: '3px 9px', borderRadius: '100px', fontSize: '11px', fontWeight: 600, ...a.extraStyle }}>{a.extra}</span>}
-                </div>
+      <section className={styles.section} id="business">
+        <div className={styles.workflowCard}>
+          <div className={styles.workflowCopy}>
+            <div className={styles.kicker}>Для бизнеса</div>
+            <h2>Подберите автора <span>до начала сделки</span></h2>
+            <p>
+              Сравнивайте авторов по городу, тематике, размеру аудитории и отзывам. Открывайте профиль, изучайте опыт и отправляйте предложение только тем, кто действительно подходит под задачу.
+            </p>
+            <ul>
+              <li><Icon name="check" size={17} />Обычный поиск и ИИ-подбор</li>
+              <li><Icon name="check" size={17} />Фильтры по городу, аудитории и интересам</li>
+              <li><Icon name="check" size={17} />Похожие авторы и избранное</li>
+            </ul>
+            <Link className={styles.textLink} href="/catalog">Открыть каталог <Icon name="arrow" size={17} /></Link>
+          </div>
+
+          <div className={styles.catalogPreview}>
+            <div className={styles.previewToolbar}>
+              <span><Icon name="search" size={15} />Красота · Владивосток</span>
+              <button type="button">Фильтры</button>
+            </div>
+            <div className={styles.previewBody}>
+              <div className={styles.previewFilters}>
+                <b>Город</b><span>Владивосток</span>
+                <b>Подписчики</b><div className={styles.previewRange}><i /><i /></div>
+                <b>Тематика</b><span>Красота и уход</span>
+              </div>
+              <div className={styles.previewGrid}>
+                {(previewAuthors.length ? previewAuthors : Array.from({ length: 4 }, (_, index) => ({ id: `empty-${index}` } as LandingAuthor))).map((author, index) => (
+                  <div className={styles.previewAuthor} key={author.id}>
+                    <div className={styles.previewPhoto} style={{ backgroundImage: safeBackground(author, index) }} />
+                    <strong>{author.name || 'Профиль автора'}</strong>
+                    <span>{author.city || 'Ваш город'}</span>
+                    <small>{formatFollowers(author.followers_count)} подписчиков</small>
+                  </div>
+                ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className={styles.capabilityGrid}>
+          {[
+            { icon: 'pin' as IconName, title: 'Автор рядом с вашим бизнесом', text: 'Находите людей из нужного города или региона.' },
+            { icon: 'search' as IconName, title: 'Точный поиск под задачу', text: 'Ниша, аудитория, формат контента и интересы.' },
+            { icon: 'shield' as IconName, title: 'Понятные условия сделки', text: 'Бюджет, дедлайн и задача сохраняются в предложении.' },
+            { icon: 'briefcase' as IconName, title: 'Для малого бизнеса и команд', text: 'Один процесс для разовых интеграций и постоянной работы.' },
+          ].map((item, index) => (
+            <article className={`${styles.capabilityCard} ${styles[`capability${index + 1}`]}`} key={item.title}>
+              <span><Icon name={item.icon} size={24} /></span>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+            </article>
           ))}
         </div>
+      </section>
 
-        <div style={{ textAlign: 'center', display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '14px 28px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 6px 18px rgba(197,106,67,.22)' }}>Заполнить анкету бесплатно</Link>
-          <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#2A2723', padding: '14px 26px', borderRadius: '14px', border: '1.5px solid #DCCDB6', textDecoration: 'none' }}>Смотреть всех в каталоге</Link>
+      <section className={styles.section}>
+        <div className={styles.salesCard}>
+          <div className={styles.salesCopy}>
+            <div className={styles.kicker}>Рабочий процесс</div>
+            <h2>Запускайте UGC-кампании <span>быстрее и без хаоса</span></h2>
+            <p>
+              Не собирайте поиск, договорённости и переписку по таблицам и разным мессенджерам. В СВОИ UGC путь от подбора автора до отзыва собран в одном процессе.
+            </p>
+            <div className={styles.salesPoints}>
+              <span><Icon name="search" />Найдите автора под конкретную задачу</span>
+              <span><Icon name="chat" />Согласуйте бюджет, сроки и формат в чате</span>
+              <span><Icon name="layers" />Следите за статусом активных сделок</span>
+              <span><Icon name="shield" />Закройте сотрудничество и оставьте отзыв</span>
+            </div>
+            <Link className={styles.primaryButton} href="/register?role=business">Начать поиск авторов <Icon name="arrow" size={18} /></Link>
+          </div>
+
+          <div className={styles.processVisual} aria-label="Схема процесса">
+            <div className={styles.processCenter}>СВОИ<br />UGC</div>
+            {[
+              { icon: 'search' as IconName, label: 'Поиск', className: styles.processOne },
+              { icon: 'briefcase' as IconName, label: 'Предложение', className: styles.processTwo },
+              { icon: 'chat' as IconName, label: 'Чат', className: styles.processThree },
+              { icon: 'check' as IconName, label: 'Сделка', className: styles.processFour },
+            ].map((item) => (
+              <div className={`${styles.processNode} ${item.className}`} key={item.label}>
+                <Icon name={item.icon} /><span>{item.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ═══ ДЛЯ БИЗНЕСА ═══ */}
-      <section style={{ background: '#2A2723', padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 64px)' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '48px', alignItems: 'center' }}>
+      <section className={styles.howSection} id="how">
+        <div className={styles.sectionHeading}>
+          <div className={styles.kicker}>Как это работает</div>
+          <h2>От поиска до завершённой сделки</h2>
+          <p>Четыре понятных шага без лишних промежуточных страниц.</p>
+        </div>
+        <div className={styles.stepsGrid}>
+          {[
+            { n: '01', icon: 'search' as IconName, title: 'Найдите автора', text: 'Используйте обычный поиск, ИИ-подбор и фильтры.' },
+            { n: '02', icon: 'briefcase' as IconName, title: 'Отправьте предложение', text: 'Укажите задачу, бюджет и желаемый срок.' },
+            { n: '03', icon: 'chat' as IconName, title: 'Обсудите детали', text: 'Переписывайтесь и согласовывайте условия в чате.' },
+            { n: '04', icon: 'check' as IconName, title: 'Закройте сделку', text: 'Завершите сотрудничество и оставьте отзыв.' },
+          ].map((step) => (
+            <article className={styles.stepCard} key={step.n}>
+              <div className={styles.stepNumber}>{step.n}</div>
+              <span className={styles.stepIcon}><Icon name={step.icon} /></span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.audienceHeading}>
+          <h2>Один сервис — разные задачи бизнеса</h2>
+          <p>Начните с одного автора или используйте платформу для регулярных UGC-кампаний.</p>
+        </div>
+        <div className={styles.audienceGrid}>
+          {[
+            { icon: 'building' as IconName, title: 'Локальному бизнесу', text: 'Найдите автора рядом с заведением, салоном, магазином или студией.', action: 'Найти автора', href: '/catalog' },
+            { icon: 'briefcase' as IconName, title: 'Маркетологам', text: 'Собирайте подборки, сохраняйте авторов и ведите несколько сделок.', action: 'Открыть каталог', href: '/catalog' },
+            { icon: 'layers' as IconName, title: 'Агентствам', text: 'Используйте бизнес-профиль для проектов разных клиентов и направлений.', action: 'Создать аккаунт', href: '/register?role=business' },
+            { icon: 'rocket' as IconName, title: 'Основателям', text: 'Быстро найдите людей, которые покажут продукт живой аудитории.', action: 'Начать поиск', href: '/catalog' },
+          ].map((item, index) => (
+            <article className={`${styles.audienceCard} ${styles[`audience${index + 1}`]}`} key={item.title}>
+              <span><Icon name={item.icon} /></span>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+              <Link href={item.href}>{item.action}<Icon name="arrow" size={16} /></Link>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.authorCtaSection} id="authors">
+        <div className={styles.authorCta}>
           <div>
-            <div style={{ display: 'inline-block', padding: '5px 14px', background: 'rgba(255,255,255,.1)', borderRadius: '100px', fontSize: '12px', color: '#b7a690', fontWeight: 600, marginBottom: '18px' }}>Для бизнеса</div>
-            <h2 style={{ fontSize: 'clamp(26px, 5vw, 34px)', fontWeight: 800, color: '#F6EEE2', marginBottom: '14px', lineHeight: 1.2 }}>
-              Микро-блогер продаёт лучше, чем миллионник
-            </h2>
-            <p style={{ fontSize: '15px', fontWeight: 500, color: '#b7a690', lineHeight: 1.75, marginBottom: '10px' }}>
-              Аудитория от 300 до 30 000 — живая, лояльная, доверяет автору. Реклама выглядит как рекомендация друга, а не интеграция.
-            </p>
-            <p style={{ fontSize: '14px', fontWeight: 500, color: '#8a8175', lineHeight: 1.65, marginBottom: '28px' }}>
-              Найдите автора по нише, городу и аудитории — договоритесь напрямую без агентств.
-            </p>
-            <Link href="/catalog" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '15px 26px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 8px 22px rgba(197,106,67,.28)' }}>Открыть каталог авторов →</Link>
+            <div className={styles.kickerDark}>Для авторов</div>
+            <h2>Создавайте контент и получайте предложения от бизнеса</h2>
+            <p>Заполните профиль, расскажите о своей аудитории и интересах. После модерации бизнес сможет найти вас в каталоге.</p>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {[
-              { icon: '🎯', title: 'Точное попадание в ЦА', text: 'Фитнес-тренер рекламирует спортпит — органично и работает' },
-              { icon: '💬', title: 'Напрямую, без посредников', text: 'Пишете сами, договариваетесь в чате, никаких агентств' },
-              { icon: '💰', title: 'Бюджет от 1 000 ₽ или бартер', text: 'Микро-авторы открыты к гибким условиям' },
-            ].map(item => (
-              <div key={item.title} style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.10)', borderRadius: '14px', padding: '16px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                <div style={{ fontSize: '22px', flexShrink: 0 }}>{item.icon}</div>
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#F6EEE2', marginBottom: '4px' }}>{item.title}</div>
-                  <div style={{ fontSize: '13px', fontWeight: 500, color: '#9a8f7e', lineHeight: 1.5 }}>{item.text}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <Link href="/register?role=author">Стать автором бесплатно <Icon name="arrow" size={18} /></Link>
         </div>
       </section>
 
-      {/* ═══ КАК РАБОТАЕТ ═══ */}
-      <section style={{ background: '#fff', borderTop: '1px solid #EFE4D3', borderBottom: '1px solid #EFE4D3', padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 64px)' }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-            <h2 style={{ fontSize: 'clamp(24px, 5vw, 32px)', fontWeight: 800, marginBottom: '10px', color: '#2A2723' }}>Как это работает</h2>
-            <p style={{ fontSize: '15px', fontWeight: 500, color: '#8a8175' }}>От регистрации до первого предложения — за несколько минут</p>
+      <footer className={styles.footer}>
+        <div className={styles.footerTop}>
+          <div>
+            <Link className={styles.logo} href="/">СВОИ <span>UGC</span></Link>
+            <p>Маркетплейс локальных UGC-авторов и бизнеса.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
-            {[
-              { n: '1', title: 'Заполни анкету', text: 'Профиль, соцсети, стиль жизни' },
-              { n: '2', title: 'Появись в каталоге', text: 'После быстрой модерации' },
-              { n: '3', title: 'Получай предложения', text: 'Бизнес сам находит тебя' },
-              { n: '4', title: 'Договорись в чате', text: 'Условия, бюджет, сроки' },
-            ].map(s => (
-              <div key={s.n} style={{ textAlign: 'center', padding: '18px 12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#F2E7D7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: '17px', fontWeight: 800, color: '#C56A43' }}>{s.n}</div>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#2A2723', marginBottom: '5px' }}>{s.title}</div>
-                <div style={{ fontSize: '12px', fontWeight: 500, color: '#9a8f7e', lineHeight: 1.5 }}>{s.text}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ textAlign: 'center', marginTop: '28px' }}>
-            <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '15px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '14px 28px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 6px 18px rgba(197,106,67,.22)' }}>Зарегистрироваться сейчас →</Link>
+          <div className={styles.footerLinks}>
+            <div><strong>Платформа</strong><Link href="/catalog">Каталог</Link><a href="#how">Как это работает</a></div>
+            <div><strong>Участникам</strong><a href="#business">Для бизнеса</a><a href="#authors">Для авторов</a></div>
+            <div><strong>Помощь</strong><Link href="/support">Поддержка</Link><Link href="/login">Войти</Link></div>
           </div>
         </div>
-      </section>
-
-      {/* ═══ ФИНАЛЬНЫЙ CTA ═══ */}
-      <section style={{ padding: 'clamp(44px, 8vw, 72px) clamp(16px, 5vw, 64px)', textAlign: 'center' }}>
-        <div style={{ maxWidth: '480px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: 'clamp(24px, 5vw, 32px)', fontWeight: 800, color: '#2A2723', marginBottom: '10px' }}>Ты микро-автор?</h2>
-          <p style={{ fontSize: '15px', fontWeight: 500, color: '#8a8175', marginBottom: '26px', lineHeight: 1.7 }}>Заполни анкету — бизнесы сами найдут тебя. Бесплатно, без скрытых условий.</p>
-          <Link href="/register" style={{ display: 'inline-flex', alignItems: 'center', fontSize: '16px', fontWeight: 700, color: '#FFF7EE', background: '#C56A43', padding: '16px 40px', borderRadius: '14px', textDecoration: 'none', boxShadow: '0 8px 22px rgba(197,106,67,.28)' }}>Заполнить анкету</Link>
-        </div>
-      </section>
-
-      <footer style={{ borderTop: '1px solid #EFE4D3', padding: 'clamp(16px, 5vw, 24px) clamp(16px, 5vw, 64px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: 600, color: '#9a8f7e' }}>
-        <span style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em', color: '#2A2723' }}>ugc<span style={{ color: '#C56A43' }}>market</span></span>
-        <span>Площадка микро-авторов</span>
+        <div className={styles.footerBottom}>© {new Date().getFullYear()} СВОИ UGC</div>
       </footer>
-
     </main>
   )
 }
-

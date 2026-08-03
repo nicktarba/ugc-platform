@@ -7,6 +7,8 @@ import { useToast } from '@/components/Toast'
 import { useApp } from '../../../AppContext'
 import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
 import { truncate, parseStatusError } from '@/lib/format'
+import UiIcon from '@/components/UiIcon'
+import styles from './chat.module.css'
 
 type Msg = { id: string; sender_id: string; sender_role: string; text: string; created_at: string; read: boolean }
 type RequestInfo = {
@@ -296,296 +298,269 @@ export default function ChatPage() {
 
   const hasActions = showAuthorActions || showAcceptedActions || showBusinessWithdraw || dealClosed || authorRejected || showReviewForm || (userRole === 'business' && dealCompleted && (existingReview || reviewSent))
 
+  const statusMeta: Record<string, { label: string; className: string }> = {
+    new: { label: userRole === 'business' ? 'Отправлено' : 'Новое предложение', className: styles.statusNew },
+    viewed: { label: 'Просмотрено', className: styles.statusViewed },
+    accepted: { label: 'В работе', className: styles.statusAccepted },
+    completed: { label: 'Завершено', className: styles.statusCompleted },
+    declined: { label: 'Отклонено', className: styles.statusDeclined },
+    cancelled: { label: 'Отменено', className: styles.statusCancelled },
+  }
+  const currentStatus = statusMeta[request?.status || 'new'] || statusMeta.new
+  const otherInitial = otherName?.trim()?.[0]?.toUpperCase() || '?'
+  const formattedDeadline = request?.deadline
+    ? new Date(request.deadline).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })
+    : null
+
+  const renderActionPanel = () => {
+    if (!hasActions) return null
+    return (
+      <>
+        {authorRejected && !dealClosed && (
+          <div className={`${styles.notice} ${styles.noticeDanger}`}>
+            <UiIcon name="shield" width={16} height={16} />
+            <span>{userRole === 'author' ? 'Профиль не прошёл модерацию. Переписка временно недоступна.' : 'Профиль автора временно недоступен.'}</span>
+          </div>
+        )}
+
+        {showAuthorActions && (
+          <div className={styles.actionRow}>
+            <button type="button" className={`${styles.actionButton} ${styles.successButton}`} onClick={() => updateStatus('accepted')} disabled={updatingStatus}>Принять</button>
+            <button type="button" className={`${styles.actionButton} ${styles.outlineButton}`} onClick={() => updateStatus('declined')} disabled={updatingStatus}>Отклонить</button>
+          </div>
+        )}
+
+        {showBusinessWithdraw && (
+          <button type="button" className={`${styles.actionButton} ${styles.outlineButton}`} onClick={() => updateStatus('cancelled')} disabled={updatingStatus}>Отозвать предложение</button>
+        )}
+
+        {showAcceptedBusiness && (
+          <div className={styles.actionStack}>
+            <button type="button" className={`${styles.actionButton} ${styles.successButton}`} onClick={() => updateStatus('completed')} disabled={updatingStatus}>Подтвердить выполнение</button>
+            <button type="button" className={`${styles.actionButton} ${styles.dangerButton}`} onClick={() => updateStatus('cancelled')} disabled={updatingStatus}>Отменить сделку</button>
+          </div>
+        )}
+
+        {showAcceptedAuthor && !workDoneSent && (
+          <div className={styles.actionStack}>
+            <button type="button" className={styles.actionButton} onClick={sendWorkDone} disabled={updatingStatus}>Работа выполнена</button>
+            <button type="button" className={`${styles.actionButton} ${styles.dangerButton}`} onClick={() => updateStatus('cancelled')} disabled={updatingStatus}>Отменить сделку</button>
+          </div>
+        )}
+
+        {showAcceptedAuthor && workDoneSent && (
+          <div className={`${styles.notice} ${styles.noticeSuccess}`}>
+            <UiIcon name="check" width={16} height={16} />
+            <span>Бизнес получил уведомление. Ожидаем подтверждения результата.</span>
+          </div>
+        )}
+
+        {dealClosed && (
+          <div className={styles.actionStack}>
+            <div className={styles.notice}>
+              <UiIcon name="shield" width={16} height={16} />
+              <span>Сделка закрыта. История переписки сохранена.</span>
+            </div>
+            {userRole === 'business' && (
+              <button type="button" className={styles.actionButton} onClick={startNewDeal} disabled={updatingStatus}>Предложить новое сотрудничество</button>
+            )}
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
-    <>
-      <style>{`
-        .chat-wrap {
-          position: fixed;
-          top: 0; right: 0; bottom: 0; left: 220px;
-          display: flex; flex-direction: column; background: #fafaf9;
-          z-index: 40;
-        }
-
-        .chat-hdr {
-          flex: 0 0 auto;
-          padding: 14px 20px;
-          border-bottom: 1px solid #e8e6e1;
-          background: #fff;
-          display: flex; align-items: center; gap: 10px;
-          z-index: 10;
-        }
-        .chat-hdr-name { font-family: Fraunces, serif; font-size: 18px; font-weight: 700; color: #1a1a1a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        a.chat-hdr-name { text-decoration: none; }
-        a.chat-hdr-name:hover { color: #c17f3e; }
-
-        .chat-acts {
-          flex: 0 0 auto;
-          padding: 10px 20px;
-          background: #fafaf9;
-        }
-
-        .chat-msgs {
-          flex: 1 1 0;
-          min-height: 0;
-          overflow-y: auto;
-          overflow-x: hidden;
-          padding: 12px 20px;
-          display: flex; flex-direction: column; gap: 10px;
-          -webkit-overflow-scrolling: touch;
-          overscroll-behavior: contain;
-        }
-
-        .chat-bar {
-          flex: 0 0 auto;
-          padding: 12px 20px;
-          border-top: 1px solid #e8e6e1;
-          background: #fff;
-          display: flex; gap: 10px; align-items: flex-end;
-        }
-        .chat-bar textarea {
-          flex: 1; min-width: 0; padding: 10px 16px; border: 1.5px solid #e0ddd8;
-          border-radius: 18px; font-size: 15px; background: #fafaf9; color: #1a1a1a;
-          outline: none; font-family: inherit; resize: none; max-height: 100px; line-height: 1.4;
-        }
-        .chat-bar button {
-          padding: 10px 20px; background: #1a1a1a; border: none; border-radius: 100px;
-          color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
-          font-family: inherit; flex-shrink: 0; white-space: nowrap;
-        }
-        .chat-bar button:disabled { background: #9a9590; cursor: not-allowed; }
-
-        /* Desktop: wider padding */
-        @media (min-width: 769px) {
-          .chat-msgs { padding: 16px clamp(20px, 5vw, 60px); }
-          .chat-hdr { padding: 14px clamp(20px, 5vw, 60px); }
-          .chat-acts { padding: 10px clamp(20px, 5vw, 60px); }
-          .chat-bar { padding: 12px clamp(20px, 5vw, 60px); }
-        }
-
-        /* Mobile: full screen overlay */
-        @media (max-width: 768px) {
-          .chat-wrap { left: 0; z-index: 50; }
-          .chat-hdr { padding: 12px 16px; }
-          .chat-acts { padding: 8px 16px; }
-          .chat-msgs { padding: 10px 16px; }
-          .chat-bar { padding: 10px 16px; padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
-        }
-      `}</style>
-
-      <main className="chat-wrap">
-        {/* Header */}
-        <div className="chat-hdr">
-          <Link href={backHref} style={{ fontSize:'20px', color:'#7a7570', textDecoration:'none', flexShrink:0, lineHeight:1 }}>←</Link>
-          {profileHref ? (
-            <Link href={profileHref} className="chat-hdr-name">{otherName}</Link>
-          ) : (
-            <span className="chat-hdr-name">{otherName}</span>
-          )}
-          <button onClick={() => setComplaintOpen(true)} style={{ padding:'5px 10px', background:'none', border:'1px solid #e0ddd8', borderRadius:'8px', color:'#9a9590', fontSize:'11px', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', flexShrink:0 }}>Пожаловаться</button>
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <Link href={backHref} className={styles.backButton} aria-label="Назад">
+          <UiIcon name="arrowLeft" width={19} height={19} />
+        </Link>
+        <div className={styles.avatar}>{otherInitial}</div>
+        <div className={styles.participant}>
+          <strong>{otherName || 'Участник сделки'}</strong>
+          <span>{userRole === 'author' ? 'Бизнес' : 'UGC-автор'} · общение по сделке</span>
         </div>
+        <span className={`${styles.headerStatus} ${currentStatus.className}`}>{currentStatus.label}</span>
+        <div className={styles.headerActions}>
+          {profileHref && (
+            <Link href={profileHref} className={styles.profileButton} aria-label="Открыть профиль">
+              <UiIcon name="user" width={18} height={18} />
+            </Link>
+          )}
+          <button type="button" className={styles.iconButton} onClick={() => setComplaintOpen(true)} aria-label="Пожаловаться">
+            <UiIcon name="flag" width={18} height={18} />
+          </button>
+        </div>
+      </header>
 
-        {/* Action buttons */}
-        {hasActions && (
-          <div className="chat-acts">
-            {authorRejected && !dealClosed && (
-              <div style={{ padding:'10px 14px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginBottom:'8px', fontSize:'13px', fontWeight:600, color:'#dc2626' }}>
-                {userRole === 'author' ? 'Профиль не прошёл модерацию — переписка недоступна.' : 'Профиль автора временно недоступен.'}
+      <div className={styles.layout}>
+        <section className={styles.conversation}>
+          <div className={styles.messages} ref={messagesRef}>
+            <div className={styles.mobileDeal}>
+              <div className={styles.dealCard}>
+                <span className={styles.cardEyebrow}>Сделка</span>
+                <h2 className={styles.cardTitle}>{currentStatus.label}</h2>
+                <p className={styles.cardCopy}>{truncate(request?.message || 'Условия сотрудничества обсуждаются в чате.', 150)}</p>
+                <div className={styles.detailList}>
+                  <div className={styles.detailRow}><span>Бюджет</span><strong>{request?.budget || 'Не указан'}</strong></div>
+                  <div className={styles.detailRow}><span>Срок</span><strong>{formattedDeadline || 'По договорённости'}</strong></div>
+                </div>
               </div>
-            )}
+              {hasActions && <div className={styles.actionCard}><div className={styles.actionStack}>{renderActionPanel()}</div></div>}
+              {showReviewForm && (
+                <div className={styles.reviewCard}>
+                  <span className={styles.cardEyebrow}>После сделки</span>
+                  <h2 className={styles.cardTitle}>Оцените сотрудничество</h2>
+                  <div className={styles.reviewStars}><StarRating value={reviewRating} onChange={setReviewRating} size={25} /></div>
+                  <textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} maxLength={2000} placeholder="Что было особенно хорошо?" />
+                  <button type="button" className={styles.actionButton} onClick={submitReview} disabled={!reviewRating || reviewSending}>{reviewSending ? 'Отправляем…' : 'Отправить отзыв'}</button>
+                </div>
+              )}
+            </div>
 
-            {showAuthorActions && (
-              <div style={{ display:'flex', gap:'10px', marginBottom:'8px' }}>
-                <button onClick={() => updateStatus('accepted')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Принять</button>
-                <button onClick={() => updateStatus('declined')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отклонить</button>
-              </div>
-            )}
-
-            {showBusinessWithdraw && (
-              <div style={{ marginBottom:'8px' }}>
-                <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ width:'100%', padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отозвать заявку</button>
-              </div>
-            )}
-
-            {showAcceptedBusiness && (
-              <div style={{ display:'flex', gap:'10px', marginBottom:'8px' }}>
-                <button onClick={() => updateStatus('completed')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#16a34a', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Завершить сделку</button>
-                <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отменить</button>
-              </div>
-            )}
-
-            {showAcceptedAuthor && !workDoneSent && (
-              <div style={{ display:'flex', gap:'10px', marginBottom:'8px' }}>
-                <button onClick={sendWorkDone} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background:'#c17f3e', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Работа выполнена</button>
-                <button onClick={() => updateStatus('cancelled')} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>Отменить</button>
-              </div>
-            )}
-
-            {showAcceptedAuthor && workDoneSent && (
-              <div style={{ padding:'12px 14px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'12px', marginBottom:'8px', display:'flex', alignItems:'center', gap:'10px' }}>
-                <span style={{ fontSize:'16px' }}>✅</span>
-                <div style={{ fontSize:'13px', color:'#16a34a', fontWeight:600 }}>Ожидаем подтверждения от бизнеса</div>
-              </div>
-            )}
-
-            {dealClosed && (
-              <div style={{ padding:'12px 14px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'12px', marginBottom:'8px' }}>
-                <div style={{ fontSize:'13px', color:'#7a7570', marginBottom: userRole === 'business' ? '10px' : 0 }}>Сделка закрыта — переписка только для просмотра.</div>
-                {userRole === 'business' && (
-                  <button onClick={startNewDeal} disabled={updatingStatus} style={{ padding:'9px 18px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:updatingStatus?'not-allowed':'pointer', fontFamily:'inherit' }}>Начать новую сделку</button>
+            {request && (
+              <div className={styles.proposalCard}>
+                <div className={styles.proposalTop}>
+                  <div className={styles.proposalIcon}><UiIcon name="briefcase" width={17} height={17} /></div>
+                  <div><strong>Исходное предложение</strong><span>С него началось сотрудничество</span></div>
+                </div>
+                <p className={styles.proposalText}>{request.message}</p>
+                {(request.budget || formattedDeadline) && (
+                  <div className={styles.proposalMeta}>
+                    {request.budget && <span className={styles.metaChip}><UiIcon name="wallet" width={14} height={14} /> {request.budget}</span>}
+                    {formattedDeadline && <span className={styles.metaChip}><UiIcon name="calendar" width={14} height={14} /> {formattedDeadline}</span>}
+                  </div>
                 )}
               </div>
             )}
 
-            {showReviewForm && (
-              <div style={{ padding:'16px', background:'#fff', border:'1.5px solid #c17f3e', borderRadius:'14px', marginBottom:'8px' }}>
-                <div style={{ fontSize:'14px', fontWeight:700, color:'#1a1a1a', marginBottom:'3px' }}>Оставь отзыв об авторе</div>
-                <p style={{ fontSize:'12px', color:'#7a7570', marginBottom:'12px' }}>Как прошло сотрудничество?</p>
-                <div style={{ marginBottom:'10px' }}>
-                  <StarRating value={reviewRating} onChange={setReviewRating} size={26} />
-                  {reviewRating > 0 && <span style={{ fontSize:'12px', color:'#9a9590', marginLeft:'8px' }}>{['', 'Плохо', 'Так себе', 'Нормально', 'Хорошо', 'Отлично'][reviewRating]}</span>}
-                </div>
-                <textarea value={reviewComment} onChange={e => setReviewComment(e.target.value)} placeholder="Комментарий (необязательно)" rows={2} maxLength={1000} style={{ width:'100%', padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'10px', boxSizing:'border-box' }} />
-                <button onClick={submitReview} disabled={reviewSending || !reviewRating} style={{ padding:'9px 20px', border:'none', borderRadius:'100px', background: reviewSending || !reviewRating ? '#9a9590' : '#c17f3e', color:'#fff', fontSize:'13px', fontWeight:600, cursor: reviewSending || !reviewRating ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
-                  {reviewSending ? 'Отправляем...' : 'Отправить отзыв'}
-                </button>
-              </div>
-            )}
+            {request?.status === 'accepted' && <div className={`${styles.timelineEvent} ${styles.timelineAccepted}`}>Предложение принято, сделка открыта</div>}
+            {request?.status === 'completed' && <div className={`${styles.timelineEvent} ${styles.timelineCompleted}`}>Сделка завершена</div>}
+            {request?.status === 'declined' && <div className={`${styles.timelineEvent} ${styles.timelineDeclined}`}>Предложение отклонено</div>}
+            {request?.status === 'cancelled' && <div className={styles.timelineEvent}>Сделка отменена</div>}
 
-            {userRole === 'business' && dealCompleted && (existingReview || reviewSent) && (
-              <div style={{ padding:'12px 14px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'12px', display:'flex', alignItems:'center', gap:'10px' }}>
-                <span style={{ fontSize:'18px' }}>✅</span>
-                <div>
-                  <div style={{ fontSize:'12px', fontWeight:600, color:'#16a34a' }}>Отзыв отправлен</div>
-                  <span style={{ display:'inline-flex', gap:'1px' }}>
-                    {[1,2,3,4,5].map(n => <span key={n} style={{ fontSize:13, color: n <= (existingReview?.rating || reviewRating) ? '#c17f3e' : '#e0ddd8' }}>★</span>)}
-                  </span>
+            {hasMore && <button type="button" className={styles.loadEarlier} onClick={loadEarlier} disabled={loadingMore}>{loadingMore ? 'Загружаем…' : 'Показать ранние сообщения'}</button>}
+
+            {messages.length === 0 && <div className={styles.emptyMessages}>Сообщений пока нет. Начните обсуждение задачи.</div>}
+
+            {messages.map(messageItem => {
+              const isMine = messageItem.sender_id === userId
+              const time = new Date(messageItem.created_at).toLocaleString('ru', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' })
+              return (
+                <div key={messageItem.id} className={`${styles.messageRow} ${isMine ? styles.mine : styles.theirs}`}>
+                  <div className={styles.bubble}>{messageItem.text}</div>
+                  <div className={styles.messageMeta}>
+                    <span>{time}</span>
+                    {isMine && <span className={styles.readMark}>{messageItem.read ? '✓✓' : '✓'}</span>}
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            })}
+            <div ref={bottomRef} />
           </div>
-        )}
 
-        {/* Messages */}
-        <div className="chat-msgs" ref={messagesRef}>
-          {request && (
-            <div style={{ alignSelf:'center', maxWidth:'85%', padding:'10px 16px', background:'#f0ede6', borderRadius:'14px', textAlign:'center' }}>
-              <p style={{ fontSize:'13px', color:'#5a5650', lineHeight:1.5, marginBottom: (request.budget || request.deadline) ? '6px' : 0 }}>{request.message}</p>
-              {(request.budget || request.deadline) && (
-                <div style={{ display:'flex', justifyContent:'center', gap:'14px', flexWrap:'wrap', fontSize:'12px', color:'#7a7570' }}>
-                  {request.budget && <span>💰 {request.budget}</span>}
-                  {request.deadline && <span>📅 {new Date(request.deadline).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })}</span>}
-                </div>
-              )}
-            </div>
-          )}
-
-          {request?.status === 'accepted' && <div style={{ alignSelf:'center', padding:'5px 14px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Предложение принято, сделка открыта</div>}
-          {request?.status === 'completed' && <div style={{ alignSelf:'center', padding:'5px 14px', background:'#f0fdf4', borderRadius:'100px', fontSize:'12px', color:'#16a34a', fontWeight:600 }}>Сделка завершена</div>}
-          {request?.status === 'declined' && <div style={{ alignSelf:'center', padding:'5px 14px', background:'#fef2f2', borderRadius:'100px', fontSize:'12px', color:'#dc2626', fontWeight:600 }}>Предложение отклонено</div>}
-          {request?.status === 'cancelled' && <div style={{ alignSelf:'center', padding:'5px 14px', background:'#f0ede6', borderRadius:'100px', fontSize:'12px', color:'#7a7570', fontWeight:600 }}>Сделка отменена</div>}
-
-          {hasMore && (
-            <div style={{ textAlign:'center', padding:'4px 0' }}>
-              <button onClick={loadEarlier} disabled={loadingMore} style={{ padding:'5px 14px', background:'#fff', border:'1px solid #e0ddd8', borderRadius:'100px', fontSize:'12px', fontWeight:500, color:'#7a7570', cursor:'pointer', fontFamily:'inherit' }}>
-                {loadingMore ? 'Загружаем...' : '↑ Ранние сообщения'}
+          {canChat ? (
+            <div className={styles.composer}>
+              <textarea
+                ref={inputRef}
+                value={text}
+                onChange={event => setText(event.target.value)}
+                onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage() } }}
+                onFocus={() => setTimeout(() => scrollToBottom('instant'), 300)}
+                placeholder="Напишите сообщение…"
+                rows={1}
+                maxLength={5000}
+                onInput={event => { const target = event.target as HTMLTextAreaElement; target.style.height = 'auto'; target.style.height = Math.min(target.scrollHeight, 118) + 'px' }}
+              />
+              <button type="button" className={styles.sendButton} onClick={sendMessage} disabled={sending || !text.trim()} aria-label="Отправить">
+                <UiIcon name="arrowRight" width={19} height={19} />
               </button>
             </div>
-          )}
+          ) : <div className={styles.closedComposer}>Переписка закрыта. История сделки доступна только для просмотра.</div>}
+        </section>
 
-          {messages.length === 0 && (
-            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <p style={{ fontSize:'14px', color:'#9a9590', textAlign:'center' }}>Сообщений пока нет. Напиши первым.</p>
+        <aside className={styles.sidebar}>
+          <div className={styles.dealCard}>
+            <span className={styles.cardEyebrow}>Информация о сделке</span>
+            <h2 className={styles.cardTitle}>{currentStatus.label}</h2>
+            <p className={styles.cardCopy}>{truncate(request?.message || 'Условия сотрудничества обсуждаются в чате.', 180)}</p>
+            <div className={styles.detailList}>
+              <div className={styles.detailRow}><span>Бюджет</span><strong>{request?.budget || 'Не указан'}</strong></div>
+              <div className={styles.detailRow}><span>Срок</span><strong>{formattedDeadline || 'По договорённости'}</strong></div>
+              <div className={styles.detailRow}><span>Номер</span><strong>#{requestId.slice(0, 8).toUpperCase()}</strong></div>
+            </div>
+            {profileHref && <Link href={profileHref} className={styles.profileLink}><UiIcon name="user" width={15} height={15} /> Открыть профиль</Link>}
+          </div>
+
+          {hasActions && (
+            <div className={styles.actionCard}>
+              <span className={styles.cardEyebrow}>Следующее действие</span>
+              <div className={styles.actionStack}>{renderActionPanel()}</div>
             </div>
           )}
 
-          {messages.map(m => {
-            const isMine = m.sender_id === userId
-            const time = new Date(m.created_at).toLocaleString('ru', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' })
-            return (
-              <div key={m.id} style={{
-                alignSelf: isMine ? 'flex-end' : 'flex-start', maxWidth:'80%',
-                padding:'12px 16px', background: isMine ? '#1a1a1a' : '#fff', color: isMine ? '#fff' : '#1a1a1a',
-                border: isMine ? 'none' : '1px solid #e8e6e1',
-                borderRadius: isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-              }}>
-                <p style={{ fontSize:'14px', lineHeight:1.5 }}>{m.text}</p>
-                <p style={{ fontSize:'11px', color: isMine ? 'rgba(255,255,255,0.45)' : '#9a9590', marginTop:'4px', textAlign:'right' }}>
-                  {time}{isMine && <span style={{ marginLeft:'5px' }}>{m.read ? '✓✓' : '✓'}</span>}
-                </p>
-              </div>
-            )
-          })}
-          <div ref={bottomRef} />
-        </div>
+          {showReviewForm && (
+            <div className={styles.reviewCard}>
+              <span className={styles.cardEyebrow}>После сделки</span>
+              <h2 className={styles.cardTitle}>Оцените сотрудничество</h2>
+              <p className={styles.cardCopy}>Ваш отзыв появится в профиле автора и поможет другим компаниям принять решение.</p>
+              <div className={styles.reviewStars}><StarRating value={reviewRating} onChange={setReviewRating} size={25} /></div>
+              <textarea value={reviewComment} onChange={event => setReviewComment(event.target.value)} maxLength={2000} placeholder="Расскажите о результате и коммуникации" />
+              <button type="button" className={styles.actionButton} onClick={submitReview} disabled={!reviewRating || reviewSending}>{reviewSending ? 'Отправляем…' : 'Отправить отзыв'}</button>
+            </div>
+          )}
 
-        {/* Input bar */}
-        {canChat && (
-          <div className="chat-bar">
-            <textarea
-              ref={inputRef}
-              value={text}
-              onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-              onFocus={() => setTimeout(() => scrollToBottom('instant'), 300)}
-              placeholder="Сообщение..."
-              rows={1}
-              maxLength={5000}
-              onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 100) + 'px' }}
-            />
-            <button onClick={sendMessage} disabled={sending || !text.trim()}>
-              {sending ? '...' : 'Отправить'}
-            </button>
-          </div>
-        )}
-      </main>
+          {userRole === 'business' && dealCompleted && (existingReview || reviewSent) && (
+            <div className={styles.reviewCard}>
+              <div className={`${styles.notice} ${styles.noticeSuccess}`}><UiIcon name="check" width={16} height={16} /><span>Отзыв отправлен</span></div>
+              <div className={styles.reviewStars}><StarRating value={existingReview?.rating || reviewRating} onChange={() => {}} size={20} /></div>
+            </div>
+          )}
+        </aside>
+      </div>
 
-      {/* Confirm modal */}
       {confirmAction && (
-        <div onClick={() => setConfirmAction(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'24px', maxWidth:'360px', width:'100%' }}>
-            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>
-              {confirmAction === 'declined' ? 'Отклонить заявку?' : confirmAction === 'cancelled' ? 'Отменить сделку?' : 'Завершить сделку?'}
-            </h3>
-            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'18px', lineHeight:1.5 }}>
-              {confirmAction === 'completed' ? 'Сделка будет отмечена как завершённая.' : 'Переписка закроется. История останется.'}
-            </p>
-            <div style={{ display:'flex', gap:'10px' }}>
-              <button onClick={() => setConfirmAction(null)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Назад</button>
-              <button onClick={confirmStatusUpdate} disabled={updatingStatus} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: confirmAction === 'completed' ? '#16a34a' : '#dc2626', color:'#fff', cursor:updatingStatus?'not-allowed':'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-                {updatingStatus ? '...' : confirmAction === 'declined' ? 'Отклонить' : confirmAction === 'cancelled' ? 'Отменить' : 'Завершить'}
-              </button>
+        <div className={styles.modalBackdrop} onClick={() => setConfirmAction(null)}>
+          <div className={styles.modal} onClick={event => event.stopPropagation()} role="dialog" aria-modal="true">
+            <h3>{confirmAction === 'declined' ? 'Отклонить предложение?' : confirmAction === 'cancelled' ? 'Отменить сделку?' : 'Завершить сделку?'}</h3>
+            <p>{confirmAction === 'completed' ? 'После завершения бизнес сможет оставить отзыв об авторе.' : 'Переписка закроется, но история сделки останется доступна.'}</p>
+            <div className={styles.modalActions}>
+              <button type="button" className={`${styles.actionButton} ${styles.outlineButton}`} onClick={() => setConfirmAction(null)}>Назад</button>
+              <button type="button" className={`${styles.actionButton} ${confirmAction === 'completed' ? styles.successButton : styles.dangerButton}`} onClick={confirmStatusUpdate} disabled={updatingStatus}>{updatingStatus ? 'Подождите…' : confirmAction === 'completed' ? 'Завершить' : confirmAction === 'declined' ? 'Отклонить' : 'Отменить'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Complaint modal */}
       {complaintOpen && (
-        <div onClick={() => setComplaintOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'24px', maxWidth:'400px', width:'100%' }}>
-            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'14px' }}>Пожаловаться</h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:'6px', marginBottom:'14px' }}>
-              {['Нарушение договорённостей', 'Спам или мошенничество', 'Неадекватное поведение', 'Другое'].map(r => (
-                <button key={r} type="button" onClick={() => setComplaintReason(r)} style={{ padding:'10px 14px', borderRadius:'10px', border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', fontSize:'13px', textAlign:'left' as const, borderColor: complaintReason === r ? '#1a1a1a' : '#e0ddd8', background: complaintReason === r ? '#1a1a1a' : '#fff', color: complaintReason === r ? '#fff' : '#5a5650' }}>{r}</button>
+        <div className={styles.modalBackdrop} onClick={() => setComplaintOpen(false)}>
+          <div className={styles.modal} onClick={event => event.stopPropagation()} role="dialog" aria-modal="true">
+            <h3>Пожаловаться</h3>
+            <p>Выберите причину. Второй участник сделки не увидит вашу жалобу.</p>
+            <div className={styles.reasonList}>
+              {['Нарушение договорённостей', 'Спам или мошенничество', 'Неадекватное поведение', 'Другое'].map(reason => (
+                <button type="button" key={reason} className={`${styles.reasonButton} ${complaintReason === reason ? styles.reasonActive : ''}`} onClick={() => setComplaintReason(reason)}>
+                  {reason}{complaintReason === reason && <UiIcon name="check" width={15} height={15} />}
+                </button>
               ))}
             </div>
-            <textarea value={complaintComment} onChange={e => setComplaintComment(e.target.value)} placeholder="Опиши ситуацию (необязательно)" rows={3} maxLength={1000} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'14px', boxSizing:'border-box' }} />
-            <div style={{ display:'flex', gap:'10px' }}>
-              <button onClick={() => setComplaintOpen(false)} style={{ flex:1, padding:'11px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
-              <button disabled={!complaintReason || complaintSending} onClick={async () => {
+            <textarea value={complaintComment} onChange={event => setComplaintComment(event.target.value)} placeholder="Опишите ситуацию, если нужно" rows={3} maxLength={1000} />
+            <div className={styles.modalActions}>
+              <button type="button" className={`${styles.actionButton} ${styles.outlineButton}`} onClick={() => setComplaintOpen(false)}>Отмена</button>
+              <button type="button" className={`${styles.actionButton} ${styles.dangerButton}`} disabled={!complaintReason || complaintSending} onClick={async () => {
                 setComplaintSending(true)
                 const targetAuthorId = userRole === 'business' ? request?.author_id : null
                 const targetBusinessId = userRole === 'author' ? request?.business_id : null
-                await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: targetAuthorId, target_business_id: targetBusinessId, reason: complaintReason, comment: complaintComment.trim() || null }])
-                setComplaintSending(false); setComplaintOpen(false); setComplaintReason(''); setComplaintComment('')
-                toast.success('Жалоба отправлена')
-              }} style={{ flex:1, padding:'11px', border:'none', borderRadius:'100px', background: !complaintReason || complaintSending ? '#9a9590' : '#dc2626', color:'#fff', cursor: !complaintReason || complaintSending ? 'not-allowed' : 'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-                {complaintSending ? '...' : 'Отправить'}
-              </button>
+                const { error } = await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: targetAuthorId, target_business_id: targetBusinessId, reason: complaintReason, comment: complaintComment.trim() || null }])
+                setComplaintSending(false)
+                if (error) { toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.'); return }
+                setComplaintOpen(false); setComplaintReason(''); setComplaintComment(''); toast.success('Жалоба отправлена')
+              }}>{complaintSending ? 'Отправляем…' : 'Отправить'}</button>
             </div>
           </div>
         </div>
       )}
-    </>
+    </main>
   )
 }

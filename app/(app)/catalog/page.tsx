@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../AppContext'
 import { CatalogSkeleton } from '@/components/Skeleton'
+import UiIcon from '@/components/UiIcon'
+import styles from './catalog.module.css'
 
 type Author = { id:string; name:string; city:string; instagram_url:string; telegram_url:string|null; telegram_followers:number; followers_count:number; stories_views:number; occupation:string; lifestyle:string[]; hobbies:string; bio:string; open_to_barter:boolean; avatar_url:string|null; completed_deals_count:number; avg_rating:number|null; reviews_count:number }
 
@@ -561,316 +563,255 @@ export default function CatalogPage() {
 
   const activeFiltersCount = (searchMode === 'ai' && city ? 1 : 0) + (barter !== 'all' ? 1 : 0) + lifestyleFilter.length + (sort !== 'relevance' ? 1 : 0) + (minFollowers > 0 || maxFollowers < FOLLOWERS_MAX_CAP ? 1 : 0)
 
+  const hasActiveSearch = Boolean(search.trim() || city || lifestyleFilter.length || barter !== 'all' || minFollowers > 0 || maxFollowers < FOLLOWERS_MAX_CAP)
+
   return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <div style={{ maxWidth:'1100px', margin:'0 auto', padding:'clamp(28px, 7vw, 48px) clamp(16px, 5vw, 40px)' }}>
-        <div style={{ marginBottom:'32px' }}>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'40px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Каталог авторов</h1>
-          <p style={{ fontSize:'15px', color:'#7a7570' }}>{filtered.length} {filtered.length===1?'автор':filtered.length<5?'автора':'авторов'}</p>
-        </div>
+    <main className={styles.page}>
+      <div className={styles.mobileTopbar}>
+        <Link href="/" className={styles.mobileBrand}>СВОИ <span>UGC</span></Link>
+        {!userId && <Link href="/login" className={styles.mobileLogin}>Войти</Link>}
+      </div>
 
-        {/* Mode tabs */}
-        <div style={{ display:'flex', gap:'8px', marginBottom:'10px' }}>
-          <button onClick={() => switchMode('regular')} style={{ flex:'1', padding:'12px 16px', borderRadius:'14px', border: searchMode==='regular' ? '1.5px solid #C56A43' : '1.5px solid #e0ddd8', background: searchMode==='regular' ? '#fdf3e7' : '#fff', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
-            <div style={{ fontSize:'14px', fontWeight:700, color: searchMode==='regular' ? '#C56A43' : '#1a1a1a', marginBottom:'2px' }}>🔍 Обычный поиск</div>
-            <div style={{ fontSize:'12px', color:'#9a9590' }}>Точные слова, город и фильтры сразу</div>
-          </button>
-          <button onClick={() => switchMode('ai')} style={{ flex:'1', padding:'12px 16px', borderRadius:'14px', border: searchMode==='ai' ? '1.5px solid #C56A43' : '1.5px solid #e0ddd8', background: searchMode==='ai' ? '#fdf3e7' : '#fff', cursor:'pointer', fontFamily:'inherit', textAlign:'left', position:'relative' }}>
-            <div style={{ fontSize:'14px', fontWeight:700, color: searchMode==='ai' ? '#C56A43' : '#1a1a1a', marginBottom:'2px' }}>🤖 Умный ИИ-поиск</div>
-            <div style={{ fontSize:'12px', color:'#9a9590' }}>Находит по смыслу и объясняет выбор — там, где обычный поиск не сработает</div>
-          </button>
-        </div>
+      <div className={styles.container}>
+        <header className={styles.heading}>
+          <div>
+            <span className={styles.eyebrow}>Авторы для рекламы и коллабораций</span>
+            <h1>Каталог авторов</h1>
+            <p>Ищите по городу, тематике и аудитории. Откройте профиль, обсудите задачу и ведите сделку в одном месте.</p>
+          </div>
+          <div className={styles.resultCounter}>
+            <strong>{filtered.length}</strong>
+            <span>{filtered.length === 1 ? 'автор' : filtered.length < 5 ? 'автора' : 'авторов'}</span>
+          </div>
+        </header>
 
+        <section className={styles.searchPanel} aria-label="Поиск авторов">
+          <div className={styles.modeSwitch}>
+            <button type="button" className={searchMode === 'regular' ? styles.modeActive : ''} onClick={() => switchMode('regular')}>
+              <UiIcon name="search" width={18} height={18} />
+              <span><strong>Обычный поиск</strong><small>Точные слова и фильтры</small></span>
+            </button>
+            <button type="button" className={searchMode === 'ai' ? styles.modeActive : ''} onClick={() => switchMode('ai')}>
+              <UiIcon name="sparkles" width={18} height={18} />
+              <span><strong>ИИ-подбор</strong><small>По смыслу вашей задачи</small></span>
+            </button>
+          </div>
 
-        {/* Search */}
-        <div style={{ marginBottom:'6px' }}>
-          <div style={{ display:'flex', gap:'8px' }}>
-            <div style={{ position:'relative', flex:'1' }}>
+          <div className={styles.searchRow}>
+            <label className={styles.searchInputWrap}>
+              <UiIcon name={searchMode === 'ai' ? 'sparkles' : 'search'} width={20} height={20} />
               <input
                 value={search}
                 onChange={e => { setSearch(e.target.value); if (aiResults) setAiResults(null) }}
                 onKeyDown={e => { if (e.key === 'Enter' && searchMode === 'ai') runAiSearch() }}
                 placeholder={PLACEHOLDERS[placeholderIdx]}
-                style={{ width:'100%', padding:'16px 44px 16px 48px', border:'1.5px solid #e0ddd8', borderRadius:'16px', fontSize:'16px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }}
+                aria-label={searchMode === 'ai' ? 'Опишите, какого автора нужно найти' : 'Поиск по каталогу'}
               />
-              <span style={{ position:'absolute', left:'18px', top:'50%', transform:'translateY(-50%)', fontSize:'20px', opacity:0.4 }}>🔍</span>
-              {search && (
-                <button onClick={() => { setSearch(''); setAiResults(null) }} style={{ position:'absolute', right:'14px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', fontSize:'16px', color:'#9a9590', padding:'4px' }}>✕</button>
-              )}
-            </div>
+              {search && <button type="button" aria-label="Очистить поиск" onClick={() => { setSearch(''); setAiResults(null) }}><UiIcon name="close" width={17} height={17} /></button>}
+            </label>
+
             {searchMode === 'regular' ? (
-              <CityPicker
-                value={city}
-                onChange={setCity}
-                placeholder="Город"
-                width="150px"
-                inputStyle={{ padding:'16px', borderRadius:'16px', fontSize:'15px' }}
-              />
+              <CityPicker value={city} onChange={setCity} placeholder="Город" width="190px" inputStyle={{ height:'54px', borderRadius:'14px', borderColor:'#dedad5', background:'#fff' }} />
             ) : (
-              <button onClick={runAiSearch} disabled={!search.trim() || aiSearching} style={{ padding:'0 24px', borderRadius:'16px', fontSize:'14px', fontWeight:700, border:'none', cursor: !search.trim() || aiSearching ? 'not-allowed' : 'pointer', fontFamily:'inherit', background: !search.trim() ? '#e8e6e1' : 'linear-gradient(135deg, #C56A43, #d4845f)', color: !search.trim() ? '#9a9590' : '#fff', opacity: aiSearching ? 0.7 : 1, whiteSpace:'nowrap' }}>
-                {aiSearching ? '🔄 Ищем...' : 'Найти'}
+              <button type="button" className={styles.aiSearchButton} onClick={runAiSearch} disabled={!search.trim() || aiSearching}>
+                {aiSearching ? 'Подбираем…' : 'Подобрать авторов'}
+                {!aiSearching && <UiIcon name="arrowRight" width={17} height={17} />}
               </button>
             )}
           </div>
-          <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'6px', paddingLeft:'4px', lineHeight:1.5 }}>
-            {searchMode === 'ai'
-              ? '💡 ИИ ищет по смыслу, не по ключевым словам. Опишите бизнес: «кофейня, нужен обзор» — или портрет автора: «девушка, фитнес, ЗОЖ». Подберёт до 10 авторов и объяснит, чем каждый подходит.'
-              : '💡 Ищет по точным словам, синонимам и корням в профиле автора. Город можно указать сразу в поле справа.'}
-          </p>
-        </div>
 
-        {/* AI results banner */}
-        {aiResults && aiResults.length > 0 && (
-          <div style={{ padding:'10px 16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'12px', marginTop:'12px', marginBottom:'16px', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
-            <span style={{ fontSize:'13px', color:'#5a5650' }}>
-              🤖 ИИ подобрал {aiResults.length} {aiResults.length === 1 ? 'автора' : aiResults.length < 5 ? 'автора' : 'авторов'}
-              {aiFilteredOutCount > 0 && <span style={{ color:'#9a9590' }}> · ещё {aiFilteredOutCount} отсеяно по проверке на связь с запросом</span>}
-            </span>
-            <button onClick={clearAiSearch} style={{ background:'none', border:'none', cursor:'pointer', fontSize:'12px', color:'#9a9590', fontFamily:'inherit', textDecoration:'underline' }}>Показать всех</button>
+          <div className={styles.searchFooter}>
+            <p>{searchMode === 'ai' ? 'Опишите бизнес, продукт и желаемую аудиторию обычными словами.' : 'Можно искать по имени, профессии, тегам, описанию и городу.'}</p>
+            <button type="button" className={showAdvanced ? styles.filterButtonActive : styles.filterButton} onClick={() => setShowAdvanced(!showAdvanced)}>
+              <UiIcon name="filters" width={17} height={17} />
+              Фильтры{activeFiltersCount > 0 ? ` · ${activeFiltersCount}` : ''}
+            </button>
           </div>
-        )}
-        {aiResults && aiResults.length === 0 && (
-          <div style={{ padding:'10px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'12px', marginTop:'12px', marginBottom:'16px', fontSize:'13px', color:'#dc2626' }}>
-            {aiFilteredOutCount > 0
-              ? `ИИ предложил ${aiFilteredOutCount} ${aiFilteredOutCount === 1 ? 'автора' : 'авторов'}, но ни один не прошёл проверку на явную связь с запросом. Попробуй обычный поиск или переформулируй запрос.`
-              : 'В каталоге пока нет авторов, подходящих под этот запрос.'}
-          </div>
-        )}
 
-        {/* Filters toggle — свёрнуто по умолчанию в обоих режимах */}
-        <div style={{ display:'flex', gap:'8px', marginTop:'12px', marginBottom:'16px', alignItems:'center', flexWrap:'wrap' }}>
-          <button onClick={() => setShowAdvanced(!showAdvanced)} style={{ padding:'9px 16px', borderRadius:'10px', fontSize:'13px', fontWeight:500, border:'1px solid #e0ddd8', cursor:'pointer', fontFamily:'inherit', background: showAdvanced ? '#f0ede6' : '#fff', color:'#5a5650' }}>
-            ⚙️ Фильтры{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
-          </button>
-          {activeFiltersCount > 0 && (
-            <button onClick={() => { setCity(''); setBarter('all'); setLifestyleFilter([]); setSort('relevance'); setMinFollowers(0); setMaxFollowers(FOLLOWERS_MAX_CAP) }} style={{ padding:'8px 12px', background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#dc2626', fontFamily:'inherit' }}>Сбросить всё</button>
+          {showAdvanced && (
+            <div className={styles.filtersPanel}>
+              <div className={styles.filterGrid}>
+                {searchMode === 'ai' && (
+                  <div className={styles.filterField}>
+                    <label>Город</label>
+                    <CityPicker value={city} onChange={setCity} placeholder="Любой город" width="100%" />
+                  </div>
+                )}
+                <div className={styles.filterField}>
+                  <label>Формат сотрудничества</label>
+                  <select value={barter} onChange={e => setBarter(e.target.value as 'all'|'yes'|'no')}>
+                    <option value="all">Любой</option>
+                    <option value="yes">Готовы к бартеру</option>
+                    <option value="no">Только оплата</option>
+                  </select>
+                </div>
+                <div className={styles.filterField}>
+                  <label>Сортировка</label>
+                  <select value={sort} onChange={e => setSort(e.target.value)}>
+                    <option value="relevance">По релевантности</option>
+                    <option value="followers">По подписчикам</option>
+                    <option value="rating">По рейтингу</option>
+                  </select>
+                </div>
+                <div className={`${styles.filterField} ${styles.followersField}`}>
+                  <label>Подписчики Instagram</label>
+                  <div className={styles.numberFields}>
+                    <input type="number" min="0" max={FOLLOWERS_MAX_CAP} value={minFollowers} onChange={e => setMinFollowers(Math.max(0, Number(e.target.value) || 0))} aria-label="Минимум подписчиков" />
+                    <span>—</span>
+                    <input type="number" min="0" max={FOLLOWERS_MAX_CAP} value={maxFollowers} onChange={e => setMaxFollowers(Math.max(minFollowers, Number(e.target.value) || FOLLOWERS_MAX_CAP))} aria-label="Максимум подписчиков" />
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.categoryBlock}>
+                <div className={styles.categoryHead}>
+                  <label>Тематика автора</label>
+                  {activeFiltersCount > 0 && (
+                    <button type="button" onClick={() => { setCity(''); setBarter('all'); setLifestyleFilter([]); setSort('relevance'); setMinFollowers(0); setMaxFollowers(FOLLOWERS_MAX_CAP) }}>Сбросить фильтры</button>
+                  )}
+                </div>
+                <div className={styles.categoryChips}>
+                  {CATEGORIES.map(category => {
+                    const selected = category.tags.some(tag => lifestyleFilter.includes(tag))
+                    return (
+                      <button key={category.label} type="button" className={selected ? styles.categorySelected : ''} onClick={() => toggleCategory(category.tags)}>
+                        {category.label.replace(/^\S+\s/, '')}
+                        {selected && <UiIcon name="check" width={14} height={14} />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
           )}
-        </div>
+        </section>
 
-        {/* Advanced panel — компактный тулбар, не отдельная форма */}
-        {showAdvanced && (
-          <div style={{ marginBottom:'24px', paddingBottom:'20px', borderBottom:'1px solid #e8e6e1', display:'flex', flexDirection:'column', gap:'14px' }}>
-            <style>{`
-              .followers-range { -webkit-appearance:none; appearance:none; position:absolute; top:0; left:0; width:100%; height:4px; background:transparent; margin:0; pointer-events:none; }
-              .followers-range::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:15px; height:15px; border-radius:50%; background:#C56A43; cursor:pointer; pointer-events:auto; margin-top:-5.5px; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
-              .followers-range::-moz-range-thumb { width:15px; height:15px; border-radius:50%; background:#C56A43; cursor:pointer; pointer-events:auto; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
-              .followers-range::-webkit-slider-runnable-track { height:4px; background:transparent; }
-              .followers-range::-moz-range-track { height:4px; background:transparent; }
-            `}</style>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', alignItems:'center' }}>
-              {searchMode === 'ai' && (
-                <CityPicker value={city} onChange={setCity} placeholder="Город" width="130px" />
-              )}
-              <select value={sort} onChange={e => setSort(e.target.value)} style={{ padding:'8px 12px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'13px', background:'#fff', color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
-                <option value="relevance">По релевантности</option>
-                <option value="new">Новые</option>
-                <option value="followers">По подписчикам</option>
-                <option value="rating">По рейтингу</option>
-              </select>
-              <div style={{ width:'1px', height:'22px', background:'#e0ddd8', margin:'0 2px' }} />
-              <div style={{ minWidth:'220px' }}>
-                <div style={{ fontSize:'11px', color:'#9a9590', marginBottom:'4px' }}>
-                  Подписчики: {minFollowers.toLocaleString('ru')} — {maxFollowers >= FOLLOWERS_MAX_CAP ? `${FOLLOWERS_MAX_CAP.toLocaleString('ru')}+` : maxFollowers.toLocaleString('ru')}
-                </div>
-                <div style={{ position:'relative', height:'15px' }}>
-                  <div style={{ position:'absolute', top:'5.5px', left:0, right:0, height:'4px', background:'#e8e6e1', borderRadius:'2px' }} />
-                  <div style={{ position:'absolute', top:'5.5px', height:'4px', background:'#C56A43', borderRadius:'2px', left:`${(minFollowers/FOLLOWERS_MAX_CAP)*100}%`, right:`${100-(maxFollowers/FOLLOWERS_MAX_CAP)*100}%` }} />
-                  <input type="range" className="followers-range" min={0} max={FOLLOWERS_MAX_CAP} step={100} value={minFollowers}
-                    onChange={e => setMinFollowers(Math.min(Number(e.target.value), maxFollowers - 100))} />
-                  <input type="range" className="followers-range" min={0} max={FOLLOWERS_MAX_CAP} step={100} value={maxFollowers}
-                    onChange={e => setMaxFollowers(Math.max(Number(e.target.value), minFollowers + 100))} />
-                </div>
-              </div>
-            </div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', alignItems:'center' }}>
-              {CATEGORIES.map(cat => {
-                const active = cat.tags.some(t => lifestyleFilter.includes(t))
-                return (
-                  <button key={cat.label} onClick={() => toggleCategory(cat.tags)} style={{ padding:'8px 12px', borderRadius:'8px', fontSize:'13px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: active ? '#C56A43' : '#e0ddd8', background: active ? '#fdf3e7' : '#fff', color: active ? '#C56A43' : '#5a5650' }}>{cat.label}</button>
-                )
-              })}
-              <button onClick={() => setShowAllTags(v => !v)} style={{ padding:'8px 4px', background:'none', border:'none', cursor:'pointer', fontSize:'13px', color:'#9a9590', fontFamily:'inherit', textDecoration:'underline', whiteSpace:'nowrap' }}>
-                {showAllTags ? 'Скрыть' : `Ещё интересы (+${Object.keys(TAG_COLORS).length - CATEGORIES.length})`}
-              </button>
-            </div>
-            {showAllTags && (
-              <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
-                {Object.keys(TAG_COLORS).map(tag => {
-                  const active = lifestyleFilter.includes(tag)
-                  return (
-                    <button key={tag} onClick={() => setLifestyleFilter(prev => active ? prev.filter(t => t !== tag) : [...prev, tag])} style={{ padding:'6px 11px', borderRadius:'8px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', borderColor: active ? '#C56A43' : '#e0ddd8', background: active ? '#fdf3e7' : '#fff', color: active ? '#C56A43' : '#7a7570' }}>{tag}</button>
-                  )
-                })}
-              </div>
-            )}
+        {aiResults && aiResults.length > 0 && (
+          <div className={styles.aiNotice}>
+            <UiIcon name="sparkles" width={19} height={19} />
+            <div><strong>ИИ подобрал {aiResults.length} {aiResults.length === 1 ? 'автора' : aiResults.length < 5 ? 'авторов' : 'авторов'}</strong>{aiFilteredOutCount > 0 && <span>Ещё {aiFilteredOutCount} вариантов не прошли проверку релевантности.</span>}</div>
+            <button type="button" onClick={clearAiSearch}>Показать весь каталог</button>
           </div>
         )}
 
-        {loading ? (
-          <CatalogSkeleton />
-        ) : filtered.length===0 ? (
-          <div style={{ textAlign:'center', padding:'80px' }}>
-            <div style={{ fontSize:'40px', marginBottom:'16px' }}>🔍</div>
-            <p style={{ color:'#7a7570', fontSize:'16px' }}>Авторов с такими параметрами пока нет</p>
+        {aiResults && aiResults.length === 0 && (
+          <div className={styles.emptyNotice}>
+            <UiIcon name="search" width={21} height={21} />
+            <span>{aiFilteredOutCount > 0 ? 'Подходящих авторов после проверки не осталось. Попробуйте переформулировать запрос.' : 'В каталоге пока нет авторов под этот запрос.'}</span>
           </div>
+        )}
+
+        <div className={styles.catalogToolbar}>
+          <div>
+            <strong>{hasActiveSearch ? 'Результаты поиска' : 'Все авторы'}</strong>
+            <span>{filtered.length} {filtered.length === 1 ? 'профиль' : filtered.length < 5 ? 'профиля' : 'профилей'}</span>
+          </div>
+          {activeFiltersCount > 0 && <button type="button" onClick={() => { setCity(''); setBarter('all'); setLifestyleFilter([]); setSort('relevance'); setMinFollowers(0); setMaxFollowers(FOLLOWERS_MAX_CAP) }}>Очистить фильтры</button>}
+        </div>
+
+        {loading ? <CatalogSkeleton /> : filtered.length === 0 ? (
+          <section className={styles.emptyState}>
+            <div><UiIcon name="search" width={28} height={28} /></div>
+            <h2>Ничего не нашли</h2>
+            <p>Измените запрос или уберите часть фильтров. Новые авторы будут появляться в каталоге после модерации.</p>
+            <button type="button" onClick={() => { setSearch(''); setCity(''); setBarter('all'); setLifestyleFilter([]); setAiResults(null); setSort('relevance'); setMinFollowers(0); setMaxFollowers(FOLLOWERS_MAX_CAP) }}>Показать всех авторов</button>
+          </section>
         ) : (
           <>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap:'16px' }}>
-            {filtered.slice(0, visibleCount).map(a => {
-              const isFav = favoriteIds.includes(a.id)
-              const initial = a.name?.[0]?.toUpperCase() || '?'
-              const ci = a.id.charCodeAt(0) % 5
-              const AVATAR_COLORS = ['#fdf3e7','#e8f4fd','#f0fdf4','#fdf4ff','#fff0f0']
-              const AVATAR_TEXT = ['#c17f3e','#1a6fa8','#16a34a','#7c3aed','#dc2626']
-              const hasStats = a.followers_count > 0 || a.telegram_followers > 0 || a.stories_views > 0 || a.completed_deals_count > 0
-              return (
-                <div key={a.id} style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-
-                  {/* Header gradient + avatar */}
-                  <div style={{ position:'relative', height:'80px', background: HEADER_GRADIENTS[ci] }}>
-                    {/* Favorite button */}
-                    {userRole === 'business' && (
-                      <button onClick={() => toggleFavorite(a.id)} style={{ position:'absolute', top:'10px', right:'10px', width:'32px', height:'32px', borderRadius:'50%', border:'none', background:'rgba(255,255,255,0.85)', cursor:'pointer', fontSize:'16px', display:'flex', alignItems:'center', justifyContent:'center', color: isFav ? '#c17f3e' : '#9a9590' }}>
-                        {isFav ? '★' : '☆'}
-                      </button>
-                    )}
-                    {/* Avatar */}
-                    <Link href={`/author/${a.id}`} style={{ textDecoration:'none', position:'absolute', bottom:'-28px', left:'20px' }}>
-                      <div style={{ width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', background:AVATAR_COLORS[ci], display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px', fontWeight:700, color:AVATAR_TEXT[ci], border:'3px solid #fff', boxShadow:'0 2px 8px rgba(0,0,0,0.1)' }}>
-                        {a.avatar_url
-                          ? <img src={a.avatar_url} alt={a.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                          : initial}
+            <div className={styles.cardGrid}>
+              {filtered.slice(0, visibleCount).map(author => {
+                const index = author.id.charCodeAt(0) % HEADER_GRADIENTS.length
+                const aiMatch = aiResults?.find(result => result.id === author.id)
+                const isFavorite = favoriteIds.includes(author.id)
+                return (
+                  <article key={author.id} className={styles.authorCard}>
+                    <Link href={`/author/${author.id}`} className={styles.cardMedia} aria-label={`Открыть профиль ${author.name}`}>
+                      {author.avatar_url ? <img src={author.avatar_url} alt={author.name} /> : (
+                        <div className={styles.avatarFallback} style={{ background: HEADER_GRADIENTS[index] }}>{author.name?.[0]?.toUpperCase() || '?'}</div>
+                      )}
+                      <div className={styles.cardOverlay} />
+                      <div className={styles.cardBadges}>
+                        {author.open_to_barter && <span>Бартер</span>}
+                        {author.avg_rating && <span><UiIcon name="star" width={12} height={12} /> {author.avg_rating}</span>}
                       </div>
                     </Link>
-                  </div>
 
-                  {/* Content */}
-                  <div style={{ padding:'36px 20px 0', flex:1, display:'flex', flexDirection:'column' }}>
+                    {userRole === 'business' && (
+                      <button type="button" className={`${styles.favoriteButton}${isFavorite ? ` ${styles.favoriteActive}` : ''}`} onClick={() => toggleFavorite(author.id)} aria-label={isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}>
+                        <UiIcon name="heart" width={19} height={19} fill={isFavorite ? 'currentColor' : 'none'} />
+                      </button>
+                    )}
 
-                    {/* AI tip — отдельный выделенный блок с объяснением, не дубль тегов */}
-                    {aiResults && (() => {
-                      const r = aiResults.find(r => r.id === a.id)
-                      if (!r) return null
-                      const icons: Record<string, string> = { direct:'🎯', scenario:'🎬', audience:'👥', content:'📸', geo:'📍' }
-                      const icon = r.match_type ? icons[r.match_type] || '✨' : '✨'
-                      return (
-                        <div style={{ padding:'9px 11px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'10px', marginBottom:'12px', fontSize:'12.5px', color:'#8a5a2e', lineHeight:1.45 }}>
-                          {icon} {r.reason}
+                    <div className={styles.cardBody}>
+                      <div className={styles.cardTitleRow}>
+                        <div>
+                          <Link href={`/author/${author.id}`}>{author.name}</Link>
+                          <p><UiIcon name="pin" width={14} height={14} /> {author.city}{author.occupation ? ` · ${author.occupation}` : ''}</p>
                         </div>
-                      )
-                    })()}
-
-                    {/* Name + badges */}
-                    <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap', marginBottom:'4px' }}>
-                      <Link href={`/author/${a.id}`} style={{ textDecoration:'none' }}>
-                        <span style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a' }}>{a.name}</span>
-                      </Link>
-                      {a.open_to_barter && <span style={{ padding:'2px 7px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
-                      {(a.avg_rating || a.completed_deals_count > 0) && (
-                        <span style={{ padding:'2px 7px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'10px', fontWeight:600, color:'#c17f3e' }}>
-                          {a.avg_rating ? `★ ${a.avg_rating}` : `★ ${a.completed_deals_count} сд.`}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* City + occupation */}
-                    <div style={{ fontSize:'13px', color:'#9a9590', marginBottom:'12px' }}>
-                      📍 {a.city}{a.occupation ? ` · ${a.occupation}` : ''}
-                    </div>
-
-                    {/* Bio preview */}
-                    {a.bio && (
-                      <p style={{ fontSize:'13px', color:'#5a5650', lineHeight:1.5, marginBottom:'12px', overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const }}>{a.bio}</p>
-                    )}
-
-                    {/* Colored tags */}
-                    {a.lifestyle?.length > 0 && (
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:'4px', marginBottom:'14px' }}>
-                        {a.lifestyle.slice(0, 4).map(tag => {
-                          const tc = TAG_COLORS[tag] || defaultTag
-                          return <span key={tag} style={{ padding:'3px 9px', background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:'100px', fontSize:'11px', color:tc.color, fontWeight:600 }}>{tag}</span>
-                        })}
-                        {a.lifestyle.length > 4 && <span style={{ fontSize:'11px', color:'#9a9590', padding:'3px 6px' }}>+{a.lifestyle.length - 4}</span>}
                       </div>
-                    )}
 
-                    <div style={{ flex:1 }} />
+                      {aiMatch?.reason && <div className={styles.aiReason}><UiIcon name="sparkles" width={15} height={15} /><span>{aiMatch.reason}</span></div>}
 
-                    {/* Stats bar */}
-                    {hasStats && (
-                      <div style={{ display:'flex', borderTop:'1px solid #f0ede6', margin:'0 -20px', padding:'0' }}>
-                        {a.followers_count > 0 && (
-                          <div style={{ flex:1, padding:'12px 0', textAlign:'center', borderRight:'1px solid #f0ede6' }}>
-                            <div style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a' }}>{a.followers_count.toLocaleString('ru')}</div>
-                            <div style={{ fontSize:'11px', color:'#9a9590' }}>подписч.</div>
-                          </div>
-                        )}
-                        {a.stories_views > 0 && (
-                          <div style={{ flex:1, padding:'12px 0', textAlign:'center', borderRight: (a.completed_deals_count > 0) ? '1px solid #f0ede6' : 'none' }}>
-                            <div style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a' }}>{a.stories_views.toLocaleString('ru')}</div>
-                            <div style={{ fontSize:'11px', color:'#9a9590' }}>сторис</div>
-                          </div>
-                        )}
-                        {a.completed_deals_count > 0 && (
-                          <div style={{ flex:1, padding:'12px 0', textAlign:'center' }}>
-                            <div style={{ fontSize:'16px', fontWeight:700, color:'#c17f3e' }}>{a.avg_rating ? `★ ${a.avg_rating}` : a.completed_deals_count}</div>
-                            <div style={{ fontSize:'11px', color:'#9a9590' }}>{a.avg_rating ? `${a.completed_deals_count} сд.` : 'сделок'}</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      {author.bio && <p className={styles.cardBio}>{author.bio}</p>}
 
-                    {/* Action bar */}
-                    <div style={{ display:'flex', gap:'8px', padding:'14px 0', margin:'0' }}>
-                      <Link href={`/author/${a.id}`} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'9px', border:'1.5px solid #e0ddd8', borderRadius:'12px', textDecoration:'none', color:'#5a5650', fontSize:'13px', fontWeight:500 }}>Профиль</Link>
-                      {userRole === 'business' && (
-                        requestMap[a.id] ? (
-                          <Link href={`/dashboard/chat/${requestMap[a.id]}`} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'9px', background:'#f0ede6', borderRadius:'12px', textDecoration:'none', color:'#1a1a1a', fontSize:'13px', fontWeight:600 }}>К заявке</Link>
-                        ) : (
-                          <button onClick={() => openModal(a)} style={{ flex:1, padding:'9px', background:'#C56A43', border:'none', borderRadius:'12px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Написать</button>
-                        )
+                      {author.lifestyle?.length > 0 && (
+                        <div className={styles.cardTags}>
+                          {author.lifestyle.slice(0, 3).map(tag => {
+                            const colors = TAG_COLORS[tag] || defaultTag
+                            return <span key={tag} style={{ background: colors.bg, color: colors.color, borderColor: colors.border }}>{tag}</span>
+                          })}
+                          {author.lifestyle.length > 3 && <span className={styles.moreTag}>+{author.lifestyle.length - 3}</span>}
+                        </div>
                       )}
-                      {!userEmail && <Link href={`/register?redirect=${encodeURIComponent(`/author/${a.id}`)}`} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'9px', background:'#C56A43', borderRadius:'12px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600 }}>Войти</Link>}
+
+                      <div className={styles.cardStats}>
+                        <span><strong>{author.followers_count > 0 ? author.followers_count.toLocaleString('ru') : '—'}</strong><small>подписчиков</small></span>
+                        <span><strong>{author.stories_views > 0 ? author.stories_views.toLocaleString('ru') : '—'}</strong><small>просмотры</small></span>
+                        <span><strong>{author.completed_deals_count || '—'}</strong><small>сделки</small></span>
+                      </div>
+
+                      <div className={styles.cardActions}>
+                        <Link href={`/author/${author.id}`}>Смотреть профиль</Link>
+                        {userRole === 'business' && (requestMap[author.id]
+                          ? <Link className={styles.primaryCardAction} href={`/dashboard/chat/${requestMap[author.id]}`}>Открыть сделку</Link>
+                          : <button type="button" onClick={() => openModal(author)}>Предложить</button>
+                        )}
+                        {!userEmail && <Link className={styles.primaryCardAction} href={`/register?redirect=${encodeURIComponent(`/author/${author.id}`)}`}>Связаться</Link>}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          {visibleCount < filtered.length && (
-            <div style={{ textAlign:'center', paddingTop:'24px' }}>
-              <button onClick={() => setVisibleCount(prev => prev + 12)} style={{ padding:'12px 32px', background:'#fff', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'14px', fontWeight:600, color:'#1a1a1a', cursor:'pointer', fontFamily:'inherit' }}>
-                Показать ещё ({filtered.length - visibleCount})
-              </button>
+                  </article>
+                )
+              })}
             </div>
-          )}
+
+            {visibleCount < filtered.length && (
+              <div className={styles.loadMore}>
+                <button type="button" onClick={() => setVisibleCount(current => current + 12)}>Показать ещё <span>{filtered.length - visibleCount}</span></button>
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Modal */}
       {modalAuthor && (
-        <div onClick={() => setModalAuthor(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'20px', padding:'32px', maxWidth:'480px', width:'100%' }}>
-            <h3 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Написать {modalAuthor.name}</h3>
-            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>Расскажи коротко что предлагаешь — автор увидит сообщение в личном кабинете.</p>
-            <textarea value={message} onChange={e => setMessage(e.target.value)} rows={5} maxLength={3000} placeholder="Например: предлагаем сотрудничество — обзор нашего продукта за бартер..." style={{ width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', resize:'vertical', marginBottom:'12px' }} />
-            <div style={{ display:'flex', gap:'12px', marginBottom:'16px' }}>
-              <div style={{ flex:1 }}>
-                <label style={{ display:'block', fontSize:'12px', color:'#9a9590', marginBottom:'6px', fontWeight:500 }}>Бюджет (опционально)</label>
-                <input value={budget} onChange={e => setBudget(e.target.value)} placeholder="напр. 5000 ₽ или бартер" style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-              </div>
-              <div style={{ flex:1 }}>
-                <label style={{ display:'block', fontSize:'12px', color:'#9a9590', marginBottom:'6px', fontWeight:500 }}>Срок (опционально)</label>
-                <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} style={{ width:'100%', padding:'10px 14px', border:'1.5px solid #e0ddd8', borderRadius:'10px', fontSize:'14px', background:'#fafaf9', color:'#1a1a1a', outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-              </div>
+        <div className={styles.modalBackdrop} onClick={() => setModalAuthor(null)}>
+          <div className={styles.modal} onClick={event => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="catalog-request-title">
+            <button type="button" className={styles.modalClose} onClick={() => setModalAuthor(null)} aria-label="Закрыть"><UiIcon name="close" width={20} height={20} /></button>
+            <span className={styles.modalEyebrow}>Новое предложение</span>
+            <h2 id="catalog-request-title">Написать {modalAuthor.name}</h2>
+            <p>Коротко опишите задачу. После отправки откроется чат, где можно согласовать детали и условия.</p>
+            <label className={styles.modalField}>
+              <span>Сообщение</span>
+              <textarea value={message} onChange={event => setMessage(event.target.value)} rows={5} maxLength={3000} placeholder="Что нужно снять, для какого бизнеса и какой результат вы ожидаете?" />
+            </label>
+            <div className={styles.modalGrid}>
+              <label className={styles.modalField}><span>Бюджет</span><input value={budget} onChange={event => setBudget(event.target.value)} placeholder="Например, 5 000 ₽ или бартер" /></label>
+              <label className={styles.modalField}><span>Желаемый срок</span><input type="date" value={deadline} onChange={event => setDeadline(event.target.value)} /></label>
             </div>
-            {error && <div style={{ padding:'12px 16px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'10px', color:'#dc2626', fontSize:'14px', marginBottom:'16px' }}>{error}</div>}
-            <div style={{ display:'flex', gap:'12px' }}>
-              <button onClick={() => setModalAuthor(null)} style={{ flex:1, padding:'12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit', color:'#1a1a1a' }}>Отмена</button>
-              <button onClick={sendRequest} disabled={sending || !message.trim()} style={{ flex:1, padding:'12px', border:'none', borderRadius:'100px', background: sending || !message.trim() ? '#9a9590' : '#C56A43', color:'#fff', cursor: sending || !message.trim() ? 'not-allowed' : 'pointer', fontSize:'14px', fontWeight:600, fontFamily:'inherit' }}>
-                {sending ? 'Отправляем...' : 'Отправить'}
-              </button>
+            {error && <div className={styles.modalError}>{error}</div>}
+            <div className={styles.modalActions}>
+              <button type="button" onClick={() => setModalAuthor(null)}>Отмена</button>
+              <button type="button" className={styles.modalPrimary} onClick={sendRequest} disabled={sending || !message.trim()}>{sending ? 'Отправляем…' : 'Отправить предложение'}</button>
             </div>
           </div>
         </div>

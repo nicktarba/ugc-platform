@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import LoadingScreen from '@/components/LoadingScreen'
 import { useToast } from '@/components/Toast'
+import UiIcon from '@/components/UiIcon'
 import { truncate, formatRelative, formatDate } from '@/lib/format'
 import { authorStatusBadge } from '@/lib/status'
 import { OPEN_STATUSES, type AuthorRequest as Req } from '@/lib/types'
 import { useApp } from '../../../AppContext'
+import styles from '../../dashboard.module.css'
 
 export default function AuthorDealsPage() {
   const toast = useToast()
@@ -66,158 +68,110 @@ export default function AuthorDealsPage() {
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [profile, bumpBadge])
+  }, [profile, bumpBadge, userId])
 
   const markViewed = async (id: string, status: string) => {
     if (status === 'new') {
       const { error } = await supabase.from('requests').update({ status: 'viewed' }).eq('id', id)
       if (error) { toast.error('Не удалось обновить статус заявки.'); return }
-      setRequests(requests.map(r => r.id === id ? { ...r, status: 'viewed' } : r))
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'viewed' } : r))
     }
   }
 
   const newRequestIds = new Set(requests.filter(r => r.status === 'new').map(r => r.id))
   const newRequestsCount = newRequestIds.size
-  const totalUnread = Object.entries(unreadCounts)
-    .filter(([reqId]) => !newRequestIds.has(reqId))
-    .reduce((sum, [, count]) => sum + count, 0)
+  const totalUnread = Object.entries(unreadCounts).filter(([reqId]) => !newRequestIds.has(reqId)).reduce((sum, [, count]) => sum + count, 0)
   const badgeCount = totalUnread + newRequestsCount
-
   const OPEN: string[] = OPEN_STATUSES
   const historyRequests = requests.filter(r => !OPEN.includes(r.status))
+  const deals = requests.filter(r => r.status === 'accepted')
+  const incoming = requests.filter(r => r.status === 'new' || r.status === 'viewed')
 
   if (loading) return <LoadingScreen />
 
-  return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
-        <div style={{ marginBottom:'28px' }}>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a', display:'flex', alignItems:'center', gap:'10px' }}>
-            Сделки
-            {badgeCount > 0 && <span style={{ padding:'2px 12px', background:'#c17f3e', borderRadius:'100px', fontSize:'14px', fontWeight:700, color:'#fff' }}>{badgeCount}</span>}
-          </h1>
+  const renderRequest = (r: Req, mode: 'accepted' | 'incoming' | 'history') => {
+    const unread = unreadCounts[r.id] || 0
+    const badge = mode === 'history' ? authorStatusBadge(r.status) : null
+    const className = [styles.requestCard, unread > 0 || r.status === 'new' ? styles.requestUnread : '', mode === 'accepted' ? styles.requestAccepted : '', mode === 'history' ? styles.requestHistory : ''].filter(Boolean).join(' ')
+    return (
+      <Link key={r.id} href={`/dashboard/chat/${r.id}`} onClick={() => mode === 'incoming' && markViewed(r.id, r.status)} className={className}>
+        <div className={styles.requestTop}>
+          <div className={styles.requestIdentity}>
+            <div className={styles.requestName}>{businessNames[r.business_id] || r.business_email}</div>
+            <div className={styles.requestLocation}>{mode === 'accepted' ? 'Активное сотрудничество' : mode === 'incoming' ? 'Новое предложение' : 'История сотрудничества'}</div>
+          </div>
+          <div className={styles.requestBadges}>
+            {unread > 0 && <span className={styles.badge}>{unread}</span>}
+            {mode === 'accepted' && <span className={styles.status} style={{ background:'#e8f7ef', color:'#26754f' }}>В работе</span>}
+            {mode === 'incoming' && r.status === 'new' && unread === 0 && <span className={styles.status} style={{ background:'var(--app-accent)', color:'#fff' }}>Новое</span>}
+            {badge && <span className={styles.status} style={{ background:badge.bg, color:badge.color }}>{badge.text}</span>}
+          </div>
         </div>
+        <p className={styles.requestMessage}>{truncate(r.message)}</p>
+        <div className={styles.requestBottom}>
+          <div className={styles.requestFacts}>
+            {r.budget && <span className={styles.requestFact}><UiIcon name="wallet" width={13} height={13}/>{r.budget}</span>}
+            {r.deadline && <span className={styles.requestFact}><UiIcon name="calendar" width={13} height={13}/>{formatDate(r.deadline)}</span>}
+          </div>
+          <span>{formatRelative(r.created_at)}</span>
+        </div>
+      </Link>
+    )
+  }
+
+  return (
+    <main className={styles.page}>
+      <div className={`${styles.container} ${styles.narrow}`}>
+        <header className={styles.pageHeader}>
+          <div className={styles.headerCopy}>
+            <div className={styles.eyebrow}>Работа с брендами</div>
+            <h1 className={styles.title}>Сделки {badgeCount > 0 && <span className={styles.badge}>{badgeCount}</span>}</h1>
+            <p className={styles.subtitle}>Новые предложения, активная работа и завершённые сотрудничества в одном списке.</p>
+          </div>
+          <div className={styles.headerActions}><Link href="/dashboard/author/profile" className={styles.buttonSecondary}><UiIcon name="user" width={16} height={16}/>Мой профиль</Link></div>
+        </header>
 
         {!profile ? (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', textAlign:'center' }}>
-            <p style={{ fontSize:'14px', color:'#9a9590' }}>Сначала заполни анкету автора</p>
-            <Link href="/dashboard/author/profile" style={{ display:'inline-block', marginTop:'12px', padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Заполнить анкету →</Link>
-          </div>
-        ) : (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-            {requests.length === 0 ? (
-              <div>
-                <p style={{ fontSize:'14px', color:'#9a9590', marginBottom: profile.status === 'approved' ? '16px' : 0 }}>Пока запросов нет — появятся здесь когда бизнес напишет тебе.</p>
-                {profile.status === 'approved' && (
-                  <div style={{ padding:'14px 16px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'12px', fontSize:'13px', color:'#c17f3e', lineHeight:1.6 }}>
-                    💡 Поделись ссылкой на свой профиль с брендами — это ускорит первые заявки.{' '}
-                    <Link href={`/author/${profile.id}`} style={{ fontWeight:600, color:'#c17f3e', textDecoration:'none' }}>Открыть профиль →</Link>
-                  </div>
-                )}
+          <section className={styles.panel}>
+            <div className={styles.empty}>
+              <span className={styles.emptyIcon}><UiIcon name="user" width={22} height={22}/></span>
+              <h2 className={styles.emptyTitle}>Сначала заполните анкету автора</h2>
+              <p className={styles.emptyText}>После создания профиля вы сможете получать предложения и обсуждать сотрудничества.</p>
+              <div className={styles.emptyActions}><Link href="/dashboard/author/profile" className={styles.buttonPrimary}>Заполнить анкету</Link></div>
+            </div>
+          </section>
+        ) : requests.length === 0 ? (
+          <section className={styles.panel}>
+            <div className={styles.empty}>
+              <span className={styles.emptyIcon}><UiIcon name="message" width={22} height={22}/></span>
+              <h2 className={styles.emptyTitle}>Предложений пока нет</h2>
+              <p className={styles.emptyText}>Когда бизнес отправит вам предложение, оно появится здесь. Заполненный профиль и прямая ссылка помогают получить первые обращения быстрее.</p>
+              <div className={styles.emptyActions}>
+                <Link href="/dashboard/author/profile" className={styles.buttonSecondary}>Проверить профиль</Link>
+                {profile.status === 'approved' && <Link href={`/author/${profile.id}`} className={styles.buttonPrimary}>Открыть профиль</Link>}
               </div>
-            ) : (
-              <>
-                {/* Сделки — accepted */}
-                {(() => {
-                  const deals = requests.filter(r => r.status === 'accepted')
-                  if (deals.length === 0) return null
-                  return (
-                    <div style={{ marginBottom:'20px' }}>
-                      <div style={{ fontSize:'13px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px', textTransform:'uppercase', letterSpacing:'0.04em' }}>В работе ({deals.length})</div>
-                      <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-                        {deals.map(r => {
-                          const unread = unreadCounts[r.id] || 0
-                          return (
-                            <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background: unread > 0 ? '#f0fdf4' : '#fafaf9', border:'1px solid #bbf7d0', borderRadius:'14px' }}>
-                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
-                                <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
-                                <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
-                                  {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
-                                  <span style={{ padding:'2px 10px', background:'#f0fdf4', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a', whiteSpace:'nowrap' }}>В работе</span>
-                                </div>
-                              </div>
-                              <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
-                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
-                                <div style={{ display:'flex', gap:'12px' }}>
-                                  {r.budget && <span>💰 {r.budget}</span>}
-                                  {r.deadline && <span>📅 {formatDate(r.deadline)}</span>}
-                                </div>
-                                <span>{formatRelative(r.created_at)}</span>
-                              </div>
-                            </Link>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* Запросы — new, viewed */}
-                {(() => {
-                  const incoming = requests.filter(r => r.status === 'new' || r.status === 'viewed')
-                  if (incoming.length === 0 && requests.filter(r => r.status === 'accepted').length > 0) return null
-                  if (incoming.length === 0) return <p style={{ fontSize:'13px', color:'#9a9590', marginBottom: historyRequests.length > 0 ? '16px' : 0 }}>Нет новых запросов</p>
-                  return (
-                    <div style={{ marginBottom:'20px' }}>
-                      <div style={{ fontSize:'13px', fontWeight:700, color:'#1a1a1a', marginBottom:'10px', textTransform:'uppercase', letterSpacing:'0.04em' }}>Запросы ({incoming.length})</div>
-                      <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-                        {incoming.map(r => {
-                          const unread = unreadCounts[r.id] || 0
-                          const isNew = r.status === 'new' || unread > 0
-                          return (
-                            <Link key={r.id} href={`/dashboard/chat/${r.id}`} onClick={() => markViewed(r.id, r.status)} style={{ display:'block', textDecoration:'none', padding:'16px', background: isNew ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
-                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
-                                <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
-                                <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
-                                  {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
-                                  {r.status === 'new' && unread === 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#fff', whiteSpace:'nowrap' }}>Новое</span>}
-                                </div>
-                              </div>
-                              <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
-                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
-                                <div style={{ display:'flex', gap:'12px' }}>
-                                  {r.budget && <span>💰 {r.budget}</span>}
-                                  {r.deadline && <span>📅 {formatDate(r.deadline)}</span>}
-                                </div>
-                                <span>{formatRelative(r.created_at)}</span>
-                              </div>
-                            </Link>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {historyRequests.length > 0 && (
-                  <>
-                    <button onClick={() => setShowHistory(!showHistory)} style={{ width:'100%', padding:'10px', border:'1px dashed #e0ddd8', borderRadius:'12px', background:'none', cursor:'pointer', fontSize:'13px', fontWeight:500, color:'#9a9590', fontFamily:'inherit' }}>
-                      {showHistory ? 'Скрыть историю' : `Показать историю (${historyRequests.length})`}
-                    </button>
-                    {showHistory && (
-                      <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginTop:'12px' }}>
-                        {historyRequests.map(r => {
-                          const sBadge = authorStatusBadge(r.status)
-                          return (
-                            <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background:'#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px', opacity:0.75 }}>
-                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
-                                <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{businessNames[r.business_id] || r.business_email}</span>
-                                {sBadge && <span style={{ padding:'2px 10px', background:sBadge.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:sBadge.color, whiteSpace:'nowrap' }}>{sBadge.text}</span>}
-                              </div>
-                              <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
-                              <div style={{ display:'flex', justifyContent:'flex-end', fontSize:'12px', color:'#9a9590' }}>
-                                <span>{formatRelative(r.created_at)}</span>
-                              </div>
-                            </Link>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </div>
+            </div>
+          </section>
+        ) : (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div>
+                <h2 className={styles.panelTitle}>Все сотрудничества</h2>
+                <div className={styles.panelMeta}>{requests.length} всего · {deals.length} в работе · {incoming.length} новых</div>
+              </div>
+            </div>
+            <div className={styles.panelBody}>
+              {deals.length > 0 && <div className={styles.listSection}><div className={styles.sectionLabel}>В работе · {deals.length}</div><div className={styles.list}>{deals.map(r => renderRequest(r, 'accepted'))}</div></div>}
+              {incoming.length > 0 && <div className={styles.listSection}><div className={styles.sectionLabel}>Новые запросы · {incoming.length}</div><div className={styles.list}>{incoming.map(r => renderRequest(r, 'incoming'))}</div></div>}
+              {deals.length === 0 && incoming.length === 0 && <div className={styles.empty}><h3 className={styles.emptyTitle}>Нет активных запросов</h3><p className={styles.emptyText}>Завершённые сотрудничества доступны в истории ниже.</p></div>}
+              {historyRequests.length > 0 && (
+                <div className={styles.listSection}>
+                  <button type="button" onClick={() => setShowHistory(!showHistory)} className={styles.buttonGhost} style={{ width:'100%' }}>{showHistory ? 'Скрыть историю' : `Показать историю (${historyRequests.length})`}</button>
+                  {showHistory && <div className={styles.list} style={{ marginTop: 10 }}>{historyRequests.map(r => renderRequest(r, 'history'))}</div>}
+                </div>
+              )}
+            </div>
+          </section>
         )}
       </div>
     </main>

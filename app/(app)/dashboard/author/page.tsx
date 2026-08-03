@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import LoadingScreen from '@/components/LoadingScreen'
 import { useToast } from '@/components/Toast'
+import UiIcon from '@/components/UiIcon'
 import { useApp } from '../../AppContext'
+import styles from '../dashboard.module.css'
 
 export default function AuthorHomePage() {
   const toast = useToast()
@@ -54,13 +56,12 @@ export default function AuthorHomePage() {
     } catch { toast.error('Не удалось скопировать') }
   }
 
-  // Checklist
   const checklist = profile ? [
-    { done: !!profile.avatar_url, label: 'Загрузи фото профиля', key: 'avatar' },
-    { done: !!profile.bio && profile.bio.length > 10, label: 'Напиши о себе', key: 'bio' },
-    { done: !!profile.instagram_url, label: 'Укажи ссылку на Instagram', key: 'insta' },
-    { done: (profile.lifestyle?.length || 0) >= 3, label: 'Выбери минимум 3 интереса', key: 'tags' },
-    { done: !!profile.city, label: 'Укажи город', key: 'city' },
+    { done: !!profile.avatar_url, label: 'Загрузите фото профиля', key: 'avatar' },
+    { done: !!profile.bio && profile.bio.length > 10, label: 'Расскажите о себе', key: 'bio' },
+    { done: !!profile.instagram_url, label: 'Укажите ссылку на Instagram', key: 'insta' },
+    { done: (profile.lifestyle?.length || 0) >= 3, label: 'Выберите минимум 3 интереса', key: 'tags' },
+    { done: !!profile.city, label: 'Укажите город', key: 'city' },
   ] : []
   const completedSteps = checklist.filter(c => c.done).length
   const allChecklistDone = completedSteps === checklist.length
@@ -69,117 +70,116 @@ export default function AuthorHomePage() {
   if (loading) return <LoadingScreen />
 
   return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
-
-        {/* Header */}
-        <div style={{ marginBottom:'28px' }}>
-          <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет автора</div>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a', marginBottom:'4px' }}>
-            {profile ? `Привет, ${profile.name?.split(' ')[0] || 'автор'}` : 'Добро пожаловать'}
-          </h1>
-          {profile?.status === 'approved' && (
-            <p style={{ fontSize:'14px', color:'#9a9590', margin:0 }}>Твой профиль в каталоге — бизнесы могут найти тебя и написать</p>
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <header className={styles.pageHeader}>
+          <div className={styles.headerCopy}>
+            <div className={styles.eyebrow}>Кабинет автора</div>
+            <h1 className={styles.title}>{profile ? `Привет, ${profile.name?.split(' ')[0] || 'автор'}` : 'Добро пожаловать'}</h1>
+            <p className={styles.subtitle}>{profile?.status === 'approved' ? 'Профиль опубликован: бизнес может найти вас в каталоге и отправить предложение.' : 'Заполните профиль, пройдите модерацию и начните получать предложения от бизнеса.'}</p>
+          </div>
+          {profile && (
+            <div className={styles.headerActions}>
+              <Link href="/dashboard/author/profile" className={styles.buttonSecondary}><UiIcon name="user" width={16} height={16}/>Редактировать</Link>
+              {profile.status === 'approved' && <Link href={`/author/${profile.id}`} className={styles.buttonPrimary}><UiIcon name="eye" width={16} height={16}/>Открыть профиль</Link>}
+            </div>
           )}
-        </div>
+        </header>
 
-        {/* Status alerts */}
         {profile?.status === 'pending' && (
-          <div style={{ padding:'14px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'20px', fontSize:'14px', color:'#c17f3e', fontWeight:500, display:'flex', alignItems:'center', gap:'10px' }}>
-            <span style={{ fontSize:'20px' }}>⏳</span>
-            <span>Анкета на модерации — скоро появишься в каталоге</span>
+          <div className={styles.alert}>
+            <div className={styles.alertMain}><span className={styles.alertIcon}><UiIcon name="shield" width={18} height={18}/></span><span>Анкета находится на модерации. После одобрения профиль появится в каталоге.</span></div>
           </div>
         )}
 
         {profile?.status === 'rejected' && (
-          <div style={{ padding:'14px 20px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'14px', marginBottom:'20px', fontSize:'14px', color:'#dc2626', fontWeight:500 }}>
-            Анкета не прошла модерацию. Проверь данные на вкладке «Профиль».
+          <div className={`${styles.alert} ${styles.alertDanger}`}>
+            <div className={styles.alertMain}><span className={styles.alertIcon}><UiIcon name="flag" width={18} height={18}/></span><span>Анкета не прошла модерацию. Проверьте данные и причину отклонения в профиле.</span></div>
+            <Link href="/dashboard/author/profile" className={styles.buttonSecondary}>Исправить профиль</Link>
           </div>
         )}
 
-        {/* No profile — onboarding */}
         {!profile && (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', borderLeft:'4px solid #c17f3e', marginBottom:'24px' }}>
-            <div style={{ fontSize:'28px', marginBottom:'12px' }}>👋</div>
-            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Как это работает</h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:'10px', fontSize:'14px', color:'#5a5650', lineHeight:1.6, marginBottom:'20px' }}>
-              <div>1. Заполни анкету — расскажи о себе, хобби, стиле жизни</div>
-              <div>2. Пройди модерацию — обычно это быстро</div>
-              <div>3. Появишься в каталоге — бизнесы найдут тебя по фильтрам</div>
-              <div>4. Получай входящие заявки и общайся в чате</div>
+          <section className={styles.onboarding}>
+            <div>
+              <div className={styles.eyebrow}>Начало работы</div>
+              <h2 className={styles.onboardingTitle}>Создайте профиль, который поможет бизнесу выбрать вас</h2>
+              <p className={styles.onboardingText}>Расскажите о тематике, аудитории и формате контента. После модерации профиль станет доступен в каталоге.</p>
+              <Link href="/dashboard/author/profile" className={styles.buttonPrimary} style={{ marginTop: 18 }}>Заполнить анкету</Link>
             </div>
-            <Link href="/dashboard/author/profile" style={{ display:'inline-block', padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Заполнить анкету →</Link>
-          </div>
+            <div className={styles.steps}>
+              {['Заполните основные данные', 'Добавьте фото и ссылки на соцсети', 'Пройдите модерацию', 'Получайте предложения в чате'].map((text, i) => (
+                <div className={styles.step} key={text}><span className={styles.stepNumber}>{i + 1}</span>{text}</div>
+              ))}
+            </div>
+          </section>
         )}
 
-        {/* Profile exists */}
         {profile && (
           <>
-            {/* Quick actions */}
-            <div style={{ display:'flex', gap:'10px', marginBottom:'24px', flexWrap:'wrap' }}>
-              <Link href="/dashboard/author/profile" style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'100px', textDecoration:'none', fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>
-                ✏️ Редактировать профиль
-              </Link>
-              {profile.status === 'approved' && (
-                <Link href={`/author/${profile.id}`} style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#fff', border:'1px solid #e8e6e1', borderRadius:'100px', textDecoration:'none', fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>
-                  👁 Посмотреть профиль
-                </Link>
-              )}
-              {profile.status === 'approved' && (
-                <button onClick={copyProfileLink} style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'9px 18px', background: linkCopied ? '#f0fdf4' : '#fff', border: linkCopied ? '1px solid #bbf7d0' : '1px solid #e8e6e1', borderRadius:'100px', fontSize:'13px', fontWeight:600, color: linkCopied ? '#16a34a' : '#1a1a1a', cursor:'pointer', fontFamily:'inherit', transition:'all 0.2s' }}>
-                  {linkCopied ? '✓ Скопировано' : '🔗 Скопировать ссылку'}
-                </button>
-              )}
-            </div>
+            <section className={styles.metrics} aria-label="Статистика автора">
+              <div className={styles.metric}>
+                <div className={styles.metricTop}><span className={styles.metricIcon}><UiIcon name="eye" width={17} height={17}/></span>{stats.views7d > 0 && <span className={styles.metricDelta}>+{stats.views7d} за 7 дней</span>}</div>
+                <div className={styles.metricValue}>{stats.viewsTotal}</div>
+                <div className={styles.metricLabel}>просмотров профиля</div>
+              </div>
+              <div className={styles.metric}>
+                <div className={styles.metricTop}><span className={styles.metricIcon}><UiIcon name="message" width={17} height={17}/></span>{stats.requests30d > 0 && <span className={styles.metricDelta}>+{stats.requests30d} за 30 дней</span>}</div>
+                <div className={styles.metricValue}>{stats.requestsTotal}</div>
+                <div className={styles.metricLabel}>входящих запросов</div>
+              </div>
+              <div className={styles.metric}>
+                <div className={styles.metricTop}><span className={styles.metricIcon}><UiIcon name="briefcase" width={17} height={17}/></span></div>
+                <div className={styles.metricValue}>{stats.completed}</div>
+                <div className={styles.metricLabel}>завершённых сделок</div>
+              </div>
+              <div className={styles.metric}>
+                <div className={styles.metricTop}><span className={styles.metricIcon}><UiIcon name="star" width={17} height={17}/></span></div>
+                <div className={styles.metricValue}>{profile.avg_rating ? profile.avg_rating.toFixed(1) : '—'}</div>
+                <div className={styles.metricLabel}>{profile.reviews_count ? `${profile.reviews_count} отзывов` : 'рейтинг появится после отзывов'}</div>
+              </div>
+            </section>
 
-            {/* Checklist */}
+            <section className={styles.quickGrid}>
+              <article className={styles.quickCard}>
+                <span className={styles.quickIcon}><UiIcon name="message" width={20} height={20}/></span>
+                <h2 className={styles.quickTitle}>Запросы и сделки</h2>
+                <p className={styles.quickText}>Просматривайте новые предложения, обсуждайте детали и следите за статусом текущей работы.</p>
+                <Link href="/dashboard/author/deals" className={styles.quickLink}>Перейти к сделкам <UiIcon name="arrowRight" width={14} height={14}/></Link>
+              </article>
+              <article className={styles.quickCard}>
+                <span className={styles.quickIcon}><UiIcon name="share" width={20} height={20}/></span>
+                <h2 className={styles.quickTitle}>Поделитесь профилем</h2>
+                <p className={styles.quickText}>Отправьте прямую ссылку знакомому бизнесу или разместите её в своих социальных сетях.</p>
+                {profile.status === 'approved' ? (
+                  <button type="button" onClick={copyProfileLink} className={styles.quickLink} style={{ border: 0, padding: 0, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {linkCopied ? 'Ссылка скопирована' : 'Скопировать ссылку'} <UiIcon name={linkCopied ? 'check' : 'share'} width={14} height={14}/>
+                  </button>
+                ) : <Link href="/dashboard/author/profile" className={styles.quickLink}>Проверить профиль <UiIcon name="arrowRight" width={14} height={14}/></Link>}
+              </article>
+            </section>
+
             {showChecklist && (
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'24px', marginBottom:'24px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
-                  <h3 style={{ fontSize:'15px', fontWeight:700, color:'#1a1a1a', margin:0 }}>Получи первый заказ</h3>
-                  <span style={{ fontSize:'12px', color:'#9a9590', fontWeight:500 }}>{completedSteps} из {checklist.length}</span>
+              <section className={styles.checklist}>
+                <div className={styles.checklistHeader}>
+                  <div>
+                    <h2 className={styles.checklistTitle}>Подготовьте профиль к первым предложениям</h2>
+                    <div className={styles.panelMeta}>Чем полнее анкета, тем проще бизнесу принять решение.</div>
+                  </div>
+                  <span className={styles.checklistCount}>{completedSteps} из {checklist.length}</span>
                 </div>
-                <div style={{ height:'6px', background:'#f0ede6', borderRadius:'100px', marginBottom:'16px', overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:`${(completedSteps / checklist.length) * 100}%`, background:'#C56A43', borderRadius:'100px', transition:'width 0.3s' }} />
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                <div className={styles.progress}><div className={styles.progressBar} style={{ width: `${(completedSteps / checklist.length) * 100}%` }}/></div>
+                <div className={styles.checklistItems}>
                   {checklist.map(item => (
-                    <div key={item.key} style={{ display:'flex', alignItems:'center', gap:'10px', fontSize:'14px', color: item.done ? '#9a9590' : '#1a1a1a' }}>
-                      <div style={{ width:'22px', height:'22px', borderRadius:'50%', border: item.done ? 'none' : '2px solid #e0ddd8', background: item.done ? '#C56A43' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                        {item.done && <span style={{ color:'#fff', fontSize:'12px', fontWeight:700 }}>✓</span>}
-                      </div>
-                      <span style={{ textDecoration: item.done ? 'line-through' : 'none' }}>{item.label}</span>
+                    <div key={item.key} className={`${styles.checkItem} ${item.done ? styles.checkDone : ''}`}>
+                      <span className={`${styles.checkCircle} ${item.done ? styles.checkCircleDone : ''}`}>{item.done && <UiIcon name="check" width={13} height={13}/>}</span>
+                      <span>{item.label}</span>
                     </div>
                   ))}
                 </div>
-                {completedSteps < checklist.length && (
-                  <Link href="/dashboard/author/profile" style={{ display:'inline-block', marginTop:'16px', padding:'8px 20px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600 }}>Заполнить →</Link>
-                )}
-              </div>
+                <Link href="/dashboard/author/profile" className={styles.buttonPrimary} style={{ marginTop: 18 }}>Продолжить заполнение</Link>
+              </section>
             )}
-
-            {/* Stats */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:'12px', marginBottom:'24px' }}>
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'16px', textAlign:'center' }}>
-                <div style={{ fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{stats.viewsTotal}</div>
-                <div style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>просмотров</div>
-                {stats.views7d > 0 && <div style={{ fontSize:'11px', color:'#c17f3e', marginTop:'4px' }}>+{stats.views7d} за 7 дней</div>}
-              </div>
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'16px', textAlign:'center' }}>
-                <div style={{ fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{stats.requestsTotal}</div>
-                <div style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>заявок</div>
-                {stats.requests30d > 0 && <div style={{ fontSize:'11px', color:'#c17f3e', marginTop:'4px' }}>+{stats.requests30d} за 30 дней</div>}
-              </div>
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'16px', textAlign:'center' }}>
-                <div style={{ fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{stats.completed}</div>
-                <div style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>сделок</div>
-              </div>
-              <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'16px', padding:'16px', textAlign:'center' }}>
-                <div style={{ fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{profile.avg_rating ? profile.avg_rating.toFixed(1) : '—'}</div>
-                <div style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>рейтинг</div>
-                {(profile.reviews_count || 0) > 0 && <div style={{ fontSize:'11px', color:'#c17f3e', marginTop:'4px' }}>{profile.reviews_count} отзывов</div>}
-              </div>
-            </div>
           </>
         )}
       </div>
