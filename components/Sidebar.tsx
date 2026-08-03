@@ -1,8 +1,8 @@
 'use client'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import NotificationBell from './NotificationBell'
+import UiIcon from './UiIcon'
 
 type Props = {
   role: 'business' | 'author' | 'admin' | null
@@ -12,9 +12,12 @@ type Props = {
   authorId?: string | null
 }
 
-export default function Sidebar({ role, email, userId, badgeCount = 0, authorId }: Props) {
+type IconName = Parameters<typeof UiIcon>[0]['name']
+
+type NavItem = { href: string; icon: IconName; label: string; badge?: number }
+
+export default function Sidebar({ role, email, userId, badgeCount = 0 }: Props) {
   const pathname = usePathname()
-  const router = useRouter()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -24,77 +27,73 @@ export default function Sidebar({ role, email, userId, badgeCount = 0, authorId 
   const initial = email?.[0]?.toUpperCase() || '?'
 
   const isActive = (href: string) => {
-    if (href.startsWith('/author/')) return pathname.startsWith('/author/')
     if (href === '/dashboard/business' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
     if (href === '/dashboard/author/deals' && (pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/request/'))) return true
-    if (href === '/dashboard/author' && pathname === '/dashboard/author') return true
-    if (href === '/dashboard/author') return false
-    return pathname === href
+    if (href === '/dashboard/author') return pathname === href
+    return pathname === href || pathname.startsWith(`${href}/`)
   }
 
-  const navItem = (href: string, icon: string, label: string, badge?: number) => (
-    <Link href={href} className={`sidebar-nav-item${isActive(href) ? ' active' : ''}`}>
-      <span style={{ fontSize:'16px', width:'18px', textAlign:'center', flexShrink:0 }}>{icon}</span>
-      <span style={{ flex:1 }}>{label}</span>
-      {badge ? <span style={{ background:'#c17f3e', color:'#fff', fontSize:'10px', fontWeight:700, padding:'1px 6px', borderRadius:'100px', minWidth:'18px', textAlign:'center' }}>{badge}</span> : null}
-    </Link>
-  )
+  const items: NavItem[] = role === 'business'
+    ? [
+        { href: '/dashboard/business', icon: 'message', label: 'Сделки', badge: badgeCount },
+        { href: '/catalog', icon: 'search', label: 'Каталог авторов' },
+        { href: '/dashboard/business/favorites', icon: 'heart', label: 'Избранное' },
+        { href: '/dashboard/business/profile', icon: 'building', label: 'Профиль компании' },
+      ]
+    : role === 'author'
+      ? [
+          { href: '/dashboard/author', icon: 'home', label: 'Главная' },
+          { href: '/dashboard/author/deals', icon: 'message', label: 'Сделки', badge: badgeCount },
+          { href: '/catalog', icon: 'search', label: 'Каталог авторов' },
+          { href: '/dashboard/author/profile', icon: 'user', label: 'Мой профиль' },
+        ]
+      : [
+          { href: '/dashboard/admin', icon: 'shield', label: 'Модерация' },
+          { href: '/catalog', icon: 'search', label: 'Каталог авторов' },
+        ]
 
-  const businessNav = () => (<>
-    {navItem('/dashboard/business', '💬', 'Сделки', badgeCount || undefined)}
-    {navItem('/catalog', '🔍', 'Каталог')}
-    {navItem('/dashboard/business/favorites', '⭐️', 'Избранное')}
-    {navItem('/dashboard/business/profile', '🏢', 'Профиль компании')}
-  </>)
-
-  const authorNav = () => (<>
-    {navItem('/dashboard/author', '🏠', 'Главная')}
-    {navItem('/dashboard/author/deals', '💬', 'Сделки', badgeCount || undefined)}
-    {navItem('/catalog', '🔍', 'Каталог')}
-    {navItem('/dashboard/author/profile', '👤', 'Профиль')}
-  </>)
-
-  const adminNav = () => (<>
-    {navItem('/dashboard/admin', '🛡', 'Модерация')}
-    {navItem('/catalog', '🔍', 'Каталог')}
-  </>)
+  const roleLabel = role === 'business' ? 'Кабинет бизнеса' : role === 'author' ? 'Кабинет автора' : 'Администрирование'
 
   return (
     <aside className="sidebar">
-      <div style={{ padding:'20px 16px 16px' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'24px' }}>
-          <Link href="/" style={{ fontFamily:'Fraunces, serif', fontSize:'20px', fontWeight:700, color:'#1a1a1a', textDecoration:'none' }}>
-            СВОИ <span style={{ fontSize:'14px', fontWeight:500, color:'#9a9590' }}>UGC</span>
-          </Link>
-          {userId && <NotificationBell userId={userId} />}
-        </div>
-
-        {role && (
-          <div style={{ marginBottom:'8px' }}>
-            <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', padding:'0 12px', marginBottom:'6px' }}>
-              {role === 'business' ? 'Бизнес' : role === 'author' ? 'Автор' : 'Админ'}
-            </div>
-            <nav style={{ display:'flex', flexDirection:'column', gap:'2px' }}>
-              {role === 'business' && businessNav()}
-              {role === 'author' && authorNav()}
-              {role === 'admin' && adminNav()}
-            </nav>
-          </div>
-        )}
+      <div className="sidebar-top">
+        <Link href="/" className="sidebar-brand" aria-label="СВОИ UGC">
+          СВОИ <span>UGC</span>
+        </Link>
+        {role && <div className="sidebar-role">{roleLabel}</div>}
+        <nav className="sidebar-nav" aria-label="Основная навигация">
+          {items.map(item => (
+            <Link key={item.href} href={item.href} className={`sidebar-nav-item${isActive(item.href) ? ' active' : ''}`}>
+              <UiIcon name={item.icon} width={19} height={19} />
+              <span className="sidebar-nav-label">{item.label}</span>
+              {!!item.badge && item.badge > 0 && <span className="sidebar-badge">{item.badge > 99 ? '99+' : item.badge}</span>}
+            </Link>
+          ))}
+        </nav>
       </div>
 
-      <div style={{ marginTop:'auto', padding:'16px', borderTop:'1px solid #e8e6e1' }}>
-        <Link href="/support" className="sidebar-nav-item" style={{ marginBottom:'4px' }}>
-          <span style={{ fontSize:'16px', width:'18px', textAlign:'center', flexShrink:0 }}>❓</span>
-          <span>Поддержка</span>
+      <div className="sidebar-bottom">
+        <Link href="/dashboard/notifications" className={`sidebar-nav-item${pathname.startsWith('/dashboard/notifications') ? ' active' : ''}`}>
+          <UiIcon name="bell" width={19} height={19} />
+          <span className="sidebar-nav-label">Уведомления</span>
         </Link>
-        <div style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 12px' }}>
-          <div style={{ width:'28px', height:'28px', borderRadius:'50%', background:'#f0ede6', border:'1px solid #e0ddd8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:700, color:'#1a1a1a', flexShrink:0 }}>{initial}</div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:'12px', color:'#1a1a1a', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{email}</div>
-            <button onClick={handleLogout} style={{ fontSize:'11px', color:'#9a9590', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', padding:0, textAlign:'left' }}>Выйти</button>
+        <Link href="/support" className={`sidebar-nav-item${pathname.startsWith('/support') ? ' active' : ''}`}>
+          <UiIcon name="help" width={19} height={19} />
+          <span className="sidebar-nav-label">Поддержка</span>
+        </Link>
+
+        {userId && (
+          <div className="sidebar-account">
+            <div className="sidebar-avatar">{initial}</div>
+            <div className="sidebar-account-copy">
+              <span title={email || ''}>{email}</span>
+              <button type="button" onClick={handleLogout}>Выйти</button>
+            </div>
+            <button type="button" className="sidebar-logout" onClick={handleLogout} aria-label="Выйти">
+              <UiIcon name="logout" width={18} height={18} />
+            </button>
           </div>
-        </div>
+        )}
       </div>
     </aside>
   )
