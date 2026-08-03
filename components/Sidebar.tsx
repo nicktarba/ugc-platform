@@ -48,7 +48,7 @@ export default function Sidebar({ role, email, userId, badgeCount = 0 }: Props) 
           { href: '/dashboard/author/profile', icon: 'user', label: 'Мой профиль' },
         ]
       : [
-          { href: '/dashboard/admin', icon: 'shield', label: 'Модерация' },
+          { href: '/dashboard/admin', icon: 'shield', label: 'Управление' },
           { href: '/catalog', icon: 'search', label: 'Каталог авторов' },
         ]
 

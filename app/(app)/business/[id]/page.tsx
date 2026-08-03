@@ -1,8 +1,13 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import LoadingScreen from '@/components/LoadingScreen'
+import UiIcon from '@/components/UiIcon'
+import { useApp } from '../../AppContext'
+import styles from './business.module.css'
 
 type BusinessProfile = {
   id: string
@@ -17,6 +22,7 @@ export default function BusinessPublicPage() {
   const params = useParams()
   const router = useRouter()
   const businessId = params.id as string
+  const { userRole } = useApp()
   const [profile, setProfile] = useState<BusinessProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [dealsCount, setDealsCount] = useState(0)
@@ -27,107 +33,133 @@ export default function BusinessPublicPage() {
         .from('business_profiles')
         .select('id, company_name, niche, description, website_url, avatar_url')
         .eq('id', businessId)
-        .single()
+        .maybeSingle()
 
-      if (!data) { setLoading(false); return }
-      setProfile(data)
+      if (!data) {
+        setLoading(false)
+        return
+      }
 
+      setProfile(data as BusinessProfile)
       const { count } = await supabase
         .from('requests')
         .select('id', { count: 'exact', head: true })
         .eq('business_id', businessId)
         .eq('status', 'completed')
       setDealsCount(count || 0)
-
       setLoading(false)
     }
-    load()
+
+    void load()
   }, [businessId])
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: '#9a9590' }}>
-        Загрузка...
-      </div>
-    )
-  }
+  if (loading) return <LoadingScreen />
 
   if (!profile) {
     return (
-      <div style={{ maxWidth: 600, margin: '60px auto', padding: '0 20px', textAlign: 'center' }}>
-        <h2 style={{ fontFamily: 'Fraunces, serif', fontSize: 24, color: '#1a1a1a', marginBottom: 12 }}>Компания не найдена</h2>
-        <p style={{ color: '#7a7570', fontSize: 14, marginBottom: 20 }}>Профиль не заполнен или не существует.</p>
-        <button onClick={() => router.back()} style={{ padding: '10px 24px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          ← Назад
-        </button>
-      </div>
+      <main className={styles.page}>
+        <div className={styles.notFound}>
+          <div className={styles.notFoundCard}>
+            <div className={styles.notFoundIcon}><UiIcon name="building" width={25} height={25} /></div>
+            <h1 className={styles.notFoundTitle}>Компания не найдена</h1>
+            <p className={styles.notFoundText}>Профиль ещё не заполнен, был удалён или недоступен.</p>
+            <button type="button" className={styles.secondaryButton} onClick={() => router.back()}><UiIcon name="arrowLeft" width={15} height={15} />Назад</button>
+          </div>
+        </div>
+      </main>
     )
   }
 
   const initials = profile.company_name
     .split(' ')
-    .map(w => w[0])
+    .map(word => word[0])
     .join('')
     .toUpperCase()
     .slice(0, 2)
 
-  const hashCode = profile.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  const bgColors = ['#fdf3e7', '#e8f4fd', '#f0fdf4', '#fdf4ff', '#fff0f0']
-  const textColors = ['#c17f3e', '#1a6fa8', '#16a34a', '#7c3aed', '#dc2626']
-  const idx = hashCode % bgColors.length
+  const website = profile.website_url
+    ? profile.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '')
+    : null
+  const returnHref = userRole === 'admin'
+    ? '/dashboard/admin'
+    : userRole === 'business'
+      ? '/dashboard/business'
+      : '/dashboard/author/deals'
+  const returnLabel = userRole === 'admin' ? 'Вернуться в админку' : 'Вернуться к сделкам'
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 20px 80px' }}>
-      {/* Back */}
-      <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#7a7570', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 24, padding: 0 }}>
-        ← Назад
-      </button>
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <button type="button" className={styles.back} onClick={() => router.back()}>
+          <UiIcon name="arrowLeft" width={15} height={15} />Назад
+        </button>
 
-      {/* Header card */}
-      <div style={{ background: '#fff', border: '1px solid #e8e6e1', borderRadius: 20, padding: 28, marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 20 }}>
-          {profile.avatar_url ? (
-            <img src={profile.avatar_url} alt="" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover' }} />
-          ) : (
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: bgColors[idx], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: textColors[idx], fontFamily: 'Fraunces, serif', flexShrink: 0 }}>
-              {initials}
+        <section className={styles.hero}>
+          <div className={styles.identity}>
+            <div className={styles.avatar}>
+              {profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : initials}
             </div>
-          )}
-          <div>
-            <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>
-              {profile.company_name}
-            </h1>
-            {profile.niche && (
-              <p style={{ fontSize: 13, color: '#7a7570', marginTop: 4 }}>{profile.niche}</p>
-            )}
+            <div>
+              <div className={styles.eyebrow}>Профиль бизнеса</div>
+              <h1 className={styles.title}>{profile.company_name}</h1>
+              <p className={styles.niche}>{profile.niche || 'Сфера деятельности пока не указана'}</p>
+            </div>
           </div>
+          <div className={styles.heroStats}>
+            <div className={styles.stat}>
+              <div className={styles.statIcon}><UiIcon name="check" width={17} height={17} /></div>
+              <div className={styles.statCopy}>
+                <div className={styles.statValue}>{dealsCount}</div>
+                <div className={styles.statLabel}>завершённых сделок</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className={styles.grid}>
+          <section className={styles.card}>
+            <h2 className={styles.cardTitle}><UiIcon name="building" width={19} height={19} />О компании</h2>
+            {profile.description
+              ? <p className={styles.cardText}>{profile.description}</p>
+              : <p className={styles.emptyText}>Компания пока не добавила подробное описание.</p>}
+          </section>
+
+          <aside className={styles.card}>
+            <h2 className={styles.cardTitle}>Информация</h2>
+            <div className={styles.details} style={{ marginTop: 14 }}>
+              <div className={styles.detail}>
+                <div className={styles.detailIcon}><UiIcon name="briefcase" width={16} height={16} /></div>
+                <div className={styles.detailCopy}>
+                  <div className={styles.detailLabel}>Направление</div>
+                  <div className={styles.detailValue}>{profile.niche || 'Не указано'}</div>
+                </div>
+              </div>
+              <div className={styles.detail}>
+                <div className={styles.detailIcon}><UiIcon name="external" width={16} height={16} /></div>
+                <div className={styles.detailCopy}>
+                  <div className={styles.detailLabel}>Сайт</div>
+                  <div className={styles.detailValue}>
+                    {profile.website_url && website
+                      ? <a href={profile.website_url} target="_blank" rel="noopener noreferrer">{website}</a>
+                      : 'Не указан'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: 20, marginBottom: profile.description ? 20 : 0 }}>
-          <div style={{ background: '#f5f3ef', borderRadius: 12, padding: '12px 18px', flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', fontFamily: 'Fraunces, serif' }}>{dealsCount}</div>
-            <div style={{ fontSize: 11, color: '#7a7570', marginTop: 2 }}>Завершённых сделок</div>
+        <div className={styles.notice}>
+          <div className={styles.noticeMain}>
+            <div className={styles.noticeIcon}><UiIcon name="message" width={18} height={18} /></div>
+            <div>
+              <div className={styles.noticeTitle}>Общайтесь по задаче внутри сделки</div>
+              <div className={styles.noticeText}>Условия, сообщения и итог сотрудничества сохраняются в одном чате.</div>
+            </div>
           </div>
+          <Link href={returnHref} className={styles.secondaryButton}>{returnLabel}</Link>
         </div>
-
-        {/* Description */}
-        {profile.description && (
-          <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>О компании</h3>
-            <p style={{ fontSize: 14, color: '#5a5650', lineHeight: 1.6 }}>{profile.description}</p>
-          </div>
-        )}
-
-        {/* Website */}
-        {profile.website_url && (
-          <div style={{ marginTop: 16 }}>
-            <a href={profile.website_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#c17f3e', textDecoration: 'none', fontWeight: 600 }}>
-              🌐 {profile.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-            </a>
-          </div>
-        )}
       </div>
-    </div>
+    </main>
   )
 }

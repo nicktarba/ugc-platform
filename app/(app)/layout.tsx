@@ -28,7 +28,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       setUserId(u.id)
       setUserEmail(u.email || null)
-      const role = (u.user_metadata?.role as 'business' | 'author' | 'admin' | undefined) || null
+
+      const metadataRole = u.user_metadata?.role as 'business' | 'author' | 'admin' | undefined
+      const { data: accountProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', u.id)
+        .maybeSingle()
+      const storedRole = accountProfile?.role as 'business' | 'author' | 'admin' | undefined
+      const role = storedRole || metadataRole || null
       setUserRole(role)
 
       if (role === 'author') {
@@ -75,6 +83,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace('/login')
     }
     if (ready && userId && userRole) {
+      if (userRole !== 'admin' && pathname.startsWith('/dashboard/admin')) {
+        router.replace(userRole === 'business' ? '/dashboard/business' : '/dashboard/author')
+        return
+      }
+      if (userRole === 'admin' && (pathname.startsWith('/dashboard/business') || pathname.startsWith('/dashboard/author'))) {
+        router.replace('/dashboard/admin')
+        return
+      }
       if (userRole === 'business' && pathname.startsWith('/dashboard/author')) {
         router.replace('/dashboard/business')
       }

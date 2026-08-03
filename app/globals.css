@@ -221,3 +221,23 @@ img { max-width: 100%; }
     font-weight: 850;
   }
 }
+
+.app-loading {
+  min-height: 100vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(238, 101, 81, .08), transparent 24%),
+    var(--app-page);
+  color: var(--app-ink);
+}
+.app-loading-brand { display: inline-flex; align-items: baseline; gap: 6px; font-size: 24px; font-weight: 860; line-height: 1; letter-spacing: -.05em; }
+.app-loading-brand span { color: var(--app-accent); font-size: 13px; letter-spacing: .04em; }
+.app-loading-line { width: 112px; height: 3px; margin-top: 20px; overflow: hidden; border-radius: 999px; background: #e5e2de; }
+.app-loading-line span { width: 45%; height: 100%; display: block; border-radius: inherit; background: var(--app-accent); animation: appLoadingMove 1.05s ease-in-out infinite alternate; }
+.app-loading-label { margin-top: 10px; color: var(--app-muted-soft); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+@keyframes appLoadingMove { from { transform: translateX(-8%); } to { transform: translateX(135%); } }
+@media (prefers-reduced-motion: reduce) { .app-loading-line span { animation: none; width: 100%; opacity: .55; } }
