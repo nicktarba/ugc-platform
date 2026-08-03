@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/Toast'
 import LoadingScreen from '@/components/LoadingScreen'
+import UiIcon from '@/components/UiIcon'
 import { truncate, formatRelative, formatDate } from '@/lib/format'
 import { businessStatusLabel } from '@/lib/status'
 import { OPEN_STATUSES, type BusinessRequest as Req } from '@/lib/types'
 import { useApp } from '../../AppContext'
+import styles from '../dashboard.module.css'
 
 export default function BusinessDashboard() {
   const { userId, bumpBadge, businessProfile } = useApp()
@@ -17,7 +19,6 @@ export default function BusinessDashboard() {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [favoritesCount, setFavoritesCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -62,108 +63,148 @@ export default function BusinessDashboard() {
   const OPEN: string[] = OPEN_STATUSES
   const activeRequests = requests.filter(r => OPEN.includes(r.status))
   const historyRequests = requests.filter(r => !OPEN.includes(r.status))
-
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0)
+  const companyName = businessProfile?.company_name || 'Ваш бизнес'
+  const profileIncomplete = businessProfile && (!businessProfile.company_name || !businessProfile.inn)
 
   if (loading) return <LoadingScreen />
 
-  return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <div style={{ maxWidth:'800px', margin:'0 auto', padding:'clamp(32px, 8vw, 60px) clamp(16px, 5vw, 40px)' }}>
-        <div style={{ marginBottom:'40px' }}>
-          <div style={{ display:'inline-block', padding:'6px 16px', background:'#f0ede6', borderRadius:'100px', fontSize:'13px', color:'#7a7570', marginBottom:'16px', fontWeight:500 }}>Кабинет бизнеса</div>
-          <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'36px', fontWeight:700, color:'#1a1a1a' }}>{businessProfile?.company_name || 'Добро пожаловать'}</h1>
-        </div>
+  const shown = reqTab === 'active' ? activeRequests : reqTab === 'history' ? historyRequests : requests
 
-        {businessProfile && (!businessProfile.company_name || !businessProfile.inn) && (
-          <div style={{ padding:'14px 20px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'14px', marginBottom:'16px', fontSize:'14px', color:'#c17f3e', fontWeight:500, display:'flex', justifyContent:'space-between', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
-            <span>Заполни профиль компании (название и ИНН), чтобы писать авторам</span>
-            <Link href="/dashboard/business/profile" style={{ padding:'6px 16px', background:'#c17f3e', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'13px', fontWeight:600, flexShrink:0 }}>Заполнить</Link>
+  return (
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <header className={styles.pageHeader}>
+          <div className={styles.headerCopy}>
+            <div className={styles.eyebrow}>Кабинет бизнеса</div>
+            <h1 className={styles.title}>{companyName}</h1>
+            <p className={styles.subtitle}>Ищите авторов, обсуждайте задачи и контролируйте все сотрудничества в одном месте.</p>
+          </div>
+          <div className={styles.headerActions}>
+            <Link href="/catalog" className={styles.buttonPrimary}><UiIcon name="search" width={16} height={16}/>Найти автора</Link>
+            <Link href="/dashboard/business/profile" className={styles.buttonSecondary}><UiIcon name="building" width={16} height={16}/>Профиль</Link>
+          </div>
+        </header>
+
+        {profileIncomplete && (
+          <div className={styles.alert}>
+            <div className={styles.alertMain}>
+              <span className={styles.alertIcon}><UiIcon name="building" width={18} height={18}/></span>
+              <span>Заполните название компании и ИНН, чтобы отправлять предложения авторам.</span>
+            </div>
+            <Link href="/dashboard/business/profile" className={styles.buttonPrimary}>Заполнить профиль</Link>
           </div>
         )}
 
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'16px', marginBottom:'16px' }}>
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-            <div style={{ fontSize:'32px', marginBottom:'12px' }}>🔍</div>
-            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Найти авторов</h3>
-            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>Каталог микро-авторов с фильтрами по городу, хобби и стилю жизни.</p>
-            <Link href="/catalog" style={{ display:'inline-block', padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Открыть каталог</Link>
+        <section className={styles.metrics} aria-label="Статистика кабинета">
+          <div className={styles.metric}>
+            <div className={styles.metricTop}><span className={styles.metricIcon}><UiIcon name="briefcase" width={17} height={17}/></span></div>
+            <div className={styles.metricValue}>{activeRequests.length}</div>
+            <div className={styles.metricLabel}>активных запросов и сделок</div>
           </div>
+          <div className={styles.metric}>
+            <div className={styles.metricTop}><span className={styles.metricIcon}><UiIcon name="message" width={17} height={17}/></span>{totalUnread > 0 && <span className={styles.metricDelta}>Новые сообщения</span>}</div>
+            <div className={styles.metricValue}>{totalUnread}</div>
+            <div className={styles.metricLabel}>непрочитанных сообщений</div>
+          </div>
+          <div className={styles.metric}>
+            <div className={styles.metricTop}><span className={styles.metricIcon}><UiIcon name="heart" width={17} height={17}/></span></div>
+            <div className={styles.metricValue}>{favoritesCount}</div>
+            <div className={styles.metricLabel}>авторов в избранном</div>
+          </div>
+          <div className={styles.metric}>
+            <div className={styles.metricTop}><span className={styles.metricIcon}><UiIcon name="check" width={17} height={17}/></span></div>
+            <div className={styles.metricValue}>{historyRequests.length}</div>
+            <div className={styles.metricLabel}>завершённых и архивных</div>
+          </div>
+        </section>
 
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-            <div style={{ fontSize:'32px', marginBottom:'12px' }}>⭐️</div>
-            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Избранные {favoritesCount > 0 && `(${favoritesCount})`}</h3>
-            <p style={{ fontSize:'14px', color:'#7a7570', marginBottom:'20px', lineHeight:1.6 }}>Авторы которых ты сохранил. Удобно собирать шортлист.</p>
-            <Link href="/dashboard/business/favorites" style={{ display:'inline-block', padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Открыть</Link>
-          </div>
-        </div>
+        <section className={styles.quickGrid}>
+          <article className={styles.quickCard}>
+            <span className={styles.quickIcon}><UiIcon name="search" width={20} height={20}/></span>
+            <h2 className={styles.quickTitle}>Найдите подходящего автора</h2>
+            <p className={styles.quickText}>Используйте обычный поиск или ИИ-подбор, фильтры по городу, тематике и аудитории.</p>
+            <Link href="/catalog" className={styles.quickLink}>Открыть каталог <UiIcon name="arrowRight" width={14} height={14}/></Link>
+          </article>
+          <article className={styles.quickCard}>
+            <span className={styles.quickIcon}><UiIcon name="heart" width={20} height={20}/></span>
+            <h2 className={styles.quickTitle}>Соберите свой шортлист</h2>
+            <p className={styles.quickText}>Сохраняйте интересных авторов и возвращайтесь к ним, когда появится подходящая задача.</p>
+            <Link href="/dashboard/business/favorites" className={styles.quickLink}>Открыть избранное <UiIcon name="arrowRight" width={14} height={14}/></Link>
+          </article>
+        </section>
 
         {requests.length === 0 && favoritesCount === 0 && (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', marginBottom:'16px', borderLeft:'4px solid #c17f3e' }}>
-            <div style={{ fontSize:'28px', marginBottom:'12px' }}>👋</div>
-            <h3 style={{ fontSize:'17px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Как это работает</h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:'10px', fontSize:'14px', color:'#5a5650', lineHeight:1.6 }}>
-              <div>1. Открой каталог и найди подходящего автора</div>
-              <div>2. Нажми «Написать» — расскажи о задаче и бюджете</div>
-              <div>3. Автор ответит в чате — договоритесь об условиях</div>
-              <div>4. Отметьте сделку завершённой когда всё готово</div>
+          <section className={styles.onboarding}>
+            <div>
+              <div className={styles.eyebrow}>Первое сотрудничество</div>
+              <h2 className={styles.onboardingTitle}>От поиска автора до договорённости — в одном интерфейсе</h2>
+              <p className={styles.onboardingText}>Начните с каталога, отправьте предложение и продолжите обсуждение в чате. Все статусы сохраняются в кабинете.</p>
+              <Link href="/catalog" className={styles.buttonPrimary} style={{ marginTop: 18 }}>Открыть каталог</Link>
             </div>
-            <Link href="/catalog" style={{ display:'inline-block', marginTop:'16px', padding:'10px 24px', background:'#1a1a1a', borderRadius:'100px', textDecoration:'none', color:'#fff', fontSize:'14px', fontWeight:600 }}>Открыть каталог</Link>
-          </div>
+            <div className={styles.steps}>
+              {['Выберите автора по задаче', 'Отправьте предложение и бюджет', 'Обсудите детали в чате', 'Завершите сделку и оставьте отзыв'].map((text, i) => (
+                <div className={styles.step} key={text}><span className={styles.stepNumber}>{i + 1}</span>{text}</div>
+              ))}
+            </div>
+          </section>
         )}
 
-
-        <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px', flexWrap:'wrap', gap:'8px' }}>
-            <h3 style={{ fontSize:'16px', fontWeight:700, color:'#1a1a1a', display:'flex', alignItems:'center', gap:'8px', margin:0 }}>
-              Мои запросы {requests.length > 0 && `(${requests.length})`}
-              {totalUnread > 0 && <span style={{ padding:'2px 10px', background:'#c17f3e', borderRadius:'100px', fontSize:'12px', fontWeight:700, color:'#fff' }}>{totalUnread} новых</span>}
-            </h3>
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2 className={styles.panelTitle}>Сделки и запросы {totalUnread > 0 && <span className={styles.badge}>{totalUnread}</span>}</h2>
+              <div className={styles.panelMeta}>{requests.length ? `${requests.length} всего` : 'Здесь появятся ваши предложения авторам'}</div>
+            </div>
             {requests.length > 0 && (
-              <div style={{ display:'flex', gap:'4px' }}>
+              <div className={styles.tabs}>
                 {[{key:'active' as const, label:'Активные'}, {key:'history' as const, label:'Завершённые'}, {key:'all' as const, label:'Все'}].map(t => (
-                  <button key={t.key} onClick={() => setReqTab(t.key)} style={{ padding:'5px 12px', borderRadius:'100px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: reqTab === t.key ? '#1a1a1a' : '#e0ddd8', background: reqTab === t.key ? '#1a1a1a' : '#fff', color: reqTab === t.key ? '#fff' : '#5a5650' }}>{t.label}</button>
+                  <button key={t.key} type="button" onClick={() => setReqTab(t.key)} className={`${styles.tab} ${reqTab === t.key ? styles.tabActive : ''}`}>{t.label}</button>
                 ))}
               </div>
             )}
           </div>
-          {requests.length === 0 ? (
-            <p style={{ fontSize:'14px', color:'#9a9590' }}>Запросы которые ты отправил авторам появятся здесь.</p>
-          ) : (() => {
-            const shown = reqTab === 'active' ? activeRequests : reqTab === 'history' ? historyRequests : requests
-            return shown.length === 0 ? (
-              <p style={{ fontSize:'13px', color:'#9a9590' }}>{reqTab === 'active' ? 'Нет активных запросов' : 'Нет завершённых запросов'}</p>
+          <div className={styles.panelBody}>
+            {shown.length === 0 ? (
+              <div className={styles.empty}>
+                <span className={styles.emptyIcon}><UiIcon name="message" width={22} height={22}/></span>
+                <h3 className={styles.emptyTitle}>{requests.length === 0 ? 'Запросов пока нет' : reqTab === 'active' ? 'Нет активных запросов' : 'Нет завершённых запросов'}</h3>
+                <p className={styles.emptyText}>Откройте каталог, выберите автора и расскажите о задаче. Диалог и статус сотрудничества появятся здесь.</p>
+                {requests.length === 0 && <div className={styles.emptyActions}><Link href="/catalog" className={styles.buttonPrimary}>Найти автора</Link></div>}
+              </div>
             ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+              <div className={styles.list}>
                 {shown.map(r => {
-                    const s = businessStatusLabel(r.status)
-                    const unread = unreadCounts[r.id] || 0
-                    return (
-                      <Link key={r.id} href={`/dashboard/chat/${r.id}`} style={{ display:'block', textDecoration:'none', padding:'16px', background: unread > 0 ? '#fdf3e7' : '#fafaf9', border:'1px solid #e8e6e1', borderRadius:'14px' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'12px', marginBottom:'6px' }}>
-                          <span style={{ fontSize:'13px', fontWeight:600, color:'#1a1a1a' }}>{r.authors?.name} · {r.authors?.city}</span>
-                          <div style={{ display:'flex', gap:'6px', alignItems:'center', flexShrink:0 }}>
-                            {unread > 0 && <span style={{ padding:'2px 8px', background:'#c17f3e', borderRadius:'100px', fontSize:'11px', fontWeight:700, color:'#fff' }}>{unread}</span>}
-                            <span style={{ padding:'2px 10px', background:s.bg, borderRadius:'100px', fontSize:'11px', fontWeight:600, color:s.color, whiteSpace:'nowrap' }}>{s.text}</span>
-                          </div>
+                  const s = businessStatusLabel(r.status)
+                  const unread = unreadCounts[r.id] || 0
+                  return (
+                    <Link key={r.id} href={`/dashboard/chat/${r.id}`} className={`${styles.requestCard} ${unread > 0 ? styles.requestUnread : ''}`}>
+                      <div className={styles.requestTop}>
+                        <div className={styles.requestIdentity}>
+                          <div className={styles.requestName}>{r.authors?.name || 'Автор'}</div>
+                          {r.authors?.city && <div className={styles.requestLocation}>{r.authors.city}</div>}
                         </div>
-                        <p style={{ fontSize:'13px', color:'#7a7570', lineHeight:1.5, marginBottom:'8px' }}>{truncate(r.message)}</p>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'12px', color:'#9a9590', flexWrap:'wrap', gap:'8px' }}>
-                          <div style={{ display:'flex', gap:'12px' }}>
-                            {r.budget && <span>💰 {r.budget}</span>}
-                            {r.deadline && <span>📅 {formatDate(r.deadline)}</span>}
-                          </div>
-                          <span>{formatRelative(r.created_at)}</span>
+                        <div className={styles.requestBadges}>
+                          {unread > 0 && <span className={styles.badge}>{unread}</span>}
+                          <span className={styles.status} style={{ background: s.bg, color: s.color }}>{s.text}</span>
                         </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-          )()}
-        </div>
+                      </div>
+                      <p className={styles.requestMessage}>{truncate(r.message)}</p>
+                      <div className={styles.requestBottom}>
+                        <div className={styles.requestFacts}>
+                          {r.budget && <span className={styles.requestFact}><UiIcon name="wallet" width={13} height={13}/>{r.budget}</span>}
+                          {r.deadline && <span className={styles.requestFact}><UiIcon name="calendar" width={13} height={13}/>{formatDate(r.deadline)}</span>}
+                        </div>
+                        <span>{formatRelative(r.created_at)}</span>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </main>
   )
 }
-
