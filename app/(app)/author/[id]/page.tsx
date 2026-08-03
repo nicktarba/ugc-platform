@@ -58,7 +58,7 @@ export default function AuthorPublicPage() {
   const params = useParams()
   const router = useRouter()
   const toast = useToast()
-  const { userId, userEmail, userRole, businessProfile } = useApp()
+  const { userId, userEmail, userRole, businessProfile, authorProfile } = useApp()
   const authorId = params.id as string
 
   const [author, setAuthor] = useState<Author | null>(null)
@@ -135,6 +135,7 @@ export default function AuthorPublicPage() {
 
   const ci = author.id.charCodeAt(0) % 5
   const initial = author.name?.[0]?.toUpperCase() || '?'
+  const isOwnAuthorProfile = userRole === 'author' && authorProfile?.id === authorId
   const primaryAction = userRole === 'business'
     ? hasOpenDeal
       ? <Link href={`/dashboard/chat/${hasOpenDeal}`} className={styles.primaryAction}>Открыть текущую сделку</Link>
@@ -171,7 +172,7 @@ export default function AuthorPublicPage() {
               </div>
               <div className={styles.quickActions}>
                 <button type="button" onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Ссылка скопирована') }} aria-label="Поделиться профилем"><UiIcon name="share" width={18} height={18} /></button>
-                {userId && <button type="button" onClick={() => setComplaintOpen(true)} aria-label="Пожаловаться"><UiIcon name="flag" width={18} height={18} /></button>}
+                {userId && !isOwnAuthorProfile && <button type="button" onClick={() => setComplaintOpen(true)} aria-label="Пожаловаться"><UiIcon name="flag" width={18} height={18} /></button>}
               </div>
             </div>
 
@@ -250,17 +251,38 @@ export default function AuthorPublicPage() {
           </div>
 
           <aside className={styles.sideColumn}>
-            <div className={styles.actionCard}>
-              <span className={styles.sectionEyebrow}>Начать сотрудничество</span>
-              <h2>Обсудите задачу напрямую</h2>
-              <p>Отправьте предложение, укажите бюджет и срок. Дальше общение и статусы сделки будут доступны в чате.</p>
-              {primaryAction || <Link href="/catalog" className={styles.primaryAction}>Смотреть других авторов</Link>}
-              <ul>
-                <li><UiIcon name="check" width={15} height={15} /> Контакты и история сделки в одном месте</li>
-                <li><UiIcon name="check" width={15} height={15} /> Можно договориться об оплате или бартере</li>
-                <li><UiIcon name="check" width={15} height={15} /> Отзыв после завершения сотрудничества</li>
-              </ul>
-            </div>
+            {(userRole !== 'author' || isOwnAuthorProfile) && (
+              <div className={`${styles.actionCard} ${isOwnAuthorProfile ? styles.ownActionCard : ''}`}>
+                {isOwnAuthorProfile ? (
+                  <>
+                    <span className={styles.sectionEyebrow}>Ваш публичный профиль</span>
+                    <h2>Профиль опубликован</h2>
+                    <p>Так эту страницу видит бизнес. Поддерживайте фото, описание и статистику актуальными, чтобы получать более подходящие предложения.</p>
+                    <div className={styles.ownProfileActions}>
+                      <Link href="/dashboard/author/profile" className={styles.primaryAction}>Редактировать профиль</Link>
+                      <button type="button" className={styles.secondaryAction} onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Ссылка скопирована') }}>Скопировать ссылку</button>
+                    </div>
+                    <ul>
+                      <li><UiIcon name="check" width={15} height={15} /> Профиль виден бизнесу в каталоге</li>
+                      <li><UiIcon name="check" width={15} height={15} /> Новые предложения появятся в разделе «Сделки»</li>
+                      <li><UiIcon name="check" width={15} height={15} /> Завершённые сделки и отзывы повышают рейтинг</li>
+                    </ul>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.sectionEyebrow}>Начать сотрудничество</span>
+                    <h2>Обсудите задачу напрямую</h2>
+                    <p>Отправьте предложение, укажите бюджет и срок. Дальше общение и статусы сделки будут доступны в чате.</p>
+                    {primaryAction}
+                    <ul>
+                      <li><UiIcon name="check" width={15} height={15} /> Контакты и история сделки в одном месте</li>
+                      <li><UiIcon name="check" width={15} height={15} /> Можно договориться об оплате или бартере</li>
+                      <li><UiIcon name="check" width={15} height={15} /> Отзыв после завершения сотрудничества</li>
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
 
             {author.telegram_followers > 0 && (
               <div className={styles.telegramCard}>

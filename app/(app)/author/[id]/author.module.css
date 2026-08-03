@@ -187,3 +187,10 @@
   .similarMedia { height: 132px; }
 }
 .complaintModal { width: min(470px, 100%); }
+
+.ownProfileActions { display: grid; grid-template-columns: 1fr; gap: 9px; }
+.secondaryAction { min-height: 42px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--app-line); border-radius: 12px; background: #fff; color: var(--app-ink); font: inherit; font-size: 10px; font-weight: 760; cursor: pointer; }
+.secondaryAction:hover { border-color: #cbc7c2; background: #faf9f7; }
+@media (max-width: 760px) {
+  .ownActionCard { display: block; }
+}
