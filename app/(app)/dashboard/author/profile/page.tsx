@@ -1,341 +1,507 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import UiIcon from '@/components/UiIcon'
+import ReviewsList from '@/components/ReviewsList'
 import { useToast } from '@/components/Toast'
 import { isValidUrl } from '@/lib/format'
+import { supabase } from '@/lib/supabase'
 import { useApp } from '../../../AppContext'
-import ReviewsList from '@/components/ReviewsList'
+import styles from '../../profile-settings.module.css'
 
 const LIFESTYLE_GROUPS = [
-  { label: '🍽 Еда и напитки', tags: ['Кофе и кафе', 'Рестораны', 'Кондитерская', 'Бар', 'Суши и азиатская кухня', 'Домашняя кухня'] },
-  { label: '💪 Спорт и здоровье', tags: ['Активный спорт', 'Фитнес и тренировки', 'Йога и пилатес', 'Единоборства', 'Танцы', 'ЗОЖ и питание', 'Нутрициология'] },
-  { label: '👗 Стиль и красота', tags: ['Мода и стиль', 'Красота и уход', 'Барбершоп', 'Маникюр', 'Ювелирка и аксессуары'] },
-  { label: '🏠 Дом и интерьер', tags: ['Интерьер и декор', 'Ремонт', 'Мебель', 'Садоводство'] },
-  { label: '👨‍👩‍👧 Семья', tags: ['Семья и дети', 'Беременность и материнство', 'Детское развитие'] },
-  { label: '🚗 Авто и мото', tags: ['Авто', 'Мотоциклы', 'Автосервис'] },
-  { label: '✈️ Путешествия', tags: ['Путешествия', 'Кемпинг и походы', 'Отели и курорты'] },
-  { label: '💻 Технологии', tags: ['Технологии', 'Гаджеты', 'Игры и киберспорт', 'Стриминг'] },
-  { label: '📈 Бизнес', tags: ['Бизнес', 'Маркетинг и SMM', 'Финансы и инвестиции', 'Недвижимость'] },
-  { label: '🎵 Культура', tags: ['Музыка', 'Кино и сериалы', 'Книги', 'Искусство', 'Фотография', 'Видеопродакшн'] },
-  { label: '🐾 Животные', tags: ['Собаки', 'Кошки', 'Ветеринария'] },
-  { label: '🎓 Образование', tags: ['Образование и курсы', 'Языки', 'Психология'] },
-  { label: '🏥 Медицина', tags: ['Медицина', 'Стоматология', 'Массаж и СПА'] },
-  { label: '🌿 Outdoor', tags: ['Рыбалка', 'Охота', 'Сёрфинг и водный спорт'] },
-  { label: '💐 События', tags: ['Свадьбы и торжества', 'Флористика', 'Организация мероприятий'] },
+  { label: 'Еда и напитки', tags: ['Кофе и кафе', 'Рестораны', 'Кондитерская', 'Бар', 'Суши и азиатская кухня', 'Домашняя кухня'] },
+  { label: 'Спорт и здоровье', tags: ['Активный спорт', 'Фитнес и тренировки', 'Йога и пилатес', 'Единоборства', 'Танцы', 'ЗОЖ и питание', 'Нутрициология'] },
+  { label: 'Стиль и красота', tags: ['Мода и стиль', 'Красота и уход', 'Барбершоп', 'Маникюр', 'Ювелирка и аксессуары'] },
+  { label: 'Дом и интерьер', tags: ['Интерьер и декор', 'Ремонт', 'Мебель', 'Садоводство'] },
+  { label: 'Семья', tags: ['Семья и дети', 'Беременность и материнство', 'Детское развитие'] },
+  { label: 'Авто и мото', tags: ['Авто', 'Мотоциклы', 'Автосервис'] },
+  { label: 'Путешествия', tags: ['Путешествия', 'Кемпинг и походы', 'Отели и курорты'] },
+  { label: 'Технологии', tags: ['Технологии', 'Гаджеты', 'Игры и киберспорт', 'Стриминг'] },
+  { label: 'Бизнес', tags: ['Бизнес', 'Маркетинг и SMM', 'Финансы и инвестиции', 'Недвижимость'] },
+  { label: 'Культура', tags: ['Музыка', 'Кино и сериалы', 'Книги', 'Искусство', 'Фотография', 'Видеопродакшн'] },
+  { label: 'Животные', tags: ['Собаки', 'Кошки', 'Ветеринария'] },
+  { label: 'Образование', tags: ['Образование и курсы', 'Языки', 'Психология'] },
+  { label: 'Медицина', tags: ['Медицина', 'Стоматология', 'Массаж и СПА'] },
+  { label: 'Outdoor', tags: ['Рыбалка', 'Охота', 'Сёрфинг и водный спорт'] },
+  { label: 'События', tags: ['Свадьбы и торжества', 'Флористика', 'Организация мероприятий'] },
 ]
-const LIFESTYLE = LIFESTYLE_GROUPS.flatMap(g => g.tags)
+
+type FormState = {
+  name: string
+  city: string
+  instagram_url: string
+  telegram_url: string
+  telegram_followers: string
+  followers_count: string
+  stories_views: string
+  occupation: string
+  lifestyle: string[]
+  hobbies: string
+  bio: string
+  open_to_barter: string
+}
+
+const EMPTY_FORM: FormState = {
+  name: '', city: '', instagram_url: '', telegram_url: '', telegram_followers: '',
+  followers_count: '', stories_views: '', occupation: '', lifestyle: [], hobbies: '',
+  bio: '', open_to_barter: '',
+}
+
+function formatNumber(value: string | number | null | undefined) {
+  const number = typeof value === 'string' ? Number(value) : Number(value || 0)
+  return number > 0 ? number.toLocaleString('ru-RU') : '0'
+}
 
 export default function AuthorProfilePage() {
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const { userId, authorProfile: ctxProfile, setAuthorProfile } = useApp()
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({ name:'', city:'', instagram_url:'', telegram_url:'', telegram_followers:'', followers_count:'', stories_views:'', occupation:'', lifestyle:[] as string[], hobbies:'', bio:'', open_to_barter:'' })
-  const [avatarUrl, setAvatarUrl] = useState<string|null>(null)
-  const [avatarFile, setAvatarFile] = useState<File|null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string|null>(null)
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [currentStatus, setCurrentStatus] = useState<string|null>(null)
-  const [rejectionReason, setRejectionReason] = useState<string|null>(null)
-  const [authorId, setAuthorId] = useState<string|null>(null)
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null)
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null)
+  const [authorId, setAuthorId] = useState<string | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
+  const [openGroup, setOpenGroup] = useState('Еда и напитки')
 
   useEffect(() => {
     if (!userId) return
-    supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, status, rejection_reason, completed_deals_count, avg_rating, reviews_count').eq('user_id', userId).single().then(({ data: p }) => {
-      if (p) {
-        setForm({
-          name: p.name || '', city: p.city || '', instagram_url: p.instagram_url || '',
-          telegram_url: p.telegram_url || '', telegram_followers: p.telegram_followers?.toString() || '',
-          followers_count: p.followers_count?.toString() || '', stories_views: p.stories_views?.toString() || '',
-          occupation: p.occupation || '', lifestyle: p.lifestyle || [], hobbies: p.hobbies || '',
-          bio: p.bio || '', open_to_barter: p.open_to_barter ? 'yes' : 'no',
-        })
-        setAvatarUrl(p.avatar_url || null)
-        setCurrentStatus(p.status)
-        setRejectionReason(p.rejection_reason || null)
-        setAuthorId(p.id)
-      } else { setEditing(true) }
-      setProfileLoaded(true)
-    })
+    supabase
+      .from('authors')
+      .select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, status, rejection_reason, completed_deals_count, avg_rating, reviews_count')
+      .eq('user_id', userId)
+      .single()
+      .then(({ data: profile }) => {
+        if (profile) {
+          setForm({
+            name: profile.name || '',
+            city: profile.city || '',
+            instagram_url: profile.instagram_url || '',
+            telegram_url: profile.telegram_url || '',
+            telegram_followers: profile.telegram_followers?.toString() || '',
+            followers_count: profile.followers_count?.toString() || '',
+            stories_views: profile.stories_views?.toString() || '',
+            occupation: profile.occupation || '',
+            lifestyle: profile.lifestyle || [],
+            hobbies: profile.hobbies || '',
+            bio: profile.bio || '',
+            open_to_barter: profile.open_to_barter ? 'yes' : 'no',
+          })
+          setAvatarUrl(profile.avatar_url || null)
+          setCurrentStatus(profile.status)
+          setRejectionReason(profile.rejection_reason || null)
+          setAuthorId(profile.id)
+        } else {
+          setEditing(true)
+        }
+        setProfileLoaded(true)
+      })
   }, [userId])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>) => setForm({...form, [e.target.name]: e.target.value})
-  const toggleLifestyle = (item: string) => setForm(prev => ({ ...prev, lifestyle: prev.lifestyle.includes(item) ? prev.lifestyle.filter(i => i !== item) : [...prev.lifestyle, item] }))
+  useEffect(() => () => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+  }, [avatarPreview])
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm(previous => ({ ...previous, [event.target.name]: event.target.value }))
+  }
+
+  const toggleLifestyle = (item: string) => {
+    setForm(previous => ({
+      ...previous,
+      lifestyle: previous.lifestyle.includes(item)
+        ? previous.lifestyle.filter(tag => tag !== item)
+        : [...previous.lifestyle, item],
+    }))
+  }
+
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) { toast.error('Файл слишком большой. Максимум 5 МБ.'); return }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Файл слишком большой. Максимум 5 МБ.')
+      return
+    }
     setAvatarFile(file)
     setAvatarPreview(URL.createObjectURL(file))
   }
 
-  const uploadAvatar = async (): Promise<string|null> => {
+  const uploadAvatar = async (): Promise<string | null> => {
     if (!avatarFile || !userId) return avatarUrl
-    const ext = avatarFile.name.split('.').pop()
-    const path = `${userId}/avatar.${ext}`
+    const extension = avatarFile.name.split('.').pop()
+    const path = `${userId}/avatar.${extension}`
     const { error } = await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true })
-    if (error) { toast.error('Не удалось загрузить фото.'); return avatarUrl }
+    if (error) {
+      toast.error('Не удалось загрузить фото.')
+      return avatarUrl
+    }
     const { data } = supabase.storage.from('avatars').getPublicUrl(path)
     return data.publicUrl
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     if (!userId) return
-    if (!isValidUrl(form.instagram_url)) { toast.error('Ссылка на Instagram должна начинаться с https://'); return }
-    if (form.telegram_url && !isValidUrl(form.telegram_url)) { toast.error('Ссылка на Telegram должна начинаться с https://'); return }
+    if (!form.name.trim() || !form.city.trim()) {
+      toast.error('Заполни имя и город.')
+      return
+    }
+    if (!isValidUrl(form.instagram_url)) {
+      toast.error('Ссылка на Instagram должна начинаться с https://')
+      return
+    }
+    if (form.telegram_url && !isValidUrl(form.telegram_url)) {
+      toast.error('Ссылка на Telegram должна начинаться с https://')
+      return
+    }
+    if (!form.open_to_barter) {
+      toast.error('Укажи, готов ли ты к бартеру.')
+      return
+    }
+
     setLoading(true)
     const uploadedUrl = await uploadAvatar()
     const payload = {
-      name: form.name, city: form.city, instagram_url: form.instagram_url,
-      telegram_url: form.telegram_url || null, telegram_followers: parseInt(form.telegram_followers)||0,
-      followers_count: parseInt(form.followers_count)||0, stories_views: parseInt(form.stories_views)||0,
-      occupation: form.occupation, lifestyle: form.lifestyle, hobbies: form.hobbies, bio: form.bio,
-      open_to_barter: form.open_to_barter === 'yes', avatar_url: uploadedUrl, user_id: userId,
-    }
-    let err
-    if (authorId) {
-      const updatePayload = currentStatus === 'rejected' ? { ...payload, status: 'pending' } : payload
-      const { error: e } = await supabase.from('authors').update(updatePayload).eq('user_id', userId)
-      err = e
-    } else {
-      const { error: e } = await supabase.from('authors').insert([{ ...payload, status: 'pending' }])
-      err = e
-    }
-    setLoading(false)
-    if (err) { toast.error('Ошибка при сохранении. Попробуй ещё раз.'); return }
-    if (uploadedUrl) setAvatarUrl(uploadedUrl)
-    setAvatarFile(null); setAvatarPreview(null)
-    toast.success(currentStatus === 'rejected' ? 'Анкета отправлена на повторную проверку' : 'Профиль сохранён')
-    setAuthorProfile({
-      id: authorId || '',
-      name: form.name,
-      city: form.city,
-      instagram_url: form.instagram_url,
-      telegram_url: form.telegram_url || null,
+      name: form.name.trim(),
+      city: form.city.trim(),
+      instagram_url: form.instagram_url.trim(),
+      telegram_url: form.telegram_url.trim() || null,
       telegram_followers: parseInt(form.telegram_followers) || 0,
       followers_count: parseInt(form.followers_count) || 0,
       stories_views: parseInt(form.stories_views) || 0,
-      occupation: form.occupation,
-      hobbies: form.hobbies,
-      bio: form.bio,
+      occupation: form.occupation.trim(),
+      lifestyle: form.lifestyle,
+      hobbies: form.hobbies.trim(),
+      bio: form.bio.trim(),
+      open_to_barter: form.open_to_barter === 'yes',
+      avatar_url: uploadedUrl,
+      user_id: userId,
+    }
+
+    let error = null
+    if (authorId) {
+      const updatePayload = currentStatus === 'rejected' ? { ...payload, status: 'pending' } : payload
+      const result = await supabase.from('authors').update(updatePayload).eq('user_id', userId)
+      error = result.error
+    } else {
+      const result = await supabase.from('authors').insert([{ ...payload, status: 'pending' }])
+      error = result.error
+    }
+
+    setLoading(false)
+    if (error) {
+      toast.error('Ошибка при сохранении. Попробуй ещё раз.')
+      return
+    }
+
+    if (uploadedUrl) setAvatarUrl(uploadedUrl)
+    setAvatarFile(null)
+    setAvatarPreview(null)
+    const nextStatus = currentStatus === 'rejected' || !currentStatus ? 'pending' : currentStatus
+    setCurrentStatus(nextStatus)
+    setRejectionReason(null)
+    toast.success(currentStatus === 'rejected' ? 'Анкета отправлена на повторную проверку' : 'Профиль сохранён')
+    setAuthorProfile({
+      id: authorId || '',
+      name: form.name.trim(),
+      city: form.city.trim(),
+      instagram_url: form.instagram_url.trim(),
+      telegram_url: form.telegram_url.trim() || null,
+      telegram_followers: parseInt(form.telegram_followers) || 0,
+      followers_count: parseInt(form.followers_count) || 0,
+      stories_views: parseInt(form.stories_views) || 0,
+      occupation: form.occupation.trim(),
+      hobbies: form.hobbies.trim(),
+      bio: form.bio.trim(),
       lifestyle: form.lifestyle,
       open_to_barter: form.open_to_barter === 'yes',
-      status: currentStatus === 'rejected' ? 'pending' : (currentStatus || 'pending'),
+      status: nextStatus,
       avatar_url: uploadedUrl || undefined,
       completed_deals_count: ctxProfile?.completed_deals_count || 0,
       avg_rating: ctxProfile?.avg_rating || null,
       reviews_count: ctxProfile?.reviews_count || 0,
     })
     setEditing(false)
-    if (!authorId) setCurrentStatus('pending')
   }
 
-  const inp = { width:'100%', padding:'12px 16px', border:'1.5px solid #e0ddd8', borderRadius:'12px', fontSize:'15px', background:'#fff', color:'#1a1a1a', outline:'none', fontFamily:'inherit' }
-  const lbl = { display:'block' as const, fontSize:'14px', fontWeight:600, color:'#1a1a1a', marginBottom:'8px' }
+  const cancelEditing = () => {
+    setEditing(false)
+    setAvatarFile(null)
+    setAvatarPreview(null)
+  }
+
+  const copyProfileLink = async () => {
+    if (!authorId) return
+    await navigator.clipboard.writeText(`${window.location.origin}/author/${authorId}`)
+    toast.success('Ссылка скопирована')
+  }
+
   const displayAvatar = avatarPreview || avatarUrl
+  const profileInitial = form.name?.[0]?.toUpperCase() || '?'
+  const completedItems = [
+    Boolean(displayAvatar),
+    Boolean(form.name && form.city),
+    Boolean(form.instagram_url),
+    form.lifestyle.length >= 3,
+    Boolean(form.bio),
+  ]
+  const completion = Math.round((completedItems.filter(Boolean).length / completedItems.length) * 100)
 
   if (!profileLoaded) return null
 
-  return (
-    <main style={{ background:'#fafaf9', minHeight:'100vh' }}>
-      <div style={{ maxWidth:'720px', margin:'0 auto', padding:'clamp(24px, 6vw, 48px) clamp(16px, 5vw, 40px)' }}>
-
-        {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', flexWrap:'wrap', gap:'12px' }}>
-          <div>
-            {!editing && currentStatus === 'pending' && <span style={{ fontSize:'13px', color:'#c17f3e', fontWeight:500 }}>⏳ На модерации</span>}
-            {!editing && currentStatus === 'approved' && <span style={{ fontSize:'13px', color:'#16a34a', fontWeight:500 }}>✓ В каталоге</span>}
-            {!editing && currentStatus === 'rejected' && <span style={{ fontSize:'13px', color:'#dc2626', fontWeight:500 }}>Не прошёл модерацию</span>}
-            {editing && <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'28px', fontWeight:700, color:'#1a1a1a' }}>{authorId ? 'Редактировать профиль' : 'Заполнить анкету'}</h1>}
+  if (!editing) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.shell}>
+          <div className={styles.topbar}>
+            <div>
+              <div className={styles.eyebrow}>Профиль автора</div>
+              <h1 className={styles.title}>Ваш профиль</h1>
+              <p className={styles.subtitle}>Так бизнес видит вас в каталоге и перед отправкой предложения.</p>
+            </div>
+            <div className={styles.topActions}>
+              {authorId && currentStatus === 'approved' && (
+                <Link className={styles.secondaryButton} href={`/author/${authorId}`}>
+                  <UiIcon name="external" width={16} height={16} />
+                  Открыть профиль
+                </Link>
+              )}
+              <button className={styles.primaryButton} type="button" onClick={() => setEditing(true)}>
+                Редактировать
+              </button>
+            </div>
           </div>
-          {!editing && authorId && (
-            <button onClick={() => setEditing(true)} style={{ padding:'9px 18px', background:'#1a1a1a', border:'none', borderRadius:'100px', color:'#fff', fontSize:'13px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Редактировать</button>
+
+          <div className={styles.statusRow}>
+            {currentStatus === 'approved' && <span className={`${styles.status} ${styles.statusApproved}`}><UiIcon name="check" width={14} height={14} />Профиль опубликован</span>}
+            {currentStatus === 'pending' && <span className={`${styles.status} ${styles.statusPending}`}><UiIcon name="shield" width={14} height={14} />На модерации</span>}
+            {currentStatus === 'rejected' && <span className={`${styles.status} ${styles.statusRejected}`}><UiIcon name="flag" width={14} height={14} />Нужны исправления</span>}
+          </div>
+
+          {currentStatus === 'rejected' && (
+            <div className={styles.notice}>
+              <UiIcon name="flag" width={18} height={18} />
+              <div><strong>Комментарий модератора:</strong><br />{rejectionReason || 'Проверь данные профиля и отправь анкету повторно.'}</div>
+            </div>
           )}
-          {editing && authorId && (
-            <button onClick={() => { setEditing(false); setAvatarFile(null); setAvatarPreview(null) }} style={{ padding:'9px 18px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', fontSize:'13px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Отмена</button>
+
+          <div className={styles.viewGrid}>
+            <section className={`${styles.sectionCard} ${styles.profileSummary}`}>
+              <div className={styles.summaryTop}>
+                <div className={styles.summaryAvatar}>
+                  {displayAvatar ? <img src={displayAvatar} alt={form.name} /> : profileInitial}
+                </div>
+                <div>
+                  <h2 className={styles.summaryName}>{form.name || 'Имя не указано'}</h2>
+                  <p className={styles.summaryMeta}>{[form.city, form.occupation].filter(Boolean).join(' · ') || 'Заполните город и профессию'}</p>
+                  {form.open_to_barter === 'yes' && <div className={styles.selectedTags}><span className={styles.selectedTag}>Готов к бартеру</span></div>}
+                </div>
+              </div>
+
+              <div className={styles.summaryStats}>
+                <div className={styles.summaryStat}><strong>{formatNumber(form.followers_count)}</strong><span>подписчиков</span></div>
+                <div className={styles.summaryStat}><strong>{formatNumber(form.stories_views)}</strong><span>просмотров сторис</span></div>
+                <div className={styles.summaryStat}><strong>{ctxProfile?.avg_rating || '—'}</strong><span>рейтинг</span></div>
+              </div>
+
+              <div className={styles.summarySection}>
+                <h3>О себе</h3>
+                <p>{form.bio || 'Добавьте описание: какой контент вы создаёте, с какими темами работаете и чем можете быть полезны бизнесу.'}</p>
+              </div>
+
+              <div className={styles.summarySection}>
+                <h3>Темы контента</h3>
+                <div className={styles.tags}>
+                  {form.lifestyle.length > 0
+                    ? form.lifestyle.map(tag => <span className={styles.tag} key={tag}>{tag}</span>)
+                    : <p>Темы пока не выбраны.</p>}
+                </div>
+              </div>
+
+              {form.hobbies && <div className={styles.summarySection}><h3>Хобби и интересы</h3><p>{form.hobbies}</p></div>}
+            </section>
+
+            <aside className={`${styles.sectionCard} ${styles.actionCard}`}>
+              <h2>{currentStatus === 'approved' ? 'Профиль готов к работе' : currentStatus === 'rejected' ? 'Исправьте замечания' : 'Ожидайте проверку'}</h2>
+              <p>{currentStatus === 'approved'
+                ? 'Поделитесь ссылкой с бизнесом или обновляйте данные, чтобы получать более подходящие предложения.'
+                : currentStatus === 'rejected'
+                  ? 'Обновите данные и сохраните профиль. После этого анкета снова уйдёт на модерацию.'
+                  : 'После одобрения профиль появится в каталоге, а бизнес сможет отправлять предложения.'}</p>
+              {currentStatus === 'approved' && (
+                <button className={styles.secondaryButton} type="button" onClick={copyProfileLink}>
+                  <UiIcon name="share" width={16} height={16} />
+                  Скопировать ссылку
+                </button>
+              )}
+              <div className={styles.actionList}>
+                <div className={styles.actionItem}><UiIcon name="check" width={16} height={16} />Профиль виден бизнесу в каталоге</div>
+                <div className={styles.actionItem}><UiIcon name="check" width={16} height={16} />Предложения появятся в разделе «Запросы»</div>
+                <div className={styles.actionItem}><UiIcon name="check" width={16} height={16} />Отзывы после сделок повышают рейтинг</div>
+              </div>
+            </aside>
+          </div>
+
+          {authorId && currentStatus === 'approved' && (ctxProfile?.reviews_count || 0) > 0 && (
+            <section className={styles.reviews}>
+              <ReviewsList authorId={authorId} avgRating={ctxProfile?.avg_rating || null} reviewsCount={ctxProfile?.reviews_count || 0} currentUserId={userId} />
+            </section>
           )}
+
+          <div className={styles.mobileSignout}>
+            <button className={styles.secondaryButton} type="button" onClick={async () => { await supabase.auth.signOut(); window.location.href = '/' }}>Выйти из аккаунта</button>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  return (
+    <main className={styles.page}>
+      <div className={styles.shell}>
+        <div className={styles.topbar}>
+          <div>
+            <div className={styles.eyebrow}>{authorId ? 'Настройки профиля' : 'Анкета автора'}</div>
+            <h1 className={styles.title}>{authorId ? 'Редактирование профиля' : 'Создайте профиль автора'}</h1>
+            <p className={styles.subtitle}>Заполните данные честно и подробно. Они используются в каталоге, обычном поиске и ИИ-подборе.</p>
+          </div>
+          {authorId && <button className={styles.secondaryButton} type="button" onClick={cancelEditing}>Закрыть</button>}
         </div>
 
         {currentStatus === 'rejected' && (
-          <div style={{ padding:'12px 20px', background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'14px', marginBottom:'20px', fontSize:'14px', color:'#dc2626' }}>
-            Анкета не прошла модерацию. {rejectionReason ? `Причина: ${rejectionReason}. ` : ''}Отредактируй и отправь повторно.
+          <div className={styles.notice}>
+            <UiIcon name="flag" width={18} height={18} />
+            <div><strong>Комментарий модератора:</strong><br />{rejectionReason || 'Проверь данные профиля и отправь анкету повторно.'}</div>
           </div>
         )}
 
-        {/* Пустое состояние */}
-        {!editing && !authorId && (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'32px', textAlign:'center' }}>
-            <div style={{ fontSize:'40px', marginBottom:'16px' }}>✍️</div>
-            <h3 style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a', marginBottom:'8px' }}>Заполни анкету</h3>
-            <p style={{ fontSize:'15px', color:'#7a7570', marginBottom:'24px', lineHeight:1.6 }}>Чтобы бизнесы могли найти тебя в каталоге — нужно заполнить профиль.</p>
-            <button onClick={() => setEditing(true)} style={{ padding:'12px 32px', background:'#1a1a1a', borderRadius:'100px', border:'none', color:'#fff', fontSize:'15px', fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Заполнить анкету</button>
-          </div>
-        )}
-
-        {/* ═══ ПУБЛИЧНЫЙ ВИД ПРОФИЛЯ ═══ */}
-        {!editing && authorId && (
-          <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', overflow:'hidden', marginBottom:'12px' }}>
-            <div style={{ padding:'24px', borderBottom:'1px solid #f0ede6' }}>
-              <div style={{ display:'flex', gap:'16px', alignItems:'flex-start' }}>
-                <div style={{ width:'72px', height:'72px', borderRadius:'50%', overflow:'hidden', background:'#fdf3e7', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'28px', fontWeight:700, color:'#c17f3e' }}>
-                  {avatarUrl ? <img src={avatarUrl} alt={form.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : (form.name?.[0]?.toUpperCase() || '?')}
-                </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'6px' }}>
-                    <h1 style={{ fontFamily:'Fraunces, serif', fontSize:'24px', fontWeight:700, color:'#1a1a1a', margin:0 }}>{form.name}</h1>
-                    {form.open_to_barter === 'yes' && <span style={{ padding:'2px 8px', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#16a34a' }}>Бартер</span>}
-                    {ctxProfile?.avg_rating && <span style={{ padding:'2px 8px', background:'#fdf3e7', border:'1px solid #f5dcb8', borderRadius:'100px', fontSize:'11px', fontWeight:600, color:'#c17f3e' }}>★ {ctxProfile.avg_rating} · {ctxProfile.reviews_count} отз.</span>}
-                  </div>
-                  <div style={{ fontSize:'13px', color:'#9a9590', marginBottom:'10px' }}>
-                    {form.city && <>📍 {form.city}</>}{form.occupation ? ` · ${form.occupation}` : ''}
-                  </div>
-                  <div style={{ display:'flex', gap:'6px', flexWrap:'wrap' }}>
-                    {form.instagram_url && <a href={form.instagram_url} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'5px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'12px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>📸 Instagram</a>}
-                    {form.telegram_url && <a href={form.telegram_url} target="_blank" rel="noopener noreferrer" style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'5px 12px', border:'1.5px solid #e0ddd8', borderRadius:'100px', fontSize:'12px', color:'#1a1a1a', textDecoration:'none', fontWeight:500 }}>✈️ Telegram</a>}
-                  </div>
-                </div>
+        <form onSubmit={handleSubmit} className={styles.contentGrid}>
+          <aside className={styles.sidebarCard}>
+            <div className={styles.previewCover}>
+              <div className={styles.previewAvatar}>
+                {displayAvatar ? <img src={displayAvatar} alt={form.name || 'Фото профиля'} /> : profileInitial}
               </div>
             </div>
-
-            {(form.followers_count || form.telegram_followers || form.stories_views) && (
-              <div style={{ display:'flex', flexWrap:'wrap', borderBottom:'1px solid #f0ede6' }}>
-                {form.followers_count && parseInt(form.followers_count) > 0 && (
-                  <div style={{ flex:'1 1 100px', padding:'14px 20px', borderRight:'1px solid #f0ede6' }}>
-                    <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Instagram</div>
-                    <div style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a' }}>{parseInt(form.followers_count).toLocaleString('ru')}</div>
-                    <div style={{ fontSize:'12px', color:'#9a9590' }}>подписчиков</div>
-                  </div>
-                )}
-                {form.telegram_followers && parseInt(form.telegram_followers) > 0 && (
-                  <div style={{ flex:'1 1 100px', padding:'14px 20px', borderRight:'1px solid #f0ede6' }}>
-                    <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Telegram</div>
-                    <div style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a' }}>{parseInt(form.telegram_followers).toLocaleString('ru')}</div>
-                    <div style={{ fontSize:'12px', color:'#9a9590' }}>подписчиков</div>
-                  </div>
-                )}
-                {form.stories_views && parseInt(form.stories_views) > 0 && (
-                  <div style={{ flex:'1 1 100px', padding:'14px 20px' }}>
-                    <div style={{ fontSize:'11px', color:'#9a9590', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>Сторис</div>
-                    <div style={{ fontSize:'20px', fontWeight:700, color:'#1a1a1a' }}>{parseInt(form.stories_views).toLocaleString('ru')}</div>
-                    <div style={{ fontSize:'12px', color:'#9a9590' }}>просм. в среднем</div>
-                  </div>
-                )}
+            <div className={styles.previewBody}>
+              <h2 className={styles.previewName}>{form.name || 'Ваше имя'}</h2>
+              <p className={styles.previewMeta}>{[form.city, form.occupation].filter(Boolean).join(' · ') || 'Город · профессия'}</p>
+              <p className={styles.previewBio}>{form.bio || 'Короткое описание поможет бизнесу понять ваш стиль и формат контента.'}</p>
+              <div className={styles.previewStats}>
+                <div className={styles.previewStat}><strong>{formatNumber(form.followers_count)}</strong><span>подписчиков</span></div>
+                <div className={styles.previewStat}><strong>{formatNumber(form.stories_views)}</strong><span>сторис</span></div>
+                <div className={styles.previewStat}><strong>{form.lifestyle.length}</strong><span>тем</span></div>
               </div>
-            )}
-
-            {(form.bio || form.lifestyle?.length > 0) && (
-              <div style={{ padding:'18px 24px', borderBottom: form.hobbies ? '1px solid #f0ede6' : 'none' }}>
-                {form.bio && <p style={{ fontSize:'14px', color:'#5a5650', lineHeight:1.7, margin:'0 0 12px' }}>{form.bio}</p>}
-                {form.lifestyle?.length > 0 && (
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
-                    {form.lifestyle.map(tag => <span key={tag} style={{ padding:'4px 10px', background:'#f0ede6', borderRadius:'100px', fontSize:'12px', color:'#7a7570', fontWeight:500 }}>{tag}</span>)}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {form.hobbies && (
-              <div style={{ padding:'14px 24px' }}>
-                <span style={{ fontSize:'13px', color:'#9a9590' }}>Хобби: </span>
-                <span style={{ fontSize:'13px', color:'#5a5650' }}>{form.hobbies}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {!editing && authorId && currentStatus === 'approved' && (
-          <div style={{ textAlign:'center', paddingTop:'4px', marginBottom:'24px' }}>
-            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/author/${authorId}`); toast.success('Ссылка скопирована') }} style={{ fontSize:'13px', color:'#9a9590', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit' }}>📋 Скопировать ссылку на профиль</button>
-          </div>
-        )}
-
-        {/* Отзывы */}
-        {!editing && authorId && currentStatus === 'approved' && (ctxProfile?.reviews_count || 0) > 0 && (
-          <div>
-            <h2 style={{ fontFamily:'Fraunces, serif', fontSize:'22px', fontWeight:700, color:'#1a1a1a', marginBottom:'16px' }}>
-              Отзывы
-              {ctxProfile?.avg_rating && <span style={{ fontFamily:'inherit', fontSize:'16px', fontWeight:500, color:'#c17f3e', marginLeft:'10px' }}>★ {ctxProfile.avg_rating}</span>}
-            </h2>
-            <ReviewsList authorId={authorId} avgRating={ctxProfile?.avg_rating || null} reviewsCount={ctxProfile?.reviews_count || 0} currentUserId={userId} />
-          </div>
-        )}
-
-        {/* ═══ ФОРМА РЕДАКТИРОВАНИЯ ═══ */}
-        {editing && (
-          <form onSubmit={handleSubmit}>
-            <div style={{ background:'#fff', border:'1px solid #e8e6e1', borderRadius:'20px', padding:'28px', display:'flex', flexDirection:'column', gap:'20px' }}>
-              <div>
-                <label style={lbl}>Фото профиля</label>
-                <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
-                  <div onClick={() => fileRef.current?.click()} style={{ width:'72px', height:'72px', borderRadius:'50%', background:'#f0ede6', border: loading && avatarFile ? '2px solid #c17f3e' : '2px dashed #d4d0c8', cursor:'pointer', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'24px', opacity: loading && avatarFile ? 0.6 : 1, transition:'all 0.3s' }}>
-                    {loading && avatarFile ? <span style={{ fontSize:'14px' }}>⏳</span> : displayAvatar ? <img src={displayAvatar} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '📷'}
-                  </div>
-                  <div>
-                    <button type="button" onClick={() => fileRef.current?.click()} style={{ padding:'8px 16px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', cursor:'pointer', fontSize:'13px', fontWeight:500, fontFamily:'inherit', color:'#1a1a1a' }}>
-                      {displayAvatar ? 'Заменить' : 'Загрузить фото'}
-                    </button>
-                    <p style={{ fontSize:'12px', color:'#9a9590', marginTop:'4px' }}>JPG или PNG, до 5 МБ</p>
-                  </div>
-                </div>
-                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} style={{ display:'none' }} />
-              </div>
-              <div><label style={lbl}>Имя / псевдоним *</label><input name="name" value={form.name} onChange={handleChange} required placeholder="Как тебя называть" style={inp} maxLength={100} /></div>
-              <div><label style={lbl}>Город *</label><input name="city" value={form.city} onChange={handleChange} required placeholder="Москва, Питер, Краснодар..." style={inp} maxLength={100} /></div>
-              <div><label style={lbl}>Ссылка на Instagram *</label><input name="instagram_url" value={form.instagram_url} onChange={handleChange} required placeholder="https://instagram.com/username" style={inp} maxLength={500} /></div>
-              <div><label style={lbl}>Telegram</label><input name="telegram_url" value={form.telegram_url} onChange={handleChange} placeholder="https://t.me/username" style={inp} maxLength={500} /></div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
-                <div><label style={lbl}>Подписчиков Instagram</label><input name="followers_count" type="number" value={form.followers_count} onChange={handleChange} placeholder="1500" style={inp} /></div>
-                <div><label style={lbl}>Подписчиков Telegram</label><input name="telegram_followers" type="number" value={form.telegram_followers} onChange={handleChange} placeholder="500" style={inp} /></div>
-              </div>
-              <div><label style={lbl}>Просмотры сторис</label><input name="stories_views" type="number" value={form.stories_views} onChange={handleChange} placeholder="300" style={inp} /></div>
-              <div><label style={lbl}>Кем работаешь</label><input name="occupation" value={form.occupation} onChange={handleChange} placeholder="Фитнес-тренер, студент, дизайнер..." style={inp} maxLength={200} /></div>
-              <div>
-                <label style={lbl}>Интересы и темы контента</label>
-                <p style={{ fontSize:'13px', color:'#9a9590', marginBottom:'12px' }}>Выбери всё что подходит — чем точнее, тем проще бизнесу тебя найти</p>
-                <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
-                  {LIFESTYLE_GROUPS.map(group => (
-                    <div key={group.label}>
-                      <div style={{ fontSize:'12px', fontWeight:700, color:'#7a7570', marginBottom:'6px' }}>{group.label}</div>
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:'6px' }}>
-                        {group.tags.map(item => (
-                          <button key={item} type="button" onClick={() => toggleLifestyle(item)} style={{ padding:'6px 12px', borderRadius:'100px', fontSize:'12px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: form.lifestyle.includes(item) ? '#c17f3e' : '#e0ddd8', background: form.lifestyle.includes(item) ? '#fdf3e7' : '#fff', color: form.lifestyle.includes(item) ? '#c17f3e' : '#5a5650' }}>{item}</button>
-                        ))}
-                      </div>
+              <div className={styles.completion}>
+                <div className={styles.completionTop}><span>Заполнение профиля</span><strong>{completion}%</strong></div>
+                <div className={styles.progressTrack}><div className={styles.progressBar} style={{ width: `${completion}%` }} /></div>
+                <div className={styles.checkList}>
+                  {[
+                    ['Фото профиля', completedItems[0]],
+                    ['Имя и город', completedItems[1]],
+                    ['Ссылка на соцсеть', completedItems[2]],
+                    ['Минимум 3 темы', completedItems[3]],
+                    ['Описание профиля', completedItems[4]],
+                  ].map(([label, done]) => (
+                    <div className={`${styles.checkItem} ${done ? styles.checkDone : ''}`} key={String(label)}>
+                      <span className={styles.checkIcon}>{done ? <UiIcon name="check" width={13} height={13} /> : null}</span>
+                      {label}
                     </div>
                   ))}
                 </div>
               </div>
-              <div><label style={lbl}>Хобби</label><input name="hobbies" value={form.hobbies} onChange={handleChange} placeholder="Серфинг, готовка, настольные игры..." style={inp} maxLength={500} /></div>
-              <div><label style={lbl}>О себе</label><textarea name="bio" value={form.bio} onChange={handleChange} rows={4} placeholder="Пару слов о том, кто ты..." style={{ ...inp, resize:'vertical' }} maxLength={2000} /></div>
-              <div>
-                <label style={lbl}>Готов к бартеру? *</label>
-                <div style={{ display:'flex', gap:'12px' }}>
-                  {[{val:'yes',label:'Да'},{val:'no',label:'Нет'}].map(opt => (
-                    <button key={opt.val} type="button" onClick={() => setForm({...form, open_to_barter: opt.val})} style={{ padding:'10px 28px', borderRadius:'100px', fontSize:'15px', fontWeight:500, border:'1.5px solid', cursor:'pointer', fontFamily:'inherit', borderColor: form.open_to_barter === opt.val ? '#1a1a1a' : '#e0ddd8', background: form.open_to_barter === opt.val ? '#1a1a1a' : '#fff', color: form.open_to_barter === opt.val ? '#fff' : '#5a5650' }}>{opt.label}</button>
-                  ))}
+            </div>
+          </aside>
+
+          <div className={styles.formCard}>
+            <section className={styles.formSection}>
+              <div className={styles.sectionHeading}>
+                <div><h2 className={styles.sectionTitle}>Основная информация</h2><p className={styles.sectionText}>Фото, имя, город и краткое позиционирование.</p></div>
+              </div>
+              <div className={styles.fieldGrid}>
+                <div className={`${styles.field} ${styles.fieldFull}`}>
+                  <label className={styles.label}>Фото профиля</label>
+                  <div className={styles.uploadRow}>
+                    <button className={`${styles.uploadPreview} ${styles.uploadPreviewRound}`} type="button" onClick={() => fileRef.current?.click()}>
+                      {displayAvatar ? <img src={displayAvatar} alt="Фото профиля" /> : profileInitial}
+                    </button>
+                    <div className={styles.uploadCopy}>
+                      <button className={styles.secondaryButton} type="button" onClick={() => fileRef.current?.click()}>{displayAvatar ? 'Заменить фото' : 'Загрузить фото'}</button>
+                      <p>JPG, PNG или WebP. Максимум 5 МБ.</p>
+                    </div>
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarChange} hidden />
+                </div>
+                <div className={styles.field}><label className={styles.label}>Имя или псевдоним *</label><input className={styles.input} name="name" value={form.name} onChange={handleChange} required maxLength={100} placeholder="Как к вам обращаться" /></div>
+                <div className={styles.field}><label className={styles.label}>Город *</label><input className={styles.input} name="city" value={form.city} onChange={handleChange} required maxLength={100} placeholder="Например, Владивосток" /></div>
+                <div className={`${styles.field} ${styles.fieldFull}`}><label className={styles.label}>Профессия или роль</label><input className={styles.input} name="occupation" value={form.occupation} onChange={handleChange} maxLength={200} placeholder="Фитнес-тренер, фотограф, молодая мама" /></div>
+              </div>
+            </section>
+
+            <section className={styles.formSection}>
+              <div className={styles.sectionHeading}>
+                <div><h2 className={styles.sectionTitle}>Соцсети и показатели</h2><p className={styles.sectionText}>Данные пока вводятся вручную и отображаются в профиле.</p></div>
+              </div>
+              <div className={styles.fieldGrid}>
+                <div className={styles.field}><label className={styles.label}>Instagram *</label><input className={styles.input} name="instagram_url" value={form.instagram_url} onChange={handleChange} required maxLength={500} placeholder="https://instagram.com/username" /></div>
+                <div className={styles.field}><label className={styles.label}>Telegram</label><input className={styles.input} name="telegram_url" value={form.telegram_url} onChange={handleChange} maxLength={500} placeholder="https://t.me/username" /></div>
+                <div className={styles.field}><label className={styles.label}>Подписчики Instagram</label><input className={styles.input} name="followers_count" type="number" min="0" value={form.followers_count} onChange={handleChange} placeholder="1500" /></div>
+                <div className={styles.field}><label className={styles.label}>Подписчики Telegram</label><input className={styles.input} name="telegram_followers" type="number" min="0" value={form.telegram_followers} onChange={handleChange} placeholder="500" /></div>
+                <div className={`${styles.field} ${styles.fieldFull}`}><label className={styles.label}>Средние просмотры сторис</label><input className={styles.input} name="stories_views" type="number" min="0" value={form.stories_views} onChange={handleChange} placeholder="300" /></div>
+              </div>
+            </section>
+
+            <section className={styles.formSection}>
+              <div className={styles.sectionHeading}>
+                <div><h2 className={styles.sectionTitle}>Темы контента</h2><p className={styles.sectionText}>Выберите всё подходящее. Теги влияют на обычный поиск и ИИ-подбор.</p></div>
+              </div>
+              <div className={styles.accordionList}>
+                {LIFESTYLE_GROUPS.map(group => {
+                  const selectedCount = group.tags.filter(tag => form.lifestyle.includes(tag)).length
+                  const opened = openGroup === group.label
+                  return (
+                    <div className={styles.accordion} key={group.label}>
+                      <button className={styles.accordionButton} type="button" onClick={() => setOpenGroup(opened ? '' : group.label)}>
+                        <span>{group.label}</span>
+                        <span className={styles.accordionCount}>{selectedCount > 0 ? `${selectedCount} выбрано` : opened ? 'Скрыть' : 'Выбрать'}</span>
+                      </button>
+                      {opened && <div className={styles.accordionBody}>{group.tags.map(tag => <button className={`${styles.tagButton} ${form.lifestyle.includes(tag) ? styles.tagButtonActive : ''}`} key={tag} type="button" onClick={() => toggleLifestyle(tag)}>{tag}</button>)}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+              {form.lifestyle.length > 0 && <div className={styles.selectedTags}>{form.lifestyle.map(tag => <span className={styles.selectedTag} key={tag}>{tag}</span>)}</div>}
+            </section>
+
+            <section className={styles.formSection}>
+              <div className={styles.sectionHeading}>
+                <div><h2 className={styles.sectionTitle}>О себе и условия</h2><p className={styles.sectionText}>Помогите бизнесу понять ваш характер, опыт и формат сотрудничества.</p></div>
+              </div>
+              <div className={styles.fieldGrid}>
+                <div className={`${styles.field} ${styles.fieldFull}`}><label className={styles.label}>О себе</label><textarea className={styles.textarea} name="bio" value={form.bio} onChange={handleChange} maxLength={2000} placeholder="Какой контент вы создаёте, что умеете и с какими проектами хотите работать" /></div>
+                <div className={`${styles.field} ${styles.fieldFull}`}><label className={styles.label}>Хобби и дополнительные интересы</label><input className={styles.input} name="hobbies" value={form.hobbies} onChange={handleChange} maxLength={500} placeholder="Серфинг, готовка, настольные игры" /></div>
+                <div className={`${styles.field} ${styles.fieldFull}`}>
+                  <label className={styles.label}>Готовы к бартеру? *</label>
+                  <div className={styles.segmented}>
+                    <button className={`${styles.segment} ${form.open_to_barter === 'yes' ? styles.segmentActive : ''}`} type="button" onClick={() => setForm(previous => ({ ...previous, open_to_barter: 'yes' }))}>Да, рассматриваю</button>
+                    <button className={`${styles.segment} ${form.open_to_barter === 'no' ? styles.segmentActive : ''}`} type="button" onClick={() => setForm(previous => ({ ...previous, open_to_barter: 'no' }))}>Только оплата</button>
+                  </div>
                 </div>
               </div>
-              <div style={{ display:'flex', gap:'12px', paddingTop:'8px' }}>
-                <button type="submit" disabled={loading} style={{ flex:1, padding:'14px', background: loading ? '#9a9590' : '#1a1a1a', borderRadius:'100px', border:'none', color:'#fff', fontSize:'15px', fontWeight:600, cursor: loading ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
-                  {loading ? 'Сохраняем...' : authorId ? 'Сохранить' : 'Отправить анкету'}
-                </button>
-                {authorId && (
-                  <button type="button" onClick={() => { setEditing(false); setAvatarFile(null); setAvatarPreview(null) }} style={{ padding:'14px 24px', border:'1.5px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#5a5650', fontSize:'15px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Отмена</button>
-                )}
-              </div>
-            </div>
-          </form>
-        )}
+            </section>
 
-        <div className="mobile-only" style={{ marginTop:'24px', paddingTop:'24px', borderTop:'1px solid #f0ede6', textAlign:'center' }}>
-          <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/' }} style={{ padding:'10px 24px', border:'1px solid #e0ddd8', borderRadius:'100px', background:'#fff', color:'#9a9590', fontSize:'14px', fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>Выйти из аккаунта</button>
-        </div>
+            <div className={styles.formFooter}>
+              {authorId && <button className={styles.secondaryButton} type="button" onClick={cancelEditing}>Отмена</button>}
+              <button className={styles.primaryButton} type="submit" disabled={loading}>{loading ? 'Сохраняем…' : authorId ? 'Сохранить профиль' : 'Отправить на модерацию'}</button>
+            </div>
+          </div>
+        </form>
       </div>
     </main>
   )
 }
-
