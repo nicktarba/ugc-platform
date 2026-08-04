@@ -79,7 +79,7 @@ export default function AuthorPublicPage() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: a } = await supabase.from('authors').select('id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, completed_deals_count, avg_rating, reviews_count').eq('id', authorId).eq('status', 'approved').single()
+      const { data: a } = await supabase.from('authors').select('id, user_id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, avatar_url, completed_deals_count, avg_rating, reviews_count').eq('id', authorId).eq('status', 'approved').single()
       if (!a) { setNotFound(true); setLoading(false); return }
       setAuthor(a as Author)
       if (userId && userRole === 'business') {
@@ -100,8 +100,30 @@ export default function AuthorPublicPage() {
         setSimilarAuthors(similar)
       }
 
-      // Логируем просмотр профиля (fire and forget, не блокирует UX)
-      supabase.from('profile_views').insert([{ author_id: authorId, viewer_id: userId || null }])
+      // Учитываем один просмотр профиля за сессию вкладки.
+      // Собственный просмотр автора в статистику не попадает.
+      const ownerUserId = (a as { user_id?: string }).user_id
+      const viewStorageKey = `svoi-profile-view:${authorId}`
+      const shouldTrackView =
+        ownerUserId !== userId &&
+        !sessionStorage.getItem(viewStorageKey)
+
+      if (shouldTrackView) {
+        sessionStorage.setItem(viewStorageKey, '1')
+
+        void supabase
+          .from('profile_views')
+          .insert([{
+            author_id: authorId,
+            viewer_id: userId || null,
+          }])
+          .then(({ error }) => {
+            if (error) {
+              sessionStorage.removeItem(viewStorageKey)
+              console.error('Не удалось записать просмотр профиля:', error)
+            }
+          })
+      }
 
       setLoading(false)
     }
