@@ -258,6 +258,31 @@ export async function writeAudit(
   if (error) console.error('[admin-audit]', error)
 }
 
+export async function writeAuditStrict(
+  context: AdminContext,
+  action: string,
+  entityType: string,
+  entityId: string | null,
+  reason: string | null = null,
+  metadata: Record<string, unknown> = {},
+) {
+  const { error } = await context.admin.from('admin_audit_log').insert({
+    admin_id: context.user.id,
+    action,
+    entity_type: entityType,
+    entity_id: entityId,
+    reason,
+    metadata,
+    ip_address: context.ipAddress,
+    user_agent: context.userAgent,
+  })
+
+  if (error) {
+    console.error('[admin-audit-strict]', error)
+    throw new AdminApiError(500, 'AUDIT_REQUIRED', 'Не удалось зафиксировать доступ в журнале. Переписка не открыта.')
+  }
+}
+
 export function cleanText(value: unknown, maxLength: number, allowEmpty = true) {
   if (value === null || value === undefined) return null
   if (typeof value !== 'string') throw new AdminApiError(400, 'INVALID_FIELD', 'Поле должно быть текстом.')

@@ -10,13 +10,14 @@ import {
   requireAdmin,
   isAdminUserId,
   writeAudit,
+  writeAuditStrict,
 } from '@/lib/admin/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const AUTHOR_STATUSES = new Set(['pending', 'approved', 'rejected'])
-const COMPLAINT_STATUSES = new Set(['new', 'reviewed', 'dismissed'])
+const COMPLAINT_STATUSES = new Set(['new', 'in_progress', 'waiting_user', 'resolved', 'closed'])
 
 function cleanLifestyle(value: unknown) {
   if (!Array.isArray(value)) throw new AdminApiError(400, 'INVALID_FIELD', 'Тематики должны быть массивом.')
@@ -121,6 +122,15 @@ async function updateComplaint(context: Awaited<ReturnType<typeof requireAdmin>>
   }
 
   const adminNote = cleanText(body.adminNote, 2000)
+  const { data: before, error: beforeError } = await context.admin
+    .from('complaints')
+    .select('id, status, assigned_admin_id')
+    .eq('id', complaintId)
+    .maybeSingle()
+
+  if (beforeError) throw beforeError
+  if (!before) throw new AdminApiError(404, 'COMPLAINT_NOT_FOUND', 'Жалоба не найдена.')
+
   const { data, error } = await context.admin.from('complaints').update({
     status,
     admin_note: adminNote,
@@ -129,18 +139,23 @@ async function updateComplaint(context: Awaited<ReturnType<typeof requireAdmin>>
   }).eq('id', complaintId).select().single()
   if (error) throw error
 
-  await writeAudit(context, 'complaint.update', 'complaint', complaintId, adminNote, { status })
+  await writeAudit(context, 'complaint.update', 'complaint', complaintId, adminNote, {
+    beforeStatus: before.status,
+    afterStatus: status,
+  })
   return { ok: true, complaint: data }
 }
 
 async function openComplaintChat(context: Awaited<ReturnType<typeof requireAdmin>>, body: Record<string, unknown>) {
   const complaintId = cleanUuid(body.complaintId, 'ID жалобы')
   const reason = cleanText(body.reason, 500, false)
-  if (!reason || reason.length < 5) throw new AdminApiError(400, 'REASON_REQUIRED', 'Укажите причину просмотра переписки.')
+  if (!reason || reason.length < 10) {
+    throw new AdminApiError(400, 'REASON_REQUIRED', 'Укажите причину просмотра переписки минимум в 10 символах.')
+  }
 
   const { data: complaint, error: complaintError } = await context.admin
     .from('complaints')
-    .select('id, request_id, reason, status')
+    .select('id, request_id, reason, status, assigned_admin_id')
     .eq('id', complaintId)
     .maybeSingle()
   if (complaintError) throw complaintError
@@ -149,28 +164,54 @@ async function openComplaintChat(context: Awaited<ReturnType<typeof requireAdmin
 
   const [requestResult, messagesResult, profilesResult, authorsResult] = await Promise.all([
     context.admin.from('requests').select('id, business_id, business_email, author_id, message, budget, deadline, status, created_at').eq('id', complaint.request_id).maybeSingle(),
-    context.admin.from('messages').select('id, request_id, sender_id, sender_role, text, created_at, read').eq('request_id', complaint.request_id).order('created_at', { ascending: true }).limit(1000),
+    context.admin.from('messages').select('id, request_id, sender_id, sender_role, text, created_at, read').eq('request_id', complaint.request_id).order('created_at', { ascending: false }).limit(1000),
     context.admin.from('profiles').select('id, email').range(0, 4999),
     context.admin.from('authors').select('id, name, user_id').range(0, 4999),
   ])
 
   if (requestResult.error) throw requestResult.error
   if (messagesResult.error) throw messagesResult.error
+  if (profilesResult.error) throw profilesResult.error
+  if (authorsResult.error) throw authorsResult.error
   if (!requestResult.data) throw new AdminApiError(404, 'REQUEST_NOT_FOUND', 'Связанная сделка не найдена.')
 
   const emailById = new Map((profilesResult.data || []).map(item => [item.id, item.email]))
   const authorByUserId = new Map((authorsResult.data || []).filter(item => item.user_id).map(item => [item.user_id, item]))
+  const rawMessages = messagesResult.data || []
 
-  await writeAudit(context, 'complaint.chat_open', 'complaint', complaintId, reason, {
+  // Для чтения личной переписки запись в журнал обязательна.
+  // Если журнал недоступен, сообщения не возвращаются в браузер.
+  await writeAuditStrict(context, 'complaint.chat_open', 'complaint', complaintId, reason, {
     requestId: complaint.request_id,
-    messageCount: messagesResult.data?.length || 0,
+    messageCount: rawMessages.length,
+    complaintStatus: complaint.status,
   })
+
+  const nextStatus = complaint.status === 'new' ? 'in_progress' : complaint.status
+  const { data: updatedComplaint, error: updateError } = await context.admin
+    .from('complaints')
+    .update({
+      status: nextStatus,
+      assigned_admin_id: context.user.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', complaintId)
+    .select('id, status, assigned_admin_id, updated_at')
+    .single()
+
+  if (updateError) throw updateError
 
   return {
     ok: true,
+    complaint: updatedComplaint,
     request: requestResult.data,
-    messages: (messagesResult.data || []).map(message => ({
-      ...message,
+    truncated: rawMessages.length === 1000,
+    messages: rawMessages.reverse().map(message => ({
+      id: message.id,
+      sender_id: message.sender_id,
+      sender_role: message.sender_role,
+      text: message.text,
+      created_at: message.created_at,
       sender_name: message.sender_role === 'author'
         ? (authorByUserId.get(message.sender_id)?.name || 'Автор')
         : (emailById.get(message.sender_id) || 'Бизнес'),

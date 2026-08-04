@@ -26,6 +26,17 @@ type RequestInfo = {
 const OPEN: string[] = OPEN_STATUSES
 const CLOSED: string[] = CLOSED_STATUSES
 
+const COMPLAINT_REASONS = [
+  'Нарушение договорённостей',
+  'Пользователь не отвечает',
+  'Оскорбления или давление',
+  'Подозрение на мошенничество',
+  'Проблема с оплатой',
+  'Спам или нежелательный контент',
+  'Техническая проблема',
+  'Другое',
+]
+
 function StarRating({ value, onChange, size = 28 }: { value: number; onChange: (v: number) => void; size?: number }) {
   const [hover, setHover] = useState(0)
   return (
@@ -187,6 +198,57 @@ export default function ChatPage() {
   const [complaintReason, setComplaintReason] = useState('')
   const [complaintComment, setComplaintComment] = useState('')
   const [complaintSending, setComplaintSending] = useState(false)
+
+  const submitComplaint = async () => {
+    if (!complaintReason || complaintSending) return
+    if (complaintReason === 'Другое' && complaintComment.trim().length < 10) {
+      toast.error('Для причины «Другое» опишите ситуацию минимум в 10 символах.')
+      return
+    }
+
+    setComplaintSending(true)
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      if (error || !data.session?.access_token) {
+        toast.error('Сессия истекла. Войдите снова.')
+        return
+      }
+
+      const response = await fetch('/api/complaints', {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requestId,
+          reason: complaintReason,
+          comment: complaintComment.trim() || null,
+        }),
+      })
+
+      const payload = await response.json().catch(() => null) as {
+        error?: string
+        complaint?: { number?: string }
+      } | null
+
+      if (!response.ok) {
+        toast.error(payload?.error || 'Не удалось отправить жалобу. Попробуйте ещё раз.')
+        return
+      }
+
+      setComplaintOpen(false)
+      setComplaintReason('')
+      setComplaintComment('')
+      toast.success(payload?.complaint?.number ? `Жалоба №${payload.complaint.number} отправлена` : 'Жалоба отправлена')
+    } catch {
+      toast.error('Не удалось отправить жалобу. Проверьте соединение и попробуйте ещё раз.')
+    } finally {
+      setComplaintSending(false)
+    }
+  }
 
   const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
     if (status === 'declined' || status === 'cancelled' || status === 'completed') { setConfirmAction(status); return }
@@ -539,24 +601,16 @@ export default function ChatPage() {
             <h3>Пожаловаться</h3>
             <p>Выберите причину. Второй участник сделки не увидит вашу жалобу.</p>
             <div className={styles.reasonList}>
-              {['Нарушение договорённостей', 'Спам или мошенничество', 'Неадекватное поведение', 'Другое'].map(reason => (
+              {COMPLAINT_REASONS.map(reason => (
                 <button type="button" key={reason} className={`${styles.reasonButton} ${complaintReason === reason ? styles.reasonActive : ''}`} onClick={() => setComplaintReason(reason)}>
                   {reason}{complaintReason === reason && <UiIcon name="check" width={15} height={15} />}
                 </button>
               ))}
             </div>
-            <textarea value={complaintComment} onChange={event => setComplaintComment(event.target.value)} placeholder="Опишите ситуацию, если нужно" rows={3} maxLength={1000} />
+            <textarea value={complaintComment} onChange={event => setComplaintComment(event.target.value)} placeholder={complaintReason === 'Другое' ? 'Опишите ситуацию минимум в 10 символах' : 'Опишите ситуацию, если нужно'} rows={4} maxLength={1000} />
             <div className={styles.modalActions}>
               <button type="button" className={`${styles.actionButton} ${styles.outlineButton}`} onClick={() => setComplaintOpen(false)}>Отмена</button>
-              <button type="button" className={`${styles.actionButton} ${styles.dangerButton}`} disabled={!complaintReason || complaintSending} onClick={async () => {
-                setComplaintSending(true)
-                const targetAuthorId = userRole === 'business' ? request?.author_id : null
-                const targetBusinessId = userRole === 'author' ? request?.business_id : null
-                const { error } = await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: targetAuthorId, target_business_id: targetBusinessId, request_id: requestId, reason: complaintReason, comment: complaintComment.trim() || null }])
-                setComplaintSending(false)
-                if (error) { toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.'); return }
-                setComplaintOpen(false); setComplaintReason(''); setComplaintComment(''); toast.success('Жалоба отправлена')
-              }}>{complaintSending ? 'Отправляем…' : 'Отправить'}</button>
+              <button type="button" className={`${styles.actionButton} ${styles.dangerButton}`} disabled={!complaintReason || complaintSending || (complaintReason === 'Другое' && complaintComment.trim().length < 10)} onClick={() => void submitComplaint()}>{complaintSending ? 'Отправляем…' : 'Отправить'}</button>
             </div>
           </div>
         </div>

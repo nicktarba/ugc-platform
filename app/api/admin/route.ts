@@ -303,7 +303,7 @@ async function getComplaints(admin: Awaited<ReturnType<typeof requireAdmin>>['ad
   const status = normalize(params.get('status'))
 
   const [complaintsResult, profilesResult, authorsResult, businessesResult, requestsResult] = await Promise.all([
-    admin.from('complaints').select('id, reporter_id, target_author_id, target_business_id, request_id, reason, comment, status, admin_note, assigned_admin_id, created_at, updated_at').order('created_at', { ascending: false }).range(0, 4999),
+    admin.from('complaints').select('id, reporter_id, target_author_id, target_business_id, request_id, reason, comment, status, admin_note, assigned_admin_id, created_at, updated_at, resolved_at, closed_at').order('created_at', { ascending: false }).range(0, 4999),
     admin.from('profiles').select('id, email, role').range(0, 4999),
     admin.from('authors').select('id, name, city').range(0, 4999),
     admin.from('business_profiles').select('id, company_name').range(0, 4999),
@@ -317,6 +317,14 @@ async function getComplaints(admin: Awaited<ReturnType<typeof requireAdmin>>['ad
   const authorById = new Map((authorsResult.data || []).map(item => [item.id, item]))
   const businessById = new Map((businessesResult.data || []).map(item => [item.id, item]))
   const requestById = new Map((requestsResult.data || []).map(item => [item.id, item]))
+
+  const priority: Record<string, number> = {
+    new: 0,
+    in_progress: 1,
+    waiting_user: 2,
+    resolved: 3,
+    closed: 4,
+  }
 
   const items = (complaintsResult.data || []).map(item => {
     const deal = item.request_id ? requestById.get(item.request_id) : null
@@ -343,7 +351,13 @@ async function getComplaints(admin: Awaited<ReturnType<typeof requireAdmin>>['ad
       item.reporter?.email,
       item.target_author?.name,
       item.target_business?.name,
+      item.id,
+      item.request_id,
     ].some(value => normalize(value || '').includes(search))
+  }).sort((left, right) => {
+    const statusDifference = (priority[left.status] ?? 99) - (priority[right.status] ?? 99)
+    if (statusDifference !== 0) return statusDifference
+    return new Date(right.updated_at || right.created_at).getTime() - new Date(left.updated_at || left.created_at).getTime()
   })
 
   return { ok: true, items, total: items.length }

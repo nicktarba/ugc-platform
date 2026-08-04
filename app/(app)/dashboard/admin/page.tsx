@@ -125,10 +125,31 @@ type ComplaintItem = {
   assigned_admin_email: string | null
   created_at: string
   updated_at: string | null
+  resolved_at: string | null
+  closed_at: string | null
   reporter: { id: string; email: string; role: string } | null
   target_author: { id: string; name: string; city: string } | null
   target_business: { id: string; name: string } | null
   deal: { id: string; business_id: string; author_id: string; status: string } | null
+}
+
+type ComplaintChatAccess = {
+  request: {
+    id: string
+    message: string
+    budget: string | null
+    deadline: string | null
+    status: string
+    created_at: string
+  }
+  messages: Array<{
+    id: string
+    sender_name: string
+    sender_role: string
+    text: string
+    created_at: string
+  }>
+  truncated: boolean
 }
 
 type AuditItem = {
@@ -170,8 +191,12 @@ const STATUS_LABELS: Record<string, string> = {
   pending: 'На модерации',
   approved: 'Опубликован',
   rejected: 'Нужны исправления',
-  reviewed: 'Рассмотрена',
-  dismissed: 'Отклонена',
+  in_progress: 'В работе',
+  waiting_user: 'Ждём ответа',
+  resolved: 'Решена',
+  closed: 'Закрыта',
+  reviewed: 'Решена',
+  dismissed: 'Закрыта',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -204,9 +229,9 @@ function roleLabel(role: string) {
 }
 
 function statusClass(status: string) {
-  if (['approved', 'completed', 'reviewed'].includes(status)) return styles.statusSuccess
-  if (['rejected', 'declined', 'cancelled', 'dismissed'].includes(status)) return styles.statusDanger
-  if (['accepted', 'viewed'].includes(status)) return styles.statusInfo
+  if (['approved', 'completed', 'resolved', 'reviewed'].includes(status)) return styles.statusSuccess
+  if (['rejected', 'declined', 'cancelled', 'closed', 'dismissed'].includes(status)) return styles.statusDanger
+  if (['accepted', 'viewed', 'in_progress'].includes(status)) return styles.statusInfo
   return styles.statusPending
 }
 
@@ -234,7 +259,7 @@ export default function AdminDashboard() {
   const [editingBusiness, setEditingBusiness] = useState<BusinessItem | null>(null)
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintItem | null>(null)
   const [chatReason, setChatReason] = useState('')
-  const [chatMessages, setChatMessages] = useState<Array<{ id: string; sender_name: string; sender_role: string; text: string; created_at: string }> | null>(null)
+  const [chatAccess, setChatAccess] = useState<ComplaintChatAccess | null>(null)
   const [userAction, setUserAction] = useState<{ target: AccountTarget; kind: 'block' | 'unblock' } | null>(null)
   const [actionReason, setActionReason] = useState('')
   const [notesTarget, setNotesTarget] = useState<{ type: 'user' | 'author' | 'request' | 'complaint'; id: string; title: string } | null>(null)
@@ -352,14 +377,26 @@ export default function AdminDashboard() {
   }
 
   const openComplaintChat = async () => {
-    if (!selectedComplaint || !chatReason.trim()) return
+    if (!selectedComplaint || chatReason.trim().length < 10) return
     setSaving(true)
     try {
-      const response = await adminFetch<{ ok: true; messages: Array<{ id: string; sender_name: string; sender_role: string; text: string; created_at: string }> }>('/api/admin/action', {
+      const response = await adminFetch<{
+        ok: true
+        complaint: { id: string; status: string; assigned_admin_id: string; updated_at: string }
+        request: ComplaintChatAccess['request']
+        messages: ComplaintChatAccess['messages']
+        truncated: boolean
+      }>('/api/admin/action', {
         method: 'POST',
         body: JSON.stringify({ action: 'open_complaint_chat', complaintId: selectedComplaint.id, reason: chatReason.trim() }),
       })
-      setChatMessages(response.messages)
+      setChatAccess({ request: response.request, messages: response.messages, truncated: response.truncated })
+      setSelectedComplaint(current => current ? {
+        ...current,
+        status: response.complaint.status,
+        assigned_admin_id: response.complaint.assigned_admin_id,
+        updated_at: response.complaint.updated_at,
+      } : current)
       toast.info('Доступ к переписке записан в журнал')
     } catch (error) {
       handleError(error)
@@ -386,7 +423,7 @@ export default function AdminDashboard() {
     if (tab === 'businesses') return [['all', 'Все бизнесы'], ['active', 'Активные'], ['blocked', 'Заблокированные'], ['with_deals', 'Со сделками']]
     if (tab === 'authors') return [['all', 'Все статусы'], ['pending', 'На модерации'], ['approved', 'Опубликованы'], ['rejected', 'Нужны исправления']]
     if (tab === 'deals') return [['all', 'Все статусы'], ['new', 'Новые'], ['viewed', 'Просмотренные'], ['accepted', 'В работе'], ['completed', 'Завершённые'], ['cancelled', 'Отменённые'], ['declined', 'Отклонённые']]
-    if (tab === 'complaints') return [['all', 'Все статусы'], ['new', 'Новые'], ['reviewed', 'Рассмотренные'], ['dismissed', 'Отклонённые']]
+    if (tab === 'complaints') return [['all', 'Все статусы'], ['new', 'Новые'], ['in_progress', 'В работе'], ['waiting_user', 'Ждём ответа'], ['resolved', 'Решённые'], ['closed', 'Закрытые']]
     return []
   }, [tab])
 
@@ -493,7 +530,7 @@ export default function AdminDashboard() {
               setActionReason('')
             }} onNotes={business => void openNotes({ type: 'user', id: business.id, title: business.business?.company_name || business.email })} />}
             {tab === 'deals' && <DealsSection deals={deals} onNotes={deal => void openNotes({ type: 'request', id: deal.id, title: `${deal.business.name} → ${deal.author?.name || 'Автор'}` })} />}
-            {tab === 'complaints' && <ComplaintsSection complaints={complaints} onOpen={item => { setSelectedComplaint(item); setChatReason(''); setChatMessages(null) }} onNotes={item => void openNotes({ type: 'complaint', id: item.id, title: item.reason })} />}
+            {tab === 'complaints' && <ComplaintsSection complaints={complaints} onOpen={item => { setSelectedComplaint(item); setChatReason(''); setChatAccess(null) }} onNotes={item => void openNotes({ type: 'complaint', id: item.id, title: item.reason })} />}
             {tab === 'audit' && <AuditSection items={audit} />}
           </>
         )}
@@ -529,12 +566,20 @@ export default function AdminDashboard() {
           saving={saving}
           chatReason={chatReason}
           setChatReason={setChatReason}
-          messages={chatMessages}
-          onClose={() => setSelectedComplaint(null)}
+          chatAccess={chatAccess}
+          onClose={() => {
+            setSelectedComplaint(null)
+            setChatReason('')
+            setChatAccess(null)
+          }}
           onOpenChat={openComplaintChat}
           onUpdate={async (status, adminNote) => {
             const ok = await performAction({ action: 'update_complaint', complaintId: selectedComplaint.id, status, adminNote }, 'Жалоба обновлена')
-            if (ok) setSelectedComplaint(null)
+            if (ok) {
+              setSelectedComplaint(null)
+              setChatReason('')
+              setChatAccess(null)
+            }
           }}
         />
       )}
@@ -759,9 +804,20 @@ function ComplaintsSection({ complaints, onOpen, onNotes }: { complaints: Compla
         <article className={styles.complaintCard} key={item.id}>
           <div className={styles.complaintIcon}><UiIcon name="flag" width={18} height={18} /></div>
           <div className={styles.cardMain}>
-            <div className={styles.cardTitleRow}><div><h2>{item.reason}</h2><p>{item.reporter?.email || 'Пользователь'}</p></div><span className={`${styles.status} ${statusClass(item.status)}`}>{STATUS_LABELS[item.status] || item.status}</span></div>
+            <div className={styles.cardTitleRow}>
+              <div>
+                <h2>{item.reason}</h2>
+                <p>Жалоба №{item.id.slice(0, 8).toUpperCase()} · {item.reporter?.email || 'Пользователь'}</p>
+              </div>
+              <span className={`${styles.status} ${statusClass(item.status)}`}>{STATUS_LABELS[item.status] || item.status}</span>
+            </div>
             <p className={styles.cardCopy}>{shortText(item.comment, 260)}</p>
-            <div className={styles.metaRow}><span>На: {item.target_author?.name || item.target_business?.name || 'не указано'}</span><span>{formatDate(item.created_at, true)}</span><span>{item.request_id ? 'Есть связанная переписка' : 'Без переписки'}</span></div>
+            <div className={styles.metaRow}>
+              <span>На: {item.target_author?.name || item.target_business?.name || 'не указано'}</span>
+              <span>Создана: {formatDate(item.created_at, true)}</span>
+              <span>{item.request_id ? `Сделка №${item.request_id.slice(0, 8).toUpperCase()}` : 'Без связанной сделки'}</span>
+              {item.assigned_admin_email && <span>Ответственный: {item.assigned_admin_email}</span>}
+            </div>
           </div>
           <div className={styles.cardActions}><button type="button" className={styles.secondaryButton} onClick={() => onNotes(item)}>Заметки</button><button type="button" className={styles.primaryButton} onClick={() => onOpen(item)}>Разобрать</button></div>
         </article>
@@ -831,18 +887,33 @@ function BusinessModal({ user, saving, onClose, onSave }: { user: BusinessItem; 
   )
 }
 
-function ComplaintModal({ item, saving, chatReason, setChatReason, messages, onClose, onOpenChat, onUpdate }: { item: ComplaintItem; saving: boolean; chatReason: string; setChatReason: (value: string) => void; messages: Array<{ id: string; sender_name: string; sender_role: string; text: string; created_at: string }> | null; onClose: () => void; onOpenChat: () => Promise<void>; onUpdate: (status: string, note: string) => Promise<void> }) {
+function ComplaintModal({ item, saving, chatReason, setChatReason, chatAccess, onClose, onOpenChat, onUpdate }: { item: ComplaintItem; saving: boolean; chatReason: string; setChatReason: (value: string) => void; chatAccess: ComplaintChatAccess | null; onClose: () => void; onOpenChat: () => Promise<void>; onUpdate: (status: string, note: string) => Promise<void> }) {
   const [status, setStatus] = useState(item.status)
   const [note, setNote] = useState(item.admin_note || '')
+  const targetName = item.target_author?.name || item.target_business?.name || 'Не указан'
   return (
-    <Modal title={item.reason} subtitle={`Жалоба от ${item.reporter?.email || 'пользователя'} · ${formatDate(item.created_at, true)}`} onClose={onClose} wide>
-      <div className={styles.complaintDetail}><div><span>Комментарий пользователя</span><p>{item.comment || 'Комментарий не оставлен.'}</p></div><div><span>Объект жалобы</span><p>{item.target_author?.name || item.target_business?.name || 'Не указан'}</p></div></div>
-      <div className={styles.formGrid}>
-        <Field label="Статус"><select value={status} onChange={e => setStatus(e.target.value)}><option value="new">Новая</option><option value="reviewed">Рассмотрена</option><option value="dismissed">Отклонена</option></select></Field>
-        <Field label="Внутренний комментарий" full><textarea rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="Что проверено и какое решение принято" /></Field>
+    <Modal title={item.reason} subtitle={`Жалоба №${item.id.slice(0, 8).toUpperCase()} · ${formatDate(item.created_at, true)}`} onClose={onClose} wide>
+      <div className={styles.complaintDetail}>
+        <div><span>Кто пожаловался</span><p>{item.reporter?.email || 'Пользователь'}</p></div>
+        <div><span>На кого</span><p>{targetName}</p></div>
+        <div><span>Комментарий пользователя</span><p>{item.comment || 'Комментарий не оставлен.'}</p></div>
+        <div><span>Связанная сделка</span><p>{item.request_id ? `№${item.request_id.slice(0, 8).toUpperCase()} · ${STATUS_LABELS[item.deal?.status || ''] || item.deal?.status || 'статус неизвестен'}` : 'Не привязана'}</p></div>
       </div>
-      {item.request_id && !messages && <div className={styles.sensitiveBox}><div><UiIcon name="shield" width={18} height={18} /><span><strong>Доступ к личной переписке</strong><small>Укажите причину. Просмотр будет записан в журнал.</small></span></div><textarea rows={2} value={chatReason} onChange={e => setChatReason(e.target.value)} placeholder="Например: проверка жалобы на нарушение договорённостей" /><button type="button" className={styles.secondaryButton} disabled={saving || chatReason.trim().length < 5} onClick={() => void onOpenChat()}>{saving ? 'Открываем…' : 'Открыть переписку'}</button></div>}
-      {messages && <div className={styles.adminChat}><div className={styles.adminChatBanner}><UiIcon name="eye" width={16} height={16} />Просмотр открыт только в рамках этой жалобы и записан в журнал.</div>{messages.length ? messages.map(message => <div key={message.id} className={message.sender_role === 'author' ? styles.messageAuthor : styles.messageBusiness}><strong>{message.sender_name}</strong><p>{message.text}</p><time>{formatDate(message.created_at, true)}</time></div>) : <p>В переписке пока нет сообщений.</p>}</div>}
+      <div className={styles.formGrid}>
+        <Field label="Статус"><select value={status} onChange={e => setStatus(e.target.value)}><option value="new">Новая</option><option value="in_progress">В работе</option><option value="waiting_user">Ждём ответа пользователя</option><option value="resolved">Решена</option><option value="closed">Закрыта</option></select></Field>
+        <Field label="Ответственный"><input value={item.assigned_admin_email || 'Назначится после первого действия'} readOnly /></Field>
+        <Field label="Внутренний комментарий" full><textarea rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="Что проверено, какое решение принято и что нужно сделать дальше" maxLength={2000} /></Field>
+      </div>
+      {item.request_id && !chatAccess && <div className={styles.sensitiveBox}><div><UiIcon name="shield" width={18} height={18} /><span><strong>Доступ к личной переписке</strong><small>Доступ только для чтения. Причина и время просмотра обязательно попадут в журнал.</small></span></div><textarea rows={2} value={chatReason} onChange={e => setChatReason(e.target.value)} maxLength={500} placeholder="Например: проверка жалобы на нарушение договорённостей и сверка согласованных условий" /><button type="button" className={styles.secondaryButton} disabled={saving || chatReason.trim().length < 10} onClick={() => void onOpenChat()}>{saving ? 'Открываем…' : 'Открыть переписку'}</button></div>}
+      {chatAccess && <div className={styles.adminChat}>
+        <div className={styles.adminChatBanner}><UiIcon name="eye" width={16} height={16} />Только чтение. Просмотр открыт в рамках этой жалобы и записан в журнал.</div>
+        <div className={styles.complaintDetail}>
+          <div><span>Исходное предложение</span><p>{chatAccess.request.message}</p></div>
+          <div><span>Условия</span><p>{chatAccess.request.budget || 'Бюджет не указан'} · {chatAccess.request.deadline ? formatDate(chatAccess.request.deadline) : 'Срок не указан'}</p></div>
+        </div>
+        {chatAccess.truncated && <p className={styles.muted}>Показаны последние 1000 сообщений.</p>}
+        {chatAccess.messages.length ? chatAccess.messages.map(message => <div key={message.id} className={message.sender_role === 'author' ? styles.messageAuthor : styles.messageBusiness}><strong>{message.sender_name}</strong><p>{message.text}</p><time>{formatDate(message.created_at, true)}</time></div>) : <p>В переписке пока нет сообщений.</p>}
+      </div>}
       <div className={styles.modalActions}><button type="button" className={styles.secondaryButton} onClick={onClose}>Закрыть</button><button type="button" className={styles.primaryButton} disabled={saving} onClick={() => void onUpdate(status, note)}>{saving ? 'Сохраняем…' : 'Сохранить решение'}</button></div>
     </Modal>
   )
