@@ -83,10 +83,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace('/login')
     }
     if (ready && userId && userRole) {
-      if (userRole !== 'admin' && pathname.startsWith('/dashboard/admin')) {
-        router.replace(userRole === 'business' ? '/dashboard/business' : '/dashboard/author')
-        return
-      }
+      // Не перенаправляем /dashboard/admin по основной роли аккаунта.
+      // Доступ к админке проверяется серверным API по UUID allowlist и MFA.
+      // Это позволяет владельцу сохранить роль business и пользоваться обоими кабинетами.
       if (userRole === 'admin' && (pathname.startsWith('/dashboard/business') || pathname.startsWith('/dashboard/author'))) {
         router.replace('/dashboard/admin')
         return

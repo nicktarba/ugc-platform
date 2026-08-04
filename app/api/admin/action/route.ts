@@ -8,6 +8,7 @@ import {
   cleanUuid,
   readJsonBody,
   requireAdmin,
+  isAdminUserId,
   writeAudit,
 } from '@/lib/admin/server'
 
@@ -180,7 +181,9 @@ async function setUserBlock(context: Awaited<ReturnType<typeof requireAdmin>>, b
   const { data: profile, error: profileError } = await context.admin.from('profiles').select('role, email').eq('id', userId).maybeSingle()
   if (profileError) throw profileError
   if (!profile) throw new AdminApiError(404, 'USER_NOT_FOUND', 'Пользователь не найден.')
-  if (profile.role === 'admin') throw new AdminApiError(403, 'ADMIN_PROTECTED', 'Администраторов нельзя блокировать из интерфейса.')
+  if (profile.role === 'admin' || isAdminUserId(userId)) {
+    throw new AdminApiError(403, 'ADMIN_PROTECTED', 'Администраторов нельзя блокировать из интерфейса.')
+  }
 
   const { data, error } = await context.admin.auth.admin.updateUserById(userId, {
     ban_duration: blocked ? '876000h' : 'none',

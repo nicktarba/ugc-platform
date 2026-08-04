@@ -103,6 +103,10 @@ function adminAllowlist() {
   )
 }
 
+export function isAdminUserId(userId: string) {
+  return adminAllowlist().has(userId)
+}
+
 function getIp(request: NextRequest) {
   return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || request.headers.get('x-real-ip')?.trim()
@@ -161,15 +165,10 @@ export async function requireAdmin(request: NextRequest): Promise<AdminContext> 
   }
 
   const admin = createAdminClient()
-  const { data: profile, error: profileError } = await admin
-    .from('profiles')
-    .select('role')
-    .eq('id', data.user.id)
-    .maybeSingle()
 
-  if (profileError) throw new AdminApiError(500, 'ADMIN_CHECK_FAILED', 'Не удалось проверить права администратора.')
-
-  if (profile?.role !== 'admin' || !adminAllowlist().has(data.user.id)) {
+  // Админское право отделено от основной роли пользователя.
+  // Аккаунт может оставаться business/author и одновременно входить в серверный allowlist.
+  if (!isAdminUserId(data.user.id)) {
     throw new AdminApiError(403, 'FORBIDDEN', 'У этого аккаунта нет доступа к админ-панели.')
   }
 
