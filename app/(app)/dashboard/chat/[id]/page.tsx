@@ -552,7 +552,7 @@ export default function ChatPage() {
                 setComplaintSending(true)
                 const targetAuthorId = userRole === 'business' ? request?.author_id : null
                 const targetBusinessId = userRole === 'author' ? request?.business_id : null
-                const { error } = await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: targetAuthorId, target_business_id: targetBusinessId, reason: complaintReason, comment: complaintComment.trim() || null }])
+                const { error } = await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: targetAuthorId, target_business_id: targetBusinessId, request_id: requestId, reason: complaintReason, comment: complaintComment.trim() || null }])
                 setComplaintSending(false)
                 if (error) { toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.'); return }
                 setComplaintOpen(false); setComplaintReason(''); setComplaintComment(''); toast.success('Жалоба отправлена')
