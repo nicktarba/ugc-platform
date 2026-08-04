@@ -35,63 +35,182 @@ async function listAuthUsers(admin: Awaited<ReturnType<typeof requireAdmin>>['ad
   return users
 }
 
-async function getOverview(admin: Awaited<ReturnType<typeof requireAdmin>>['admin']) {
-  const since30 = new Date(Date.now() - 30 * DAY).toISOString()
+async function getOverview(admin: Awaited<ReturnType<typeof requireAdmin>>['admin'], request: NextRequest) {
+  const requestedPeriod = Number(request.nextUrl.searchParams.get('period') || 30)
+  const period = [7, 30, 90].includes(requestedPeriod) ? requestedPeriod : 30
+  const now = Date.now()
+  const periodStart = new Date(now - period * DAY).toISOString()
+  const since30 = new Date(now - 30 * DAY).toISOString()
+  const staleBefore = now - 7 * DAY
 
-  const [profilesResult, authorsResult, requestsResult, complaintsResult, viewsResult] = await Promise.all([
-    admin.from('profiles').select('id, email, role, created_at').order('created_at', { ascending: false }),
-    admin.from('authors').select('id, user_id, name, status, created_at').order('created_at', { ascending: false }),
-    admin.from('requests').select('id, business_id, author_id, status, created_at').order('created_at', { ascending: false }),
-    admin.from('complaints').select('id, reporter_id, target_author_id, target_business_id, request_id, reason, status, created_at').order('created_at', { ascending: false }),
-    admin.from('profile_views').select('id, created_at').gte('created_at', since30),
+  const [profilesResult, authorsResult, businessesResult, requestsResult, complaintsResult, viewsResult, messagesResult, authUsers] = await Promise.all([
+    admin.from('profiles').select('id, email, role, created_at').order('created_at', { ascending: false }).range(0, 9999),
+    admin.from('authors').select('id, user_id, name, status, bio, avatar_url, instagram_url, telegram_url, created_at').order('created_at', { ascending: false }).range(0, 9999),
+    admin.from('business_profiles').select('id, company_name, niche, website_url, description').range(0, 9999),
+    admin.from('requests').select('id, business_id, business_email, author_id, status, deadline, created_at').order('created_at', { ascending: false }).range(0, 49999),
+    admin.from('complaints').select('id, request_id, reason, status, created_at, updated_at').order('created_at', { ascending: false }).range(0, 19999),
+    admin.from('profile_views').select('id, created_at').gte('created_at', since30).range(0, 49999),
+    admin.from('messages').select('request_id, created_at').order('created_at', { ascending: false }).range(0, 49999),
+    listAuthUsers(admin),
   ])
 
   if (profilesResult.error) throw profilesResult.error
   if (authorsResult.error) throw authorsResult.error
+  if (businessesResult.error) throw businessesResult.error
   if (requestsResult.error) throw requestsResult.error
   if (complaintsResult.error) throw complaintsResult.error
 
   const profiles = profilesResult.data || []
   const authors = authorsResult.data || []
+  const businessProfiles = businessesResult.data || []
   const requests = requestsResult.data || []
   const complaints = complaintsResult.data || []
   const profileViews30d = viewsResult.error ? 0 : (viewsResult.data?.length || 0)
+  const messages = messagesResult.error ? [] : (messagesResult.data || [])
 
-  const now = Date.now()
-  const inDays = (createdAt: string, days: number) => new Date(createdAt).getTime() >= now - days * DAY
+  const authorAccounts = profiles.filter(item => item.role === 'author')
+  const authorAccountIds = new Set(authorAccounts.map(item => item.id))
+  const businessIds = new Set<string>()
+  for (const profile of profiles) {
+    if (profile.role === 'business' || profile.role === 'admin') businessIds.add(profile.id)
+  }
+  for (const business of businessProfiles) businessIds.add(business.id)
 
-  const registrationSeries = Array.from({ length: 14 }, (_, index) => {
-    const date = new Date(now - (13 - index) * DAY)
-    const key = date.toISOString().slice(0, 10)
+  const businessProfileById = new Map(businessProfiles.map(item => [item.id, item]))
+  const authorById = new Map(authors.map(item => [item.id, item]))
+  const profileById = new Map(profiles.map(item => [item.id, item]))
+  const lastMessageByRequest = new Map<string, string>()
+  for (const message of messages) {
+    if (!lastMessageByRequest.has(message.request_id)) lastMessageByRequest.set(message.request_id, message.created_at)
+  }
+
+  const inDays = (createdAt: string | null | undefined, days: number) => {
+    if (!createdAt) return false
+    return new Date(createdAt).getTime() >= now - days * DAY
+  }
+  const percentage = (part: number, total: number) => total > 0 ? Math.round((part / total) * 100) : 0
+
+  const completedAuthorProfiles = authors.filter(item =>
+    !!item.user_id && authorAccountIds.has(item.user_id) && item.status === 'approved' && !!item.name?.trim() && !!(
+      item.bio?.trim() || item.avatar_url?.trim() || item.instagram_url?.trim() || item.telegram_url?.trim()
+    )
+  ).length
+  const completedBusinessProfiles = businessProfiles.filter(item =>
+    !!item.company_name?.trim() && !!(item.niche?.trim() || item.description?.trim() || item.website_url?.trim())
+  ).length
+
+  const businessesWithProposal = new Set(requests.filter(item => businessIds.has(item.business_id)).map(item => item.business_id)).size
+  const acceptedOrCompleted = requests.filter(item => ['accepted', 'completed'].includes(item.status || '')).length
+  const completedDeals = requests.filter(item => item.status === 'completed').length
+  const activeDeals = requests.filter(item => ['new', 'viewed', 'accepted'].includes(item.status || ''))
+  const openComplaintStatuses = new Set(['new', 'in_progress', 'waiting_user'])
+  const openComplaints = complaints.filter(item => openComplaintStatuses.has(item.status || ''))
+  const disputedRequestIds = new Set(openComplaints.map(item => item.request_id).filter(Boolean) as string[])
+
+  const staleDeals = activeDeals.map(deal => {
+    const lastActivityAt = lastMessageByRequest.get(deal.id) || deal.created_at
+    const lastActivityTime = new Date(lastActivityAt).getTime()
+    const deadlineTime = deal.deadline ? new Date(`${deal.deadline}T23:59:59`).getTime() : null
+    const overdue = deadlineTime !== null && deadlineTime < now
+    const inactive = Number.isFinite(lastActivityTime) && lastActivityTime < staleBefore
+    if (!overdue && !inactive && !disputedRequestIds.has(deal.id)) return null
+
+    const author = authorById.get(deal.author_id)
+    const business = businessProfileById.get(deal.business_id)
+    const businessProfile = profileById.get(deal.business_id)
     return {
-      date: key,
-      count: profiles.filter(item => dateKey(item.created_at) === key).length,
+      id: deal.id,
+      status: deal.status || 'new',
+      authorName: author?.name || 'Автор',
+      businessName: business?.company_name || businessProfile?.email || deal.business_email || 'Бизнес',
+      lastActivityAt,
+      deadline: deal.deadline,
+      daysInactive: Math.max(0, Math.floor((now - lastActivityTime) / DAY)),
+      reason: disputedRequestIds.has(deal.id) ? 'complaint' : overdue ? 'overdue' : 'inactive',
+    }
+  }).filter(Boolean).sort((left, right) => {
+    const priority = { complaint: 0, overdue: 1, inactive: 2 }
+    const a = left as NonNullable<typeof left>
+    const b = right as NonNullable<typeof right>
+    return priority[a.reason as keyof typeof priority] - priority[b.reason as keyof typeof priority]
+      || b.daysInactive - a.daysInactive
+  }) as Array<{
+    id: string
+    status: string
+    authorName: string
+    businessName: string
+    lastActivityAt: string
+    deadline: string | null
+    daysInactive: number
+    reason: 'complaint' | 'overdue' | 'inactive'
+  }>
+
+  const bucketDays = period === 90 ? 3 : 1
+  const bucketCount = Math.ceil(period / bucketDays)
+  const activitySeries = Array.from({ length: bucketCount }, (_, index) => {
+    const daysFromNow = (bucketCount - 1 - index) * bucketDays
+    const bucketEnd = now - daysFromNow * DAY
+    const bucketStart = bucketEnd - bucketDays * DAY
+    const inBucket = (value: string) => {
+      const time = new Date(value).getTime()
+      return time >= bucketStart && time < bucketEnd
+    }
+    const startDate = new Date(bucketStart)
+    return {
+      date: startDate.toISOString().slice(0, 10),
+      authors: authorAccounts.filter(item => inBucket(item.created_at)).length,
+      businesses: profiles.filter(item => businessIds.has(item.id) && inBucket(item.created_at)).length,
+      deals: requests.filter(item => inBucket(item.created_at)).length,
     }
   })
 
   const dealStatuses = ['new', 'viewed', 'accepted', 'declined', 'cancelled', 'completed']
     .map(status => ({ status, count: requests.filter(item => item.status === status).length }))
 
+  const activeUsers7d = authUsers.filter(user => inDays(user.last_sign_in_at, 7)).length
+  const activeUsers30d = authUsers.filter(user => inDays(user.last_sign_in_at, 30)).length
+  const activeUsersPeriod = authUsers.filter(user => inDays(user.last_sign_in_at, period)).length
+
   return {
     ok: true,
+    period,
     metrics: {
       users: profiles.length,
-      authors: profiles.filter(item => item.role === 'author').length,
-      businesses: profiles.filter(item => item.role === 'business').length,
+      authors: authorAccounts.length,
+      authorProfiles: authors.length,
+      businesses: businessIds.size,
       registrationsToday: profiles.filter(item => inDays(item.created_at, 1)).length,
       registrations7d: profiles.filter(item => inDays(item.created_at, 7)).length,
       registrations30d: profiles.filter(item => inDays(item.created_at, 30)).length,
+      registrationsPeriod: profiles.filter(item => inDays(item.created_at, period)).length,
+      activeUsers7d,
+      activeUsers30d,
+      activeUsersPeriod,
       pendingAuthors: authors.filter(item => item.status === 'pending').length,
       testAuthors: authors.filter(item => !item.user_id && item.status === 'approved').length,
       deals: requests.length,
-      activeDeals: requests.filter(item => ['new', 'viewed', 'accepted'].includes(item.status || '')).length,
-      completedDeals: requests.filter(item => item.status === 'completed').length,
+      dealsPeriod: requests.filter(item => inDays(item.created_at, period)).length,
+      activeDeals: activeDeals.length,
+      completedDeals,
       newComplaints: complaints.filter(item => item.status === 'new').length,
+      openComplaints: openComplaints.length,
+      staleDeals: staleDeals.length,
+      attentionDeals: new Set([...staleDeals.map(item => item.id), ...disputedRequestIds]).size,
       profileViews30d,
+      businessesWithProposal,
+      acceptedOrCompleted,
     },
-    registrationSeries,
+    conversions: [
+      { key: 'author_profile', label: 'Автор → заполненный профиль', value: percentage(completedAuthorProfiles, authorAccounts.length), numerator: completedAuthorProfiles, denominator: authorAccounts.length },
+      { key: 'business_profile', label: 'Бизнес → заполненная карточка', value: percentage(completedBusinessProfiles, businessIds.size), numerator: completedBusinessProfiles, denominator: businessIds.size },
+      { key: 'business_proposal', label: 'Бизнес → первое предложение', value: percentage(businessesWithProposal, businessIds.size), numerator: businessesWithProposal, denominator: businessIds.size },
+      { key: 'proposal_acceptance', label: 'Предложение → принято или завершено', value: percentage(acceptedOrCompleted, requests.length), numerator: acceptedOrCompleted, denominator: requests.length },
+      { key: 'accepted_completion', label: 'Принято → завершено', value: percentage(completedDeals, acceptedOrCompleted), numerator: completedDeals, denominator: acceptedOrCompleted },
+    ],
+    activitySeries,
     dealStatuses,
-    recentUsers: profiles.slice(0, 8),
+    staleDealItems: staleDeals.slice(0, 8),
+    recentUsers: profiles.filter(item => new Date(item.created_at).getTime() >= new Date(periodStart).getTime()).slice(0, 8),
     recentComplaints: complaints.slice(0, 6),
   }
 }
@@ -407,7 +526,7 @@ export async function GET(request: NextRequest) {
     const context = await requireAdmin(request)
     const section = request.nextUrl.searchParams.get('section') || 'overview'
 
-    const data = section === 'overview' ? await getOverview(context.admin)
+    const data = section === 'overview' ? await getOverview(context.admin, request)
       : section === 'authors' ? await getAuthors(context.admin, request)
       : section === 'businesses' ? await getBusinesses(context.admin, request, context.user.id)
       : section === 'deals' ? await getDeals(context.admin, request)

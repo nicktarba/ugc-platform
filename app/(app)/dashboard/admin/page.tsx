@@ -17,23 +17,57 @@ type SecurityInfo = { aal: 'aal1' | 'aal2'; mfaRequired: boolean }
 type Overview = {
   ok: true
   security: SecurityInfo
+  period: 7 | 30 | 90
   metrics: {
     users: number
     authors: number
+    authorProfiles: number
     businesses: number
     registrationsToday: number
     registrations7d: number
     registrations30d: number
+    registrationsPeriod: number
+    activeUsers7d: number
+    activeUsers30d: number
+    activeUsersPeriod: number
     pendingAuthors: number
     testAuthors: number
     deals: number
+    dealsPeriod: number
     activeDeals: number
     completedDeals: number
     newComplaints: number
+    openComplaints: number
+    staleDeals: number
+    attentionDeals: number
     profileViews30d: number
+    businessesWithProposal: number
+    acceptedOrCompleted: number
   }
-  registrationSeries: { date: string; count: number }[]
+  conversions: Array<{
+    key: string
+    label: string
+    value: number
+    numerator: number
+    denominator: number
+  }>
+  activitySeries: Array<{
+    date: string
+    authors: number
+    businesses: number
+    deals: number
+  }>
   dealStatuses: { status: string; count: number }[]
+  staleDealItems: Array<{
+    id: string
+    status: string
+    authorName: string
+    businessName: string
+    lastActivityAt: string
+    deadline: string | null
+    daysInactive: number
+    reason: 'complaint' | 'overdue' | 'inactive'
+  }>
   recentUsers: { id: string; email: string; role: string; created_at: string }[]
   recentComplaints: { id: string; reason: string; status: string; created_at: string }[]
 }
@@ -249,6 +283,7 @@ export default function AdminDashboard() {
   const [filter, setFilter] = useState('all')
 
   const [overview, setOverview] = useState<Overview | null>(null)
+  const [overviewPeriod, setOverviewPeriod] = useState<7 | 30 | 90>(30)
   const [businesses, setBusinesses] = useState<BusinessItem[]>([])
   const [authors, setAuthors] = useState<AuthorItem[]>([])
   const [deals, setDeals] = useState<DealItem[]>([])
@@ -288,6 +323,7 @@ export default function AdminDashboard() {
     if (!silent) setLoading(true)
     try {
       const query = new URLSearchParams({ section })
+      if (section === 'overview') query.set('period', String(overviewPeriod))
       if (section !== 'overview') {
         if (search.trim()) query.set('search', search.trim())
         if (filter !== 'all') {
@@ -326,7 +362,7 @@ export default function AdminDashboard() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [filter, handleError, search])
+  }, [filter, handleError, overviewPeriod, search])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadSection(tab), tab === 'overview' ? 0 : 250)
@@ -412,9 +448,9 @@ export default function AdminDashboard() {
 
   const tabs: Array<{ id: Tab; label: string; icon: Parameters<typeof UiIcon>[0]['name']; count?: number }> = [
     { id: 'overview', label: 'Обзор', icon: 'grid' },
-    { id: 'authors', label: 'Авторы', icon: 'user', count: overview?.metrics.authors },
-    { id: 'businesses', label: 'Бизнесы', icon: 'building', count: overview?.metrics.businesses },
-    { id: 'deals', label: 'Сделки', icon: 'briefcase', count: overview?.metrics.activeDeals },
+    { id: 'authors', label: 'Авторы', icon: 'user', count: overview?.metrics.pendingAuthors },
+    { id: 'businesses', label: 'Бизнесы', icon: 'building' },
+    { id: 'deals', label: 'Сделки', icon: 'briefcase', count: overview?.metrics.attentionDeals },
     { id: 'complaints', label: 'Жалобы', icon: 'flag', count: overview?.metrics.newComplaints },
     { id: 'audit', label: 'Журнал', icon: 'shield' },
   ]
@@ -519,7 +555,7 @@ export default function AdminDashboard() {
 
         {loading ? <SectionLoading /> : (
           <>
-            {tab === 'overview' && overview && <OverviewSection data={overview} />}
+            {tab === 'overview' && overview && <OverviewSection data={overview} period={overviewPeriod} onPeriodChange={setOverviewPeriod} />}
             {tab === 'authors' && <AuthorsSection authors={authors} onEdit={setEditingAuthor} onAction={(author, kind) => {
               if (!author.user_id || !author.email) return
               setUserAction({ target: { id: author.user_id, email: author.email, label: author.name, is_blocked: author.is_blocked }, kind })
@@ -633,21 +669,35 @@ export default function AdminDashboard() {
   )
 }
 
-function OverviewSection({ data }: { data: Overview }) {
+function OverviewSection({ data, period, onPeriodChange }: { data: Overview; period: 7 | 30 | 90; onPeriodChange: (period: 7 | 30 | 90) => void }) {
   const metrics = [
-    ['authors', 'Авторов', data.metrics.authors, 'user'] as const,
+    ['authors', 'Авторов с аккаунтом', data.metrics.authors, 'user'] as const,
+    ['catalog', 'Анкет в каталоге', data.metrics.authorProfiles, 'users'] as const,
     ['businesses', 'Бизнесов', data.metrics.businesses, 'building'] as const,
-    ['today', 'Регистраций сегодня', data.metrics.registrationsToday, 'calendar'] as const,
-    ['week', 'Регистраций за 7 дней', data.metrics.registrations7d, 'calendar'] as const,
-    ['pending', 'На модерации', data.metrics.pendingAuthors, 'shield'] as const,
-    ['active', 'Активных сделок', data.metrics.activeDeals, 'briefcase'] as const,
-    ['complaints', 'Новых жалоб', data.metrics.newComplaints, 'flag'] as const,
+    ['registrations', `Регистраций за ${period} дней`, data.metrics.registrationsPeriod, 'calendar'] as const,
+    ['active-users', `Активных за ${period} дней`, data.metrics.activeUsersPeriod, 'eye'] as const,
+    ['deals-period', `Новых сделок за ${period} дней`, data.metrics.dealsPeriod, 'briefcase'] as const,
+    ['completed', 'Завершённых сделок', data.metrics.completedDeals, 'check'] as const,
+    ['complaints', 'Открытых жалоб', data.metrics.openComplaints, 'flag'] as const,
   ]
-  const maxRegistration = Math.max(1, ...data.registrationSeries.map(item => item.count))
+  const maxActivity = Math.max(1, ...data.activitySeries.flatMap(item => [item.authors, item.businesses, item.deals]))
   const maxDeal = Math.max(1, ...data.dealStatuses.map(item => item.count))
+  const reasonLabel = (reason: 'complaint' | 'overdue' | 'inactive') => reason === 'complaint' ? 'Есть жалоба' : reason === 'overdue' ? 'Просрочен срок' : 'Нет активности 7+ дней'
 
   return (
     <div className={styles.sectionStack}>
+      <section className={styles.overviewToolbar}>
+        <div>
+          <span>Период отчёта</span>
+          <strong>Статистика платформы</strong>
+        </div>
+        <div className={styles.periodSwitch}>
+          {([7, 30, 90] as const).map(value => (
+            <button key={value} type="button" className={period === value ? styles.periodActive : ''} onClick={() => onPeriodChange(value)}>{value} дней</button>
+          ))}
+        </div>
+      </section>
+
       <section className={styles.metrics}>
         {metrics.map(([key, label, value, icon]) => (
           <article className={styles.metric} key={key}>
@@ -658,14 +708,21 @@ function OverviewSection({ data }: { data: Overview }) {
         ))}
       </section>
 
-      <section className={styles.twoColumns}>
+      <section className={styles.twoColumnsWide}>
         <article className={styles.panel}>
-          <div className={styles.panelHeader}><div><span>Динамика</span><h2>Регистрации за 14 дней</h2></div><b>{data.metrics.registrations30d} за 30 дней</b></div>
-          <div className={styles.chart}>
-            {data.registrationSeries.map(item => (
-              <div className={styles.chartColumn} key={item.date} title={`${item.date}: ${item.count}`}>
-                <span>{item.count || ''}</span>
-                <i style={{ height: `${Math.max(5, (item.count / maxRegistration) * 100)}%` }} />
+          <div className={styles.panelHeader}>
+            <div><span>Динамика</span><h2>Регистрации и сделки</h2></div>
+            <div className={styles.chartLegend}><i className={styles.legendAuthor} />Авторы<i className={styles.legendBusiness} />Бизнесы<i className={styles.legendDeal} />Сделки</div>
+          </div>
+          <div className={styles.activityChart} style={{ gridTemplateColumns: `repeat(${data.activitySeries.length}, minmax(9px, 1fr))` }}>
+            {data.activitySeries.map(item => (
+              <div className={styles.activityColumn} key={item.date} title={`${item.date}: авторы ${item.authors}, бизнесы ${item.businesses}, сделки ${item.deals}`}>
+                <span>{item.authors + item.businesses + item.deals || ''}</span>
+                <div>
+                  <i className={styles.activityAuthor} style={{ height: `${Math.max(item.authors ? 6 : 0, (item.authors / maxActivity) * 100)}%` }} />
+                  <i className={styles.activityBusiness} style={{ height: `${Math.max(item.businesses ? 6 : 0, (item.businesses / maxActivity) * 100)}%` }} />
+                  <i className={styles.activityDeal} style={{ height: `${Math.max(item.deals ? 6 : 0, (item.deals / maxActivity) * 100)}%` }} />
+                </div>
                 <small>{new Date(item.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</small>
               </div>
             ))}
@@ -673,16 +730,46 @@ function OverviewSection({ data }: { data: Overview }) {
         </article>
 
         <article className={styles.panel}>
-          <div className={styles.panelHeader}><div><span>Воронка</span><h2>Статусы сделок</h2></div><b>{data.metrics.deals} всего</b></div>
+          <div className={styles.panelHeader}><div><span>Воронка</span><h2>Конверсия платформы</h2></div></div>
+          <div className={styles.conversionList}>
+            {data.conversions.map(item => (
+              <div className={styles.conversionRow} key={item.key}>
+                <div><span>{item.label}</span><small>{item.numerator} из {item.denominator}</small></div>
+                <div><i style={{ width: `${item.value}%` }} /></div>
+                <strong>{item.value}%</strong>
+              </div>
+            ))}
+          </div>
+          <p className={styles.panelHint}>Завершённые сделки входят в число принятых, потому что отдельной истории смены статусов пока нет.</p>
+        </article>
+      </section>
+
+      <section className={styles.twoColumns}>
+        <article className={styles.panel}>
+          <div className={styles.panelHeader}><div><span>Сделки</span><h2>Статусы предложений</h2></div><b>{data.metrics.deals} всего</b></div>
           <div className={styles.barList}>
             {data.dealStatuses.map(item => (
               <div className={styles.barRow} key={item.status}>
                 <span>{STATUS_LABELS[item.status] || item.status}</span>
-                <div><i style={{ width: `${Math.max(3, (item.count / maxDeal) * 100)}%` }} /></div>
+                <div><i style={{ width: `${Math.max(item.count ? 3 : 0, (item.count / maxDeal) * 100)}%` }} /></div>
                 <strong>{item.count}</strong>
               </div>
             ))}
           </div>
+        </article>
+
+        <article className={styles.panel}>
+          <div className={styles.panelHeader}><div><span>Требует внимания</span><h2>Зависшие и спорные сделки</h2></div><b>{data.metrics.attentionDeals}</b></div>
+          {data.staleDealItems.length ? (
+            <div className={styles.attentionList}>
+              {data.staleDealItems.map(item => (
+                <div key={item.id}>
+                  <span><strong>{item.businessName}</strong><small>{item.authorName} · {reasonLabel(item.reason)}</small></span>
+                  <time>{item.daysInactive} дн.</time>
+                </div>
+              ))}
+            </div>
+          ) : <div className={styles.emptyMini}>Сделок, требующих внимания, сейчас нет.</div>}
         </article>
       </section>
 
@@ -690,18 +777,19 @@ function OverviewSection({ data }: { data: Overview }) {
         <article className={styles.panel}>
           <div className={styles.panelHeader}><div><span>Последние</span><h2>Новые регистрации</h2></div></div>
           <div className={styles.compactList}>
-            {data.recentUsers.map(user => (
+            {data.recentUsers.length ? data.recentUsers.map(user => (
               <div key={user.id}><div className={styles.avatar}>{user.email?.[0]?.toUpperCase() || '?'}</div><span><strong>{user.email}</strong><small>{roleLabel(user.role)} · {formatDate(user.created_at)}</small></span></div>
-            ))}
+            )) : <div className={styles.emptyMini}>За выбранный период регистраций нет.</div>}
           </div>
         </article>
         <article className={styles.panel}>
           <div className={styles.panelHeader}><div><span>Контроль</span><h2>Состояние платформы</h2></div></div>
           <div className={styles.healthList}>
+            <div><span>Анкет на модерации</span><strong>{data.metrics.pendingAuthors}</strong></div>
             <div><span>Тестовые анкеты</span><strong>{data.metrics.testAuthors}</strong></div>
-            <div><span>Завершённые сделки</span><strong>{data.metrics.completedDeals}</strong></div>
+            <div><span>Бизнесов с предложениями</span><strong>{data.metrics.businessesWithProposal}</strong></div>
             <div><span>Просмотры профилей за 30 дней</span><strong>{data.metrics.profileViews30d}</strong></div>
-            <div><span>Новые жалобы</span><strong>{data.metrics.newComplaints}</strong></div>
+            <div><span>Новых жалоб</span><strong>{data.metrics.newComplaints}</strong></div>
           </div>
         </article>
       </section>
