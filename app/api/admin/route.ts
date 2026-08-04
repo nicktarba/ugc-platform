@@ -96,59 +96,52 @@ async function getOverview(admin: Awaited<ReturnType<typeof requireAdmin>>['admi
   }
 }
 
-async function getUsers(admin: Awaited<ReturnType<typeof requireAdmin>>['admin'], request: NextRequest) {
+async function getBusinesses(admin: Awaited<ReturnType<typeof requireAdmin>>['admin'], request: NextRequest, adminUserId: string) {
   const params = request.nextUrl.searchParams
   const search = normalize(params.get('search'))
-  const role = normalize(params.get('role'))
+  const status = normalize(params.get('status'))
   const page = clamp(Number(params.get('page') || 1) || 1, 1, 1000)
   const perPage = clamp(Number(params.get('perPage') || 50) || 50, 10, 100)
 
-  const [profilesResult, authorsResult, businessesResult, requestsResult, notesResult, authUsers] = await Promise.all([
+  const [profilesResult, businessesResult, requestsResult, notesResult, authUsers] = await Promise.all([
     admin.from('profiles').select('id, email, role, created_at').order('created_at', { ascending: false }).range(0, 4999),
-    admin.from('authors').select('id, user_id, name, city, status, created_at').not('user_id', 'is', null).range(0, 4999),
     admin.from('business_profiles').select('id, company_name, niche, website_url, description, inn, avatar_url').range(0, 4999),
-    admin.from('requests').select('id, business_id, author_id, status').range(0, 19999),
+    admin.from('requests').select('id, business_id, status').range(0, 19999),
     admin.from('admin_notes').select('target_id').eq('target_type', 'user').range(0, 19999),
     listAuthUsers(admin),
   ])
 
   if (profilesResult.error) throw profilesResult.error
-  if (authorsResult.error) throw authorsResult.error
   if (businessesResult.error) throw businessesResult.error
   if (requestsResult.error) throw requestsResult.error
+  if (notesResult.error) throw notesResult.error
 
-  const authors = authorsResult.data || []
   const businesses = businessesResult.data || []
   const deals = requestsResult.data || []
   const authById = new Map(authUsers.map(user => [user.id, user]))
-  const authorByUserId = new Map(authors.map(author => [author.user_id, author]))
   const businessById = new Map(businesses.map(business => [business.id, business]))
   const noteCounts = new Map<string, number>()
   for (const note of notesResult.data || []) noteCounts.set(note.target_id, (noteCounts.get(note.target_id) || 0) + 1)
 
-  const users = (profilesResult.data || []).map(profile => {
+  const items = (profilesResult.data || []).filter(profile =>
+    profile.role === 'business' || profile.role === 'admin' || businessById.has(profile.id)
+  ).map(profile => {
     const authUser = authById.get(profile.id)
-    const author = authorByUserId.get(profile.id)
     const business = businessById.get(profile.id)
-    const userDeals = deals.filter(item => item.business_id === profile.id || (author && item.author_id === author.id))
+    const userDeals = deals.filter(item => item.business_id === profile.id)
     const bannedUntil = authUser?.banned_until || null
     const isBlocked = !!bannedUntil && new Date(bannedUntil).getTime() > Date.now()
 
     return {
       id: profile.id,
       email: profile.email || authUser?.email || '',
-      role: profile.role,
+      role: 'business',
       created_at: profile.created_at || authUser?.created_at || '',
       last_sign_in_at: authUser?.last_sign_in_at || null,
       email_confirmed_at: authUser?.email_confirmed_at || null,
       banned_until: bannedUntil,
       is_blocked: isBlocked,
-      author: author ? {
-        id: author.id,
-        name: author.name,
-        city: author.city,
-        status: author.status,
-      } : null,
+      author: null,
       business: business ? {
         company_name: business.company_name,
         niche: business.niche,
@@ -160,27 +153,26 @@ async function getUsers(admin: Awaited<ReturnType<typeof requireAdmin>>['admin']
       deals_count: userDeals.length,
       active_deals_count: userDeals.filter(item => ['new', 'viewed', 'accepted'].includes(item.status || '')).length,
       notes_count: noteCounts.get(profile.id) || 0,
+      is_admin_access: profile.id === adminUserId,
     }
-  })
-
-  const filtered = users.filter(user => {
-    if (role && role !== 'all' && user.role !== role) return false
+  }).filter(business => {
+    if (status === 'active' && business.is_blocked) return false
+    if (status === 'blocked' && !business.is_blocked) return false
+    if (status === 'with_deals' && business.deals_count === 0) return false
     if (!search) return true
     return [
-      user.email,
-      user.role,
-      user.author?.name,
-      user.author?.city,
-      user.business?.company_name,
-      user.business?.niche,
+      business.email,
+      business.business?.company_name,
+      business.business?.niche,
+      business.business?.inn,
     ].some(value => normalize(value || '').includes(search))
   })
 
   const start = (page - 1) * perPage
   return {
     ok: true,
-    items: filtered.slice(start, start + perPage),
-    total: filtered.length,
+    items: items.slice(start, start + perPage),
+    total: items.length,
     page,
     perPage,
   }
@@ -191,18 +183,23 @@ async function getAuthors(admin: Awaited<ReturnType<typeof requireAdmin>>['admin
   const search = normalize(params.get('search'))
   const status = normalize(params.get('status'))
 
-  const [authorsResult, profilesResult, requestsResult, viewsResult] = await Promise.all([
+  const [authorsResult, profilesResult, requestsResult, viewsResult, notesResult, authUsers] = await Promise.all([
     admin.from('authors').select('id, user_id, name, city, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, status, rejection_reason, avatar_url, completed_deals_count, avg_rating, reviews_count, created_at').order('created_at', { ascending: false }).range(0, 4999),
     admin.from('profiles').select('id, email').range(0, 4999),
     admin.from('requests').select('author_id, status').range(0, 19999),
     admin.from('profile_views').select('author_id').range(0, 49999),
+    admin.from('admin_notes').select('target_id').eq('target_type', 'author').range(0, 19999),
+    listAuthUsers(admin),
   ])
 
   if (authorsResult.error) throw authorsResult.error
   if (profilesResult.error) throw profilesResult.error
   if (requestsResult.error) throw requestsResult.error
+  if (viewsResult.error) throw viewsResult.error
+  if (notesResult.error) throw notesResult.error
 
   const emailById = new Map((profilesResult.data || []).map(item => [item.id, item.email]))
+  const authById = new Map(authUsers.map(user => [user.id, user]))
   const dealCounts = new Map<string, { total: number; active: number; completed: number }>()
   for (const deal of requestsResult.data || []) {
     const counts = dealCounts.get(deal.author_id) || { total: 0, active: 0, completed: 0 }
@@ -213,14 +210,24 @@ async function getAuthors(admin: Awaited<ReturnType<typeof requireAdmin>>['admin
   }
   const viewCounts = new Map<string, number>()
   for (const view of viewsResult.data || []) viewCounts.set(view.author_id, (viewCounts.get(view.author_id) || 0) + 1)
+  const noteCounts = new Map<string, number>()
+  for (const note of notesResult.data || []) noteCounts.set(note.target_id, (noteCounts.get(note.target_id) || 0) + 1)
 
-  const items = (authorsResult.data || []).map(author => ({
-    ...author,
-    email: author.user_id ? (emailById.get(author.user_id) || null) : null,
-    is_test: !author.user_id,
-    profile_views: viewCounts.get(author.id) || 0,
-    deal_stats: dealCounts.get(author.id) || { total: 0, active: 0, completed: 0 },
-  })).filter(author => {
+  const items = (authorsResult.data || []).map(author => {
+    const authUser = author.user_id ? authById.get(author.user_id) : null
+    const bannedUntil = authUser?.banned_until || null
+    return {
+      ...author,
+      email: author.user_id ? (emailById.get(author.user_id) || authUser?.email || null) : null,
+      is_test: !author.user_id,
+      profile_views: viewCounts.get(author.id) || 0,
+      deal_stats: dealCounts.get(author.id) || { total: 0, active: 0, completed: 0 },
+      last_sign_in_at: authUser?.last_sign_in_at || null,
+      banned_until: bannedUntil,
+      is_blocked: !!bannedUntil && new Date(bannedUntil).getTime() > Date.now(),
+      notes_count: noteCounts.get(author.id) || 0,
+    }
+  }).filter(author => {
     if (status && status !== 'all' && author.status !== status) return false
     if (!search) return true
     return [author.name, author.city, author.email, author.occupation, author.bio, author.instagram_url]
@@ -387,8 +394,8 @@ export async function GET(request: NextRequest) {
     const section = request.nextUrl.searchParams.get('section') || 'overview'
 
     const data = section === 'overview' ? await getOverview(context.admin)
-      : section === 'users' ? await getUsers(context.admin, request)
       : section === 'authors' ? await getAuthors(context.admin, request)
+      : section === 'businesses' ? await getBusinesses(context.admin, request, context.user.id)
       : section === 'deals' ? await getDeals(context.admin, request)
       : section === 'complaints' ? await getComplaints(context.admin, request)
       : section === 'audit' ? await getAudit(context.admin, request)

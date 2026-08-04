@@ -10,7 +10,7 @@ import LoadingScreen from '@/components/LoadingScreen'
 import UiIcon from '@/components/UiIcon'
 import styles from './admin.module.css'
 
-type Tab = 'overview' | 'users' | 'authors' | 'deals' | 'complaints' | 'audit'
+type Tab = 'overview' | 'authors' | 'businesses' | 'deals' | 'complaints' | 'audit'
 
 type SecurityInfo = { aal: 'aal1' | 'aal2'; mfaRequired: boolean }
 
@@ -38,7 +38,7 @@ type Overview = {
   recentComplaints: { id: string; reason: string; status: string; created_at: string }[]
 }
 
-type UserItem = {
+type BusinessItem = {
   id: string
   email: string
   role: string
@@ -59,6 +59,7 @@ type UserItem = {
   deals_count: number
   active_deals_count: number
   notes_count: number
+  is_admin_access: boolean
 }
 
 type AuthorItem = {
@@ -87,6 +88,10 @@ type AuthorItem = {
   is_test: boolean
   profile_views: number
   deal_stats: { total: number; active: number; completed: number }
+  last_sign_in_at: string | null
+  banned_until: string | null
+  is_blocked: boolean
+  notes_count: number
 }
 
 type DealItem = {
@@ -146,6 +151,13 @@ type NoteItem = {
   created_by_email: string
 }
 
+type AccountTarget = {
+  id: string
+  email: string
+  label: string
+  is_blocked: boolean
+}
+
 type ListResponse<T> = { ok: true; items: T[]; total: number; security: SecurityInfo }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -167,8 +179,8 @@ const ACTION_LABELS: Record<string, string> = {
   'business.update': 'Изменил профиль бизнеса',
   'complaint.update': 'Обновил жалобу',
   'complaint.chat_open': 'Открыл переписку по жалобе',
-  'user.block': 'Заблокировал пользователя',
-  'user.unblock': 'Разблокировал пользователя',
+  'user.block': 'Заблокировал аккаунт',
+  'user.unblock': 'Разблокировал аккаунт',
   'note.create': 'Добавил внутреннюю заметку',
   'admin.mfa_enable': 'Включил обязательную двухфакторную защиту',
 }
@@ -188,7 +200,7 @@ function shortText(value: string | null | undefined, max = 120) {
 }
 
 function roleLabel(role: string) {
-  return role === 'business' ? 'Бизнес' : role === 'author' ? 'Автор' : role === 'admin' ? 'Администратор' : role
+  return role === 'business' ? 'Бизнес' : role === 'author' ? 'Автор' : role === 'admin' ? 'Бизнес · администратор' : role
 }
 
 function statusClass(status: string) {
@@ -212,18 +224,18 @@ export default function AdminDashboard() {
   const [filter, setFilter] = useState('all')
 
   const [overview, setOverview] = useState<Overview | null>(null)
-  const [users, setUsers] = useState<UserItem[]>([])
+  const [businesses, setBusinesses] = useState<BusinessItem[]>([])
   const [authors, setAuthors] = useState<AuthorItem[]>([])
   const [deals, setDeals] = useState<DealItem[]>([])
   const [complaints, setComplaints] = useState<ComplaintItem[]>([])
   const [audit, setAudit] = useState<AuditItem[]>([])
 
   const [editingAuthor, setEditingAuthor] = useState<AuthorItem | null>(null)
-  const [editingBusiness, setEditingBusiness] = useState<UserItem | null>(null)
+  const [editingBusiness, setEditingBusiness] = useState<BusinessItem | null>(null)
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintItem | null>(null)
   const [chatReason, setChatReason] = useState('')
   const [chatMessages, setChatMessages] = useState<Array<{ id: string; sender_name: string; sender_role: string; text: string; created_at: string }> | null>(null)
-  const [userAction, setUserAction] = useState<{ user: UserItem; kind: 'block' | 'unblock' } | null>(null)
+  const [userAction, setUserAction] = useState<{ target: AccountTarget; kind: 'block' | 'unblock' } | null>(null)
   const [actionReason, setActionReason] = useState('')
   const [notesTarget, setNotesTarget] = useState<{ type: 'user' | 'author' | 'request' | 'complaint'; id: string; title: string } | null>(null)
   const [notes, setNotes] = useState<NoteItem[]>([])
@@ -254,8 +266,7 @@ export default function AdminDashboard() {
       if (section !== 'overview') {
         if (search.trim()) query.set('search', search.trim())
         if (filter !== 'all') {
-          if (section === 'users') query.set('role', filter)
-          else query.set('status', filter)
+          query.set('status', filter)
         }
       }
 
@@ -263,9 +274,9 @@ export default function AdminDashboard() {
         const response = await adminFetch<Overview>(`/api/admin?${query}`)
         setOverview(response)
         setSecurity(response.security)
-      } else if (section === 'users') {
-        const response = await adminFetch<ListResponse<UserItem>>(`/api/admin?${query}`)
-        setUsers(response.items)
+      } else if (section === 'businesses') {
+        const response = await adminFetch<ListResponse<BusinessItem>>(`/api/admin?${query}`)
+        setBusinesses(response.items)
         setSecurity(response.security)
       } else if (section === 'authors') {
         const response = await adminFetch<ListResponse<AuthorItem>>(`/api/admin?${query}`)
@@ -364,15 +375,15 @@ export default function AdminDashboard() {
 
   const tabs: Array<{ id: Tab; label: string; icon: Parameters<typeof UiIcon>[0]['name']; count?: number }> = [
     { id: 'overview', label: 'Обзор', icon: 'grid' },
-    { id: 'users', label: 'Пользователи', icon: 'users', count: overview?.metrics.users },
-    { id: 'authors', label: 'Авторы', icon: 'user', count: overview?.metrics.pendingAuthors },
+    { id: 'authors', label: 'Авторы', icon: 'user', count: overview?.metrics.authors },
+    { id: 'businesses', label: 'Бизнесы', icon: 'building', count: overview?.metrics.businesses },
     { id: 'deals', label: 'Сделки', icon: 'briefcase', count: overview?.metrics.activeDeals },
     { id: 'complaints', label: 'Жалобы', icon: 'flag', count: overview?.metrics.newComplaints },
     { id: 'audit', label: 'Журнал', icon: 'shield' },
   ]
 
   const filterOptions = useMemo(() => {
-    if (tab === 'users') return [['all', 'Все роли'], ['author', 'Авторы'], ['business', 'Бизнес'], ['admin', 'Администраторы']]
+    if (tab === 'businesses') return [['all', 'Все бизнесы'], ['active', 'Активные'], ['blocked', 'Заблокированные'], ['with_deals', 'Со сделками']]
     if (tab === 'authors') return [['all', 'Все статусы'], ['pending', 'На модерации'], ['approved', 'Опубликованы'], ['rejected', 'Нужны исправления']]
     if (tab === 'deals') return [['all', 'Все статусы'], ['new', 'Новые'], ['viewed', 'Просмотренные'], ['accepted', 'В работе'], ['completed', 'Завершённые'], ['cancelled', 'Отменённые'], ['declined', 'Отклонённые']]
     if (tab === 'complaints') return [['all', 'Все статусы'], ['new', 'Новые'], ['reviewed', 'Рассмотренные'], ['dismissed', 'Отклонённые']]
@@ -471,9 +482,16 @@ export default function AdminDashboard() {
 
         {loading ? <SectionLoading /> : (
           <>
-            {tab === 'overview' && overview && <OverviewSection data={overview} onTab={setTab} />}
-            {tab === 'users' && <UsersSection users={users} onEditBusiness={setEditingBusiness} onAction={(user, kind) => { setUserAction({ user, kind }); setActionReason('') }} onNotes={user => void openNotes({ type: 'user', id: user.id, title: user.email })} />}
-            {tab === 'authors' && <AuthorsSection authors={authors} onEdit={setEditingAuthor} onNotes={author => void openNotes({ type: 'author', id: author.id, title: author.name })} />}
+            {tab === 'overview' && overview && <OverviewSection data={overview} />}
+            {tab === 'authors' && <AuthorsSection authors={authors} onEdit={setEditingAuthor} onAction={(author, kind) => {
+              if (!author.user_id || !author.email) return
+              setUserAction({ target: { id: author.user_id, email: author.email, label: author.name, is_blocked: author.is_blocked }, kind })
+              setActionReason('')
+            }} onNotes={author => void openNotes({ type: 'author', id: author.id, title: author.name })} />}
+            {tab === 'businesses' && <BusinessesSection businesses={businesses} onEditBusiness={setEditingBusiness} onAction={(business, kind) => {
+              setUserAction({ target: { id: business.id, email: business.email, label: business.business?.company_name || business.email, is_blocked: business.is_blocked }, kind })
+              setActionReason('')
+            }} onNotes={business => void openNotes({ type: 'user', id: business.id, title: business.business?.company_name || business.email })} />}
             {tab === 'deals' && <DealsSection deals={deals} onNotes={deal => void openNotes({ type: 'request', id: deal.id, title: `${deal.business.name} → ${deal.author?.name || 'Автор'}` })} />}
             {tab === 'complaints' && <ComplaintsSection complaints={complaints} onOpen={item => { setSelectedComplaint(item); setChatReason(''); setChatMessages(null) }} onNotes={item => void openNotes({ type: 'complaint', id: item.id, title: item.reason })} />}
             {tab === 'audit' && <AuditSection items={audit} />}
@@ -530,7 +548,7 @@ export default function AdminDashboard() {
           onClose={() => setUserAction(null)}
           onConfirm={async () => {
             const blocked = userAction.kind === 'block'
-            const ok = await performAction({ action: blocked ? 'block_user' : 'unblock_user', userId: userAction.user.id, reason: actionReason.trim() || null }, blocked ? 'Пользователь заблокирован' : 'Пользователь разблокирован')
+            const ok = await performAction({ action: blocked ? 'block_user' : 'unblock_user', userId: userAction.target.id, reason: actionReason.trim() || null }, blocked ? 'Аккаунт заблокирован' : 'Аккаунт разблокирован')
             if (ok) setUserAction(null)
           }}
         />
@@ -570,9 +588,8 @@ export default function AdminDashboard() {
   )
 }
 
-function OverviewSection({ data, onTab }: { data: Overview; onTab: (tab: Tab) => void }) {
+function OverviewSection({ data }: { data: Overview }) {
   const metrics = [
-    ['users', 'Пользователей', data.metrics.users, 'users'] as const,
     ['authors', 'Авторов', data.metrics.authors, 'user'] as const,
     ['businesses', 'Бизнесов', data.metrics.businesses, 'building'] as const,
     ['today', 'Регистраций сегодня', data.metrics.registrationsToday, 'calendar'] as const,
@@ -626,7 +643,7 @@ function OverviewSection({ data, onTab }: { data: Overview; onTab: (tab: Tab) =>
 
       <section className={styles.twoColumns}>
         <article className={styles.panel}>
-          <div className={styles.panelHeader}><div><span>Последние</span><h2>Новые пользователи</h2></div><button onClick={() => onTab('users')}>Открыть список</button></div>
+          <div className={styles.panelHeader}><div><span>Последние</span><h2>Новые регистрации</h2></div></div>
           <div className={styles.compactList}>
             {data.recentUsers.map(user => (
               <div key={user.id}><div className={styles.avatar}>{user.email?.[0]?.toUpperCase() || '?'}</div><span><strong>{user.email}</strong><small>{roleLabel(user.role)} · {formatDate(user.created_at)}</small></span></div>
@@ -647,29 +664,32 @@ function OverviewSection({ data, onTab }: { data: Overview; onTab: (tab: Tab) =>
   )
 }
 
-function UsersSection({ users, onEditBusiness, onAction, onNotes }: { users: UserItem[]; onEditBusiness: (user: UserItem) => void; onAction: (user: UserItem, kind: 'block' | 'unblock') => void; onNotes: (user: UserItem) => void }) {
-  if (!users.length) return <Empty title="Пользователи не найдены" text="Измените поиск или фильтр." />
+function BusinessesSection({ businesses, onEditBusiness, onAction, onNotes }: { businesses: BusinessItem[]; onEditBusiness: (business: BusinessItem) => void; onAction: (business: BusinessItem, kind: 'block' | 'unblock') => void; onNotes: (business: BusinessItem) => void }) {
+  if (!businesses.length) return <Empty title="Бизнесы не найдены" text="Измените поиск или фильтр." />
   return (
     <section className={styles.list}>
-      {users.map(user => (
-        <article className={styles.userCard} key={user.id}>
-          <div className={styles.avatar}>{user.email?.[0]?.toUpperCase() || '?'}</div>
+      {businesses.map(business => (
+        <article className={styles.userCard} key={business.id}>
+          <div className={styles.avatar}>{(business.business?.company_name || business.email)?.[0]?.toUpperCase() || '?'}</div>
           <div className={styles.cardMain}>
             <div className={styles.cardTitleRow}>
-              <div><h2>{user.author?.name || user.business?.company_name || user.email}</h2><p>{user.email}</p></div>
-              <div className={styles.badges}><span className={styles.roleBadge}>{roleLabel(user.role)}</span>{user.is_blocked && <span className={`${styles.status} ${styles.statusDanger}`}>Заблокирован</span>}</div>
+              <div><h2>{business.business?.company_name || business.email}</h2><p>{business.email}</p></div>
+              <div className={styles.badges}>
+                <span className={styles.roleBadge}>{business.is_admin_access ? 'Бизнес · администратор' : 'Бизнес'}</span>
+                {business.is_blocked && <span className={`${styles.status} ${styles.statusDanger}`}>Заблокирован</span>}
+              </div>
             </div>
             <div className={styles.metaRow}>
-              <span><UiIcon name="calendar" width={13} height={13} />Регистрация: {formatDate(user.created_at)}</span>
-              <span><UiIcon name="logout" width={13} height={13} />Вход: {formatDate(user.last_sign_in_at, true)}</span>
-              <span><UiIcon name="briefcase" width={13} height={13} />Сделок: {user.deals_count}</span>
-              {user.author && <span><UiIcon name="pin" width={13} height={13} />{user.author.city}</span>}
+              <span><UiIcon name="calendar" width={13} height={13} />Регистрация: {formatDate(business.created_at)}</span>
+              <span><UiIcon name="logout" width={13} height={13} />Вход: {formatDate(business.last_sign_in_at, true)}</span>
+              <span><UiIcon name="briefcase" width={13} height={13} />Сделок: {business.deals_count}</span>
+              {business.business?.niche && <span><UiIcon name="building" width={13} height={13} />{business.business.niche}</span>}
             </div>
           </div>
           <div className={styles.cardActions}>
-            <button type="button" className={styles.secondaryButton} onClick={() => onNotes(user)}>Заметки{user.notes_count ? ` · ${user.notes_count}` : ''}</button>
-            {user.role === 'business' && <button type="button" className={styles.secondaryButton} onClick={() => onEditBusiness(user)}>Редактировать</button>}
-            {user.role !== 'admin' && <button type="button" className={user.is_blocked ? styles.primaryButton : styles.dangerButton} onClick={() => onAction(user, user.is_blocked ? 'unblock' : 'block')}>{user.is_blocked ? 'Разблокировать' : 'Заблокировать'}</button>}
+            <button type="button" className={styles.secondaryButton} onClick={() => onNotes(business)}>Заметки{business.notes_count ? ` · ${business.notes_count}` : ''}</button>
+            <button type="button" className={styles.secondaryButton} onClick={() => onEditBusiness(business)}>Редактировать</button>
+            {!business.is_admin_access && <button type="button" className={business.is_blocked ? styles.primaryButton : styles.dangerButton} onClick={() => onAction(business, business.is_blocked ? 'unblock' : 'block')}>{business.is_blocked ? 'Разблокировать' : 'Заблокировать'}</button>}
           </div>
         </article>
       ))}
@@ -677,7 +697,7 @@ function UsersSection({ users, onEditBusiness, onAction, onNotes }: { users: Use
   )
 }
 
-function AuthorsSection({ authors, onEdit, onNotes }: { authors: AuthorItem[]; onEdit: (author: AuthorItem) => void; onNotes: (author: AuthorItem) => void }) {
+function AuthorsSection({ authors, onEdit, onAction, onNotes }: { authors: AuthorItem[]; onEdit: (author: AuthorItem) => void; onAction: (author: AuthorItem, kind: 'block' | 'unblock') => void; onNotes: (author: AuthorItem) => void }) {
   if (!authors.length) return <Empty title="Авторы не найдены" text="Измените поиск или фильтр." />
   return (
     <section className={styles.cardGrid}>
@@ -686,7 +706,7 @@ function AuthorsSection({ authors, onEdit, onNotes }: { authors: AuthorItem[]; o
           <div className={styles.authorTop}>
             <div className={styles.authorAvatar}>{author.avatar_url ? <img src={author.avatar_url} alt="" /> : author.name?.[0]?.toUpperCase()}</div>
             <div><h2>{author.name}</h2><p>{author.email || 'Тестовая анкета без аккаунта'}</p></div>
-            <span className={`${styles.status} ${statusClass(author.status)}`}>{STATUS_LABELS[author.status] || author.status}</span>
+            <div className={styles.badges}><span className={`${styles.status} ${statusClass(author.status)}`}>{STATUS_LABELS[author.status] || author.status}</span>{author.is_blocked && <span className={`${styles.status} ${styles.statusDanger}`}>Заблокирован</span>}</div>
           </div>
           <div className={styles.authorMeta}>
             <span><UiIcon name="pin" width={13} height={13} />{author.city}</span>
@@ -698,8 +718,9 @@ function AuthorsSection({ authors, onEdit, onNotes }: { authors: AuthorItem[]; o
           <div className={styles.tags}>{(author.lifestyle || []).slice(0, 5).map(tag => <span key={tag}>{tag}</span>)}</div>
           <div className={styles.cardActions}>
             <Link href={`/author/${author.id}`} target="_blank" className={styles.secondaryButton}>Открыть</Link>
-            <button type="button" className={styles.secondaryButton} onClick={() => onNotes(author)}>Заметки</button>
+            <button type="button" className={styles.secondaryButton} onClick={() => onNotes(author)}>Заметки{author.notes_count ? ` · ${author.notes_count}` : ''}</button>
             <button type="button" className={styles.primaryButton} onClick={() => onEdit(author)}>Редактировать</button>
+            {author.user_id && <button type="button" className={author.is_blocked ? styles.primaryButton : styles.dangerButton} onClick={() => onAction(author, author.is_blocked ? 'unblock' : 'block')}>{author.is_blocked ? 'Разблокировать' : 'Заблокировать'}</button>}
           </div>
         </article>
       ))}
@@ -793,7 +814,7 @@ function AuthorModal({ author, saving, onClose, onSave }: { author: AuthorItem; 
   )
 }
 
-function BusinessModal({ user, saving, onClose, onSave }: { user: UserItem; saving: boolean; onClose: () => void; onSave: (fields: Record<string, unknown>) => Promise<void> }) {
+function BusinessModal({ user, saving, onClose, onSave }: { user: BusinessItem; saving: boolean; onClose: () => void; onSave: (fields: Record<string, unknown>) => Promise<void> }) {
   const business = user.business
   const [form, setForm] = useState({ company_name: business?.company_name || '', niche: business?.niche || '', website_url: business?.website_url || '', inn: business?.inn || '', description: business?.description || '' })
   return (
@@ -827,11 +848,11 @@ function ComplaintModal({ item, saving, chatReason, setChatReason, messages, onC
   )
 }
 
-function ConfirmUserActionModal({ action, reason, setReason, saving, onClose, onConfirm }: { action: { user: UserItem; kind: 'block' | 'unblock' }; reason: string; setReason: (value: string) => void; saving: boolean; onClose: () => void; onConfirm: () => Promise<void> }) {
+function ConfirmUserActionModal({ action, reason, setReason, saving, onClose, onConfirm }: { action: { target: AccountTarget; kind: 'block' | 'unblock' }; reason: string; setReason: (value: string) => void; saving: boolean; onClose: () => void; onConfirm: () => Promise<void> }) {
   const isBlock = action.kind === 'block'
   return (
-    <Modal title={isBlock ? 'Заблокировать пользователя?' : 'Разблокировать пользователя?'} subtitle={action.user.email} onClose={onClose}>
-      <p className={styles.modalCopy}>{isBlock ? 'Пользователь потеряет возможность входить в аккаунт. Данные и история сделок сохранятся.' : 'Пользователь снова сможет войти в аккаунт.'}</p>
+    <Modal title={isBlock ? 'Заблокировать аккаунт?' : 'Разблокировать аккаунт?'} subtitle={`${action.target.label} · ${action.target.email}`} onClose={onClose}>
+      <p className={styles.modalCopy}>{isBlock ? 'Владелец аккаунта потеряет возможность входить. Данные и история сделок сохранятся.' : 'Владелец снова сможет войти в аккаунт.'}</p>
       <Field label={isBlock ? 'Причина блокировки' : 'Комментарий'} full><textarea rows={3} value={reason} onChange={e => setReason(e.target.value)} placeholder={isBlock ? 'Причина обязательна и попадёт в журнал' : 'Необязательно'} /></Field>
       <div className={styles.modalActions}><button type="button" className={styles.secondaryButton} onClick={onClose}>Отмена</button><button type="button" className={isBlock ? styles.dangerButton : styles.primaryButton} disabled={saving || (isBlock && reason.trim().length < 2)} onClick={() => void onConfirm()}>{saving ? 'Выполняем…' : isBlock ? 'Заблокировать' : 'Разблокировать'}</button></div>
     </Modal>

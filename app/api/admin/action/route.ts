@@ -95,8 +95,13 @@ async function updateBusiness(context: Awaited<ReturnType<typeof requireAdmin>>,
   if ('avatar_url' in source) update.avatar_url = cleanText(source.avatar_url, 1000)
   update.updated_at = new Date().toISOString()
 
-  const { data: profile } = await context.admin.from('profiles').select('role').eq('id', userId).maybeSingle()
-  if (profile?.role !== 'business') throw new AdminApiError(400, 'NOT_BUSINESS', 'Выбранный пользователь не является бизнесом.')
+  const [{ data: profile }, { data: existingBusiness }] = await Promise.all([
+    context.admin.from('profiles').select('role').eq('id', userId).maybeSingle(),
+    context.admin.from('business_profiles').select('id').eq('id', userId).maybeSingle(),
+  ])
+  if (profile?.role !== 'business' && profile?.role !== 'admin' && !existingBusiness) {
+    throw new AdminApiError(400, 'NOT_BUSINESS', 'Выбранный аккаунт не является бизнесом.')
+  }
 
   const { data, error } = await context.admin.from('business_profiles').upsert(update).select().single()
   if (error) throw error
