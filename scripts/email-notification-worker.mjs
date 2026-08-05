@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import os from 'node:os'
 import process from 'node:process'
 import tls from 'node:tls'
+import nodemailer from 'nodemailer'
 import WebSocket from 'ws'
 import { createClient } from '@supabase/supabase-js'
 
@@ -28,6 +29,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL.trim()
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY.trim()
 const smtpHost = process.env.SMTP_HOST.trim()
 const smtpPort = Number(process.env.SMTP_PORT || 465)
+const smtpSecure = /^(1|true|yes)$/i.test(
+  process.env.SMTP_SECURE || '',
+) || smtpPort === 465
+
+const smtpRequireTls = process.env.SMTP_REQUIRE_TLS
+  ? /^(1|true|yes)$/i.test(process.env.SMTP_REQUIRE_TLS)
+  : !smtpSecure
 const smtpUser = process.env.SMTP_USER.trim()
 const smtpPassword = process.env.SMTP_PASSWORD
 const emailFrom = process.env.EMAIL_FROM.trim()
@@ -282,65 +290,94 @@ class SmtpConnection {
   }
 }
 
-async function sendSmtp({ to, subject, html, text, messageKey }) {
+async function sendSmtp({
+  to,
+  subject,
+  html,
+  text,
+  messageKey,
+}) {
   const from = parseMailbox(emailFrom)
-  if (!from.email || from.email !== smtpUser.toLowerCase()) {
-    throw new Error('EMAIL_FROM must use the same address as SMTP_USER')
+
+  if (
+    !from.email
+    || from.email !== smtpUser.toLowerCase()
+  ) {
+    throw new Error(
+      'EMAIL_FROM must use the same address as SMTP_USER',
+    )
   }
 
   const recipient = sanitizeHeader(to)
+
   if (!/^\S+@\S+\.\S+$/.test(recipient)) {
     throw new Error('Invalid recipient email')
   }
 
   const domain = smtpUser.split('@')[1] || 'svoi-ugc.ru'
-  const messageId = `${messageKey}.${Date.now()}@${domain}`
-  const message = buildMimeMessage({ to: recipient, subject, html, text, messageId })
-  const timeoutMs = Math.min(120000, Math.max(5000, Number(process.env.SMTP_TIMEOUT_MS || 30000)))
 
-  const socket = tls.connect({
+  const messageId = (
+    `<${messageKey}.${Date.now()}@${domain}>`
+  )
+
+  const timeoutMs = Math.min(
+    120000,
+    Math.max(
+      5000,
+      Number(
+        process.env.SMTP_TIMEOUT_MS || 30000,
+      ),
+    ),
+  )
+
+  const transport = nodemailer.createTransport({
     host: smtpHost,
     port: smtpPort,
-    servername: smtpHost,
-    rejectUnauthorized: true,
+    secure: smtpSecure,
+    requireTLS: smtpRequireTls,
+
+    auth: {
+      user: smtpUser,
+      pass: smtpPassword,
+    },
+
+    connectionTimeout: timeoutMs,
+    greetingTimeout: timeoutMs,
+    socketTimeout: timeoutMs,
+
+    tls: {
+      servername: smtpHost,
+      rejectUnauthorized: true,
+      minVersion: 'TLSv1.2',
+    },
   })
 
-  socket.setTimeout(timeoutMs)
+  const result = await transport.sendMail({
+    from: emailFrom,
+    to: recipient,
 
-  const timeoutPromise = new Promise((_, reject) => {
-    socket.once('timeout', () => reject(new Error('SMTP connection timed out')))
+    ...(emailReplyTo
+      ? {
+          replyTo: emailReplyTo,
+        }
+      : {}),
+
+    subject,
+    text,
+    html,
+    messageId,
+
+    headers: {
+      'Auto-Submitted': 'auto-generated',
+      'X-Auto-Response-Suppress': 'All',
+    },
   })
 
-  const smtp = new SmtpConnection(socket)
-
-  const smtpPromise = (async () => {
-    await new Promise((resolve, reject) => {
-      socket.once('secureConnect', resolve)
-      socket.once('error', reject)
-    })
-
-    await smtp.command(null, [220])
-    await smtp.command(`EHLO ${os.hostname().replace(/[^a-zA-Z0-9.-]/g, '-') || 'svoi-ugc'}`, [250])
-    await smtp.command('AUTH LOGIN', [334])
-    await smtp.command(Buffer.from(smtpUser, 'utf8').toString('base64'), [334])
-    await smtp.command(Buffer.from(smtpPassword, 'utf8').toString('base64'), [235])
-    await smtp.command(`MAIL FROM:<${from.email}>`, [250])
-    await smtp.command(`RCPT TO:<${recipient}>`, [250, 251])
-    await smtp.command('DATA', [354])
-
-    socket.write(`${message}\r\n.\r\n`)
-    await smtp.command(null, [250])
-    await smtp.command('QUIT', [221])
-    socket.end()
-
-    return messageId
-  })()
-
-  try {
-    return await Promise.race([smtpPromise, timeoutPromise])
-  } finally {
-    socket.destroy()
-  }
+  return String(
+    result.messageId || messageId,
+  )
+    .replace(/^</, '')
+    .replace(/>$/, '')
 }
 
 async function updateNotifications(ids, patch) {
