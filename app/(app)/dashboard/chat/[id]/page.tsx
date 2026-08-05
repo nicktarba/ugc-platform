@@ -26,17 +26,6 @@ type RequestInfo = {
 const OPEN: string[] = OPEN_STATUSES
 const CLOSED: string[] = CLOSED_STATUSES
 
-const COMPLAINT_REASONS = [
-  'Нарушение договорённостей',
-  'Пользователь не отвечает',
-  'Оскорбления или давление',
-  'Подозрение на мошенничество',
-  'Проблема с оплатой',
-  'Спам или нежелательный контент',
-  'Техническая проблема',
-  'Другое',
-]
-
 function StarRating({ value, onChange, size = 28 }: { value: number; onChange: (v: number) => void; size?: number }) {
   const [hover, setHover] = useState(0)
   return (
@@ -124,6 +113,12 @@ export default function ChatPage() {
       const { data: unreadMsgs } = await supabase.from('messages').select('id').eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
       const unreadCount = unreadMsgs?.length || 0
       await supabase.from('messages').update({ read: true }).eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', uid)
+        .contains('data', { request_id: requestId })
+        .eq('read', false)
       if (unreadCount > 0) bumpBadge(-unreadCount)
     }
     init()
@@ -141,6 +136,12 @@ export default function ChatPage() {
         setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
         if (userId && newMsg.sender_id !== userId) {
           await supabase.from('messages').update({ read: true }).eq('id', newMsg.id)
+          await supabase
+            .from('notifications')
+            .update({ read: true })
+            .eq('user_id', userId)
+            .contains('data', { message_id: newMsg.id })
+            .eq('read', false)
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `request_id=eq.${requestId}` }, (payload) => {
@@ -198,57 +199,6 @@ export default function ChatPage() {
   const [complaintReason, setComplaintReason] = useState('')
   const [complaintComment, setComplaintComment] = useState('')
   const [complaintSending, setComplaintSending] = useState(false)
-
-  const submitComplaint = async () => {
-    if (!complaintReason || complaintSending) return
-    if (complaintReason === 'Другое' && complaintComment.trim().length < 10) {
-      toast.error('Для причины «Другое» опишите ситуацию минимум в 10 символах.')
-      return
-    }
-
-    setComplaintSending(true)
-    try {
-      const { data, error } = await supabase.auth.getSession()
-      if (error || !data.session?.access_token) {
-        toast.error('Сессия истекла. Войдите снова.')
-        return
-      }
-
-      const response = await fetch('/api/complaints', {
-        method: 'POST',
-        cache: 'no-store',
-        credentials: 'same-origin',
-        headers: {
-          Authorization: `Bearer ${data.session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requestId,
-          reason: complaintReason,
-          comment: complaintComment.trim() || null,
-        }),
-      })
-
-      const payload = await response.json().catch(() => null) as {
-        error?: string
-        complaint?: { number?: string }
-      } | null
-
-      if (!response.ok) {
-        toast.error(payload?.error || 'Не удалось отправить жалобу. Попробуйте ещё раз.')
-        return
-      }
-
-      setComplaintOpen(false)
-      setComplaintReason('')
-      setComplaintComment('')
-      toast.success(payload?.complaint?.number ? `Жалоба №${payload.complaint.number} отправлена` : 'Жалоба отправлена')
-    } catch {
-      toast.error('Не удалось отправить жалобу. Проверьте соединение и попробуйте ещё раз.')
-    } finally {
-      setComplaintSending(false)
-    }
-  }
 
   const updateStatus = async (status: 'accepted' | 'declined' | 'cancelled' | 'completed') => {
     if (status === 'declined' || status === 'cancelled' || status === 'completed') { setConfirmAction(status); return }
@@ -319,22 +269,16 @@ export default function ChatPage() {
   const sendWorkDone = async () => {
     if (!request || !userId) return
     setUpdatingStatus(true)
-    // Send system message in chat
-    await supabase.from('messages').insert([{
-      request_id: requestId, sender_id: userId, sender_role: 'author',
-      text: '✅ Работа выполнена. Жду подтверждения и завершения сделки.',
-    }])
-    // Send notification to business
-    await supabase.from('notifications').insert([{
-      user_id: request.business_id,
-      type: 'work_done',
-      title: 'Автор отметил работу как выполненную',
-      body: `${request.authors?.name || 'Автор'} завершил работу. Проверь результат и заверши сделку.`,
-      data: { request_id: requestId },
-    }])
+    const { error } = await supabase.rpc('mark_work_done', { p_request_id: requestId })
     setUpdatingStatus(false)
+
+    if (error) {
+      toast.error('Не удалось отметить работу выполненной.')
+      return
+    }
+
     setWorkDoneSent(true)
-    toast.success('Бизнес получит уведомление')
+    toast.success('Бизнес получил уведомление')
   }
 
   const otherName = userRole === 'author' ? request?.business_email : request?.authors?.name
@@ -601,16 +545,24 @@ export default function ChatPage() {
             <h3>Пожаловаться</h3>
             <p>Выберите причину. Второй участник сделки не увидит вашу жалобу.</p>
             <div className={styles.reasonList}>
-              {COMPLAINT_REASONS.map(reason => (
+              {['Нарушение договорённостей', 'Спам или мошенничество', 'Неадекватное поведение', 'Другое'].map(reason => (
                 <button type="button" key={reason} className={`${styles.reasonButton} ${complaintReason === reason ? styles.reasonActive : ''}`} onClick={() => setComplaintReason(reason)}>
                   {reason}{complaintReason === reason && <UiIcon name="check" width={15} height={15} />}
                 </button>
               ))}
             </div>
-            <textarea value={complaintComment} onChange={event => setComplaintComment(event.target.value)} placeholder={complaintReason === 'Другое' ? 'Опишите ситуацию минимум в 10 символах' : 'Опишите ситуацию, если нужно'} rows={4} maxLength={1000} />
+            <textarea value={complaintComment} onChange={event => setComplaintComment(event.target.value)} placeholder="Опишите ситуацию, если нужно" rows={3} maxLength={1000} />
             <div className={styles.modalActions}>
               <button type="button" className={`${styles.actionButton} ${styles.outlineButton}`} onClick={() => setComplaintOpen(false)}>Отмена</button>
-              <button type="button" className={`${styles.actionButton} ${styles.dangerButton}`} disabled={!complaintReason || complaintSending || (complaintReason === 'Другое' && complaintComment.trim().length < 10)} onClick={() => void submitComplaint()}>{complaintSending ? 'Отправляем…' : 'Отправить'}</button>
+              <button type="button" className={`${styles.actionButton} ${styles.dangerButton}`} disabled={!complaintReason || complaintSending} onClick={async () => {
+                setComplaintSending(true)
+                const targetAuthorId = userRole === 'business' ? request?.author_id : null
+                const targetBusinessId = userRole === 'author' ? request?.business_id : null
+                const { error } = await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: targetAuthorId, target_business_id: targetBusinessId, request_id: requestId, reason: complaintReason, comment: complaintComment.trim() || null }])
+                setComplaintSending(false)
+                if (error) { toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.'); return }
+                setComplaintOpen(false); setComplaintReason(''); setComplaintComment(''); toast.success('Жалоба отправлена')
+              }}>{complaintSending ? 'Отправляем…' : 'Отправить'}</button>
             </div>
           </div>
         </div>

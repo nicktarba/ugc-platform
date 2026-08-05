@@ -9,6 +9,7 @@ type Props = {
   email: string | null
   userId: string | null
   badgeCount?: number
+  notifCount?: number
   authorId?: string | null
 }
 
@@ -16,7 +17,7 @@ type IconName = Parameters<typeof UiIcon>[0]['name']
 
 type NavItem = { href: string; icon: IconName; label: string; badge?: number }
 
-export default function Sidebar({ role, email, userId, badgeCount = 0 }: Props) {
+export default function Sidebar({ role, email, userId, badgeCount = 0, notifCount = 0 }: Props) {
   const pathname = usePathname()
 
   const handleLogout = async () => {
@@ -76,6 +77,7 @@ export default function Sidebar({ role, email, userId, badgeCount = 0 }: Props) 
         <Link href="/dashboard/notifications" className={`sidebar-nav-item${pathname.startsWith('/dashboard/notifications') ? ' active' : ''}`}>
           <UiIcon name="bell" width={19} height={19} />
           <span className="sidebar-nav-label">Уведомления</span>
+          {notifCount > 0 && <span className="sidebar-badge">{notifCount > 99 ? '99+' : notifCount}</span>}
         </Link>
         <Link href="/support" className={`sidebar-nav-item${pathname.startsWith('/support') ? ' active' : ''}`}>
           <UiIcon name="help" width={19} height={19} />

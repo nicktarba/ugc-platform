@@ -1,43 +1,179 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import UiIcon from '@/components/UiIcon'
+import { useToast } from '@/components/Toast'
+import { getNotificationHref, type NotificationData } from '@/lib/notifications'
 import { useApp } from '../../AppContext'
 import styles from '../dashboard.module.css'
 
 type Notification = {
-  id: string; type: string; title: string; body: string | null
-  data: { request_id?: string }; read: boolean; created_at: string
+  id: string
+  type: string
+  title: string
+  body: string | null
+  data: NotificationData | null
+  read: boolean
+  created_at: string
 }
 
 type IconName = Parameters<typeof UiIcon>[0]['name']
 const ICONS: Record<string, IconName> = {
-  new_request: 'message', request_accepted: 'check', request_declined: 'close',
-  request_cancelled: 'flag', request_completed: 'star', new_message: 'message',
-  new_review: 'star', author_approved: 'shield', author_rejected: 'flag',
+  new_request: 'message',
+  request_viewed: 'eye',
+  request_accepted: 'check',
+  request_declined: 'close',
+  request_cancelled: 'flag',
+  request_completed: 'star',
+  new_message: 'message',
+  work_done: 'check',
+  new_review: 'star',
+  author_approved: 'shield',
+  author_rejected: 'flag',
+  complaint_created: 'flag',
+  complaint_updated: 'shield',
 }
 
 export default function NotificationsPage() {
   const router = useRouter()
-  const { userId, setNotifCount } = useApp()
+  const toast = useToast()
+  const { userId, userRole, setNotifCount } = useApp()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const [markingAll, setMarkingAll] = useState(false)
+
+  const unreadCount = useMemo(
+    () => notifications.filter(notification => !notification.read).length,
+    [notifications],
+  )
+
+  useEffect(() => {
+    setNotifCount(unreadCount)
+  }, [unreadCount, setNotifCount])
 
   useEffect(() => {
     if (!userId) return
-    ;(async () => {
-      const { data } = await supabase.from('notifications').select('id, type, title, body, data, read, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(50)
-      setNotifications((data as Notification[]) || [])
-      setLoading(false)
-      await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
-      setNotifCount(0)
-    })()
-  }, [userId, setNotifCount])
 
-  const handleClick = (n: Notification) => {
-    if (n.data?.request_id) router.push(`/dashboard/chat/${n.data.request_id}`)
-    else if (n.type === 'author_approved' || n.type === 'author_rejected') router.push('/dashboard/author/profile')
+    let active = true
+
+    const loadNotifications = async () => {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, type, title, body, data, read, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (!active) return
+
+      if (error) {
+        toast.error('Не удалось загрузить уведомления.')
+        setNotifications([])
+      } else {
+        setNotifications((data as Notification[]) || [])
+      }
+      setLoading(false)
+    }
+
+    loadNotifications()
+
+    const channel = supabase
+      .channel(`notifications-page-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        payload => {
+          const notification = payload.new as Notification
+          setNotifications(previous =>
+            previous.some(item => item.id === notification.id)
+              ? previous
+              : [notification, ...previous].slice(0, 100),
+          )
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        payload => {
+          const notification = payload.new as Notification
+          setNotifications(previous =>
+            previous.map(item => item.id === notification.id ? notification : item),
+          )
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        payload => {
+          const deleted = payload.old as { id?: string }
+          if (!deleted.id) return
+          setNotifications(previous => previous.filter(item => item.id !== deleted.id))
+        },
+      )
+      .subscribe()
+
+    return () => {
+      active = false
+      supabase.removeChannel(channel)
+    }
+  }, [userId, toast])
+
+  const markOneRead = async (notification: Notification) => {
+    if (notification.read || !userId) return true
+
+    setNotifications(previous =>
+      previous.map(item => item.id === notification.id ? { ...item, read: true } : item),
+    )
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', notification.id)
+      .eq('user_id', userId)
+      .eq('read', false)
+
+    if (error) {
+      setNotifications(previous =>
+        previous.map(item => item.id === notification.id ? { ...item, read: false } : item),
+      )
+      toast.error('Не удалось отметить уведомление прочитанным.')
+      return false
+    }
+
+    return true
+  }
+
+  const handleClick = async (notification: Notification) => {
+    const marked = await markOneRead(notification)
+    if (!marked) return
+
+    const href = getNotificationHref(notification.type, notification.data, userRole)
+    if (href) router.push(href)
+  }
+
+  const markAllRead = async () => {
+    if (!userId || unreadCount === 0 || markingAll) return
+
+    setMarkingAll(true)
+    const snapshot = notifications
+    setNotifications(previous => previous.map(item => ({ ...item, read: true })))
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', userId)
+      .eq('read', false)
+
+    setMarkingAll(false)
+
+    if (error) {
+      setNotifications(snapshot)
+      toast.error('Не удалось отметить уведомления прочитанными.')
+      return
+    }
+
+    toast.success('Все уведомления прочитаны')
   }
 
   const timeAgo = (iso: string) => {
@@ -45,7 +181,8 @@ export default function NotificationsPage() {
     if (diff < 60) return 'только что'
     if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`
     if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`
-    return `${Math.floor(diff / 86400)} дн назад`
+    if (diff < 604800) return `${Math.floor(diff / 86400)} дн назад`
+    return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
   }
 
   return (
@@ -57,6 +194,19 @@ export default function NotificationsPage() {
             <h1 className={styles.title}>Уведомления</h1>
             <p className={styles.subtitle}>Новые сообщения, изменения статусов, отзывы и решения по модерации.</p>
           </div>
+          {unreadCount > 0 && (
+            <div className={styles.headerActions}>
+              <button
+                type="button"
+                className={styles.buttonSecondary}
+                onClick={markAllRead}
+                disabled={markingAll}
+              >
+                <UiIcon name="check" width={16} height={16}/>
+                {markingAll ? 'Отмечаем…' : `Прочитать все · ${unreadCount}`}
+              </button>
+            </div>
+          )}
         </header>
 
         {loading ? (
@@ -65,18 +215,23 @@ export default function NotificationsPage() {
           <section className={styles.panel}><div className={styles.empty}><span className={styles.emptyIcon}><UiIcon name="bell" width={22} height={22}/></span><h2 className={styles.emptyTitle}>Уведомлений пока нет</h2><p className={styles.emptyText}>Здесь появятся важные события по профилю, сообщениям и сделкам.</p></div></section>
         ) : (
           <section className={styles.notificationList}>
-            {notifications.map(n => {
-              const clickable = !!n.data?.request_id || n.type === 'author_approved' || n.type === 'author_rejected'
+            {notifications.map(notification => {
+              const href = getNotificationHref(notification.type, notification.data, userRole)
               return (
-                <button key={n.id} type="button" onClick={() => handleClick(n)} className={`${styles.notification} ${clickable ? styles.notificationClickable : ''} ${!n.read ? styles.notificationUnread : ''}`}>
-                  <span className={styles.notificationIcon}><UiIcon name={ICONS[n.type] || 'bell'} width={18} height={18}/></span>
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={() => handleClick(notification)}
+                  className={`${styles.notification} ${styles.notificationClickable} ${!notification.read ? styles.notificationUnread : ''}`}
+                >
+                  <span className={styles.notificationIcon}><UiIcon name={ICONS[notification.type] || 'bell'} width={18} height={18}/></span>
                   <span className={styles.notificationCopy}>
-                    <span className={styles.notificationTitle}>{n.title}</span>
-                    {n.body && <span className={styles.notificationBody}>{n.body}</span>}
-                    <span className={styles.notificationTime}>{timeAgo(n.created_at)}</span>
+                    <span className={styles.notificationTitle}>{notification.title}</span>
+                    {notification.body && <span className={styles.notificationBody}>{notification.body}</span>}
+                    <span className={styles.notificationTime}>{timeAgo(notification.created_at)}</span>
                   </span>
-                  {!n.read && <span className={styles.notificationDot}/>}
-                  {clickable && <UiIcon name="arrowRight" width={16} height={16} style={{ color:'var(--app-muted-soft)', marginTop: 9, flexShrink: 0 }}/>}
+                  {!notification.read && <span className={styles.notificationDot}/>}
+                  {href && <UiIcon name="arrowRight" width={16} height={16} style={{ color:'var(--app-muted-soft)', marginTop: 9, flexShrink: 0 }}/>}
                 </button>
               )
             })}

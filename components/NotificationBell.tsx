@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getNotificationHref } from '@/lib/notifications'
 
 type Notification = {
   id: string
@@ -77,19 +78,15 @@ export default function NotificationBell({ userId }: { userId: string }) {
     setUnread(0)
   }
 
-  const handleClick = (n: Notification) => {
+  const handleClick = async (n: Notification) => {
     if (!n.read) {
-      supabase.from('notifications').update({ read: true }).eq('id', n.id)
+      await supabase.from('notifications').update({ read: true }).eq('id', n.id).eq('user_id', userId)
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))
       setUnread(prev => Math.max(0, prev - 1))
     }
     setOpen(false)
-    if (n.data?.request_id) {
-      if (n.type === 'new_message') router.push(`/dashboard/chat/${n.data.request_id}`)
-      else router.push(`/dashboard/chat/${n.data.request_id}`)
-    } else if (n.type === 'author_approved' || n.type === 'author_rejected') {
-      router.push('/dashboard/author/profile')
-    }
+    const href = getNotificationHref(n.type, n.data, null)
+    if (href) router.push(href)
   }
 
   const timeAgo = (iso: string) => {
@@ -110,7 +107,6 @@ export default function NotificationBell({ userId }: { userId: string }) {
               const r = btn.getBoundingClientRect()
               setDropStyle({ position:'fixed', top: r.bottom + 8, left: r.left })
             }
-            if (unread > 0) markAllRead()
           }
           setOpen(!open)
         }}

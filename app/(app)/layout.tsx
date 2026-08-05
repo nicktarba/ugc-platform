@@ -9,6 +9,16 @@ import LoadingScreen from '@/components/LoadingScreen'
 import { getBusinessBadgeCount, getAuthorBadgeCount } from '@/lib/badges'
 import { AppContext, AuthorProfile, BusinessProfile } from './AppContext'
 
+async function getUnreadNotificationCount(uid: string): Promise<number> {
+  const { count } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', uid)
+    .eq('read', false)
+
+  return count || 0
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -43,12 +53,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const { data: p } = await supabase.from('authors').select('id, name, city, status, avatar_url, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, completed_deals_count, avg_rating, reviews_count').eq('user_id', u.id).single()
         setAuthorProfile((p as AuthorProfile) || null)
         if (p) setBadgeCount(await getAuthorBadgeCount(p.id))
-        const { count: nc } = await supabase.from('notifications').select('id', { count:'exact', head:true }).eq('user_id', u.id).eq('read', false)
-        setNotifCount(nc || 0)
+        setNotifCount(await getUnreadNotificationCount(u.id))
       } else if (role === 'business') {
         setBadgeCount(await getBusinessBadgeCount(u.id))
-        const { count: bnc } = await supabase.from('notifications').select('id', { count:'exact', head:true }).eq('user_id', u.id).eq('read', false)
-        setNotifCount(bnc || 0)
+        setNotifCount(await getUnreadNotificationCount(u.id))
         const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description, inn, avatar_url').eq('id', u.id).maybeSingle()
         setBusinessProfile({
           company_name: bp?.company_name || '',
@@ -72,11 +80,48 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         setAuthorProfile(null)
         setBusinessProfile(null)
         setBadgeCount(0)
+        setNotifCount(0)
         router.replace('/login')
       }
     })
     return () => subscription.unsubscribe()
   }, [router])
+
+  useEffect(() => {
+    if (!userId) return
+
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
+    const refreshCount = () => {
+      if (refreshTimer) clearTimeout(refreshTimer)
+      refreshTimer = setTimeout(() => {
+        getUnreadNotificationCount(userId).then(setNotifCount)
+      }, 80)
+    }
+
+    const channel = supabase
+      .channel(`global-notifications-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        refreshCount,
+      )
+      .subscribe()
+
+    const onFocus = () => refreshCount()
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshCount()
+    }
+
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+      supabase.removeChannel(channel)
+    }
+  }, [userId])
 
   useEffect(() => {
     if (ready && !userId && pathname !== '/catalog') {
@@ -130,6 +175,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           email={userEmail}
           userId={userId}
           badgeCount={badgeCount}
+          notifCount={notifCount}
           authorId={authorProfile?.id || null}
         />
         <div className="sidebar-content">
