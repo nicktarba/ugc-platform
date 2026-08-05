@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import os from 'node:os'
 import process from 'node:process'
 import tls from 'node:tls'
+import WebSocket from 'ws'
 import { createClient } from '@supabase/supabase-js'
 
 const REQUIRED = [
@@ -39,6 +40,9 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
     autoRefreshToken: false,
     persistSession: false,
     detectSessionInUrl: false,
+  },
+  realtime: {
+    transport: WebSocket,
   },
 })
 
