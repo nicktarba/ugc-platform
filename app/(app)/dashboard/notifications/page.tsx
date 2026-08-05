@@ -7,6 +7,11 @@ import UiIcon from '@/components/UiIcon'
 import { useToast } from '@/components/Toast'
 import { getNotificationHref } from '@/lib/notifications'
 import {
+  getEmailPreferences,
+  saveEmailPreferences,
+  type EmailPreferences,
+} from '@/lib/email-preferences-client'
+import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -16,6 +21,15 @@ import { useApp } from '../../AppContext'
 import styles from '../dashboard.module.css'
 
 type IconName = Parameters<typeof UiIcon>[0]['name']
+const DEFAULT_EMAIL_PREFERENCES: EmailPreferences = {
+  enabled: true,
+  messages: true,
+  requests: true,
+  deals: true,
+  reviews: true,
+  moderation: true,
+}
+
 const ICONS: Record<string, IconName> = {
   new_request: 'message',
   request_viewed: 'eye',
@@ -40,6 +54,9 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [markingAll, setMarkingAll] = useState(false)
+  const [emailPreferences, setEmailPreferences] = useState<EmailPreferences>(DEFAULT_EMAIL_PREFERENCES)
+  const [emailLoading, setEmailLoading] = useState(true)
+  const [emailSaving, setEmailSaving] = useState<keyof EmailPreferences | null>(null)
 
   const unreadCount = useMemo(
     () => notifications.filter(notification => !notification.read).length,
@@ -116,6 +133,61 @@ export default function NotificationsPage() {
       supabase.removeChannel(channel)
     }
   }, [userId, loadNotifications])
+
+  useEffect(() => {
+    if (!userId) return
+
+    let active = true
+
+    void getEmailPreferences()
+      .then(preferences => {
+        if (active) setEmailPreferences(preferences)
+      })
+      .catch(error => {
+        if (active) {
+          showError(
+            error instanceof Error
+              ? error.message
+              : 'Не удалось загрузить настройки email.',
+          )
+        }
+      })
+      .finally(() => {
+        if (active) setEmailLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [userId, showError])
+
+  const updateEmailPreference = async (
+    key: keyof EmailPreferences,
+    value: boolean,
+  ) => {
+    if (emailSaving) return
+
+    const previous = emailPreferences
+    const next = { ...emailPreferences, [key]: value }
+
+    setEmailPreferences(next)
+    setEmailSaving(key)
+
+    try {
+      const saved = await saveEmailPreferences(next)
+      setEmailPreferences(saved)
+      showSuccess('Настройки email сохранены')
+    } catch (error) {
+      setEmailPreferences(previous)
+      showError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось сохранить настройки email.',
+      )
+    } finally {
+      setEmailSaving(null)
+    }
+  }
 
   const markOneRead = async (notification: NotificationRecord) => {
     if (notification.read) return true
@@ -214,6 +286,57 @@ export default function NotificationsPage() {
             </div>
           )}
         </header>
+
+        <section className={`${styles.panel} ${styles.emailSettingsPanel}`}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2 className={styles.panelTitle}>
+                <UiIcon name="bell" width={18} height={18}/>
+                Email-уведомления
+              </h2>
+              <p className={styles.panelMeta}>
+                Важные события придут на email вашего аккаунта. Сообщения объединяются, чтобы не присылать письмо на каждую реплику.
+              </p>
+            </div>
+            <label className={styles.emailMasterToggle}>
+              <input
+                type="checkbox"
+                checked={emailPreferences.enabled}
+                disabled={emailLoading || emailSaving !== null}
+                onChange={event => void updateEmailPreference('enabled', event.target.checked)}
+              />
+              <span className={styles.emailSwitch} aria-hidden="true"/>
+              <span>{emailPreferences.enabled ? 'Включены' : 'Выключены'}</span>
+            </label>
+          </div>
+
+          <div className={styles.emailPreferencesGrid}>
+            {([
+              ['messages', 'Новые сообщения', 'Одно письмо после паузы, если чат не открыт.'],
+              ['requests', 'Новые предложения', 'Новая заявка и просмотр предложения.'],
+              ['deals', 'Статусы сделок', 'Принятие, отказ, отмена, завершение и готовая работа.'],
+              ['reviews', 'Отзывы', 'Новый отзыв после завершённой сделки.'],
+              ['moderation', 'Модерация', 'Одобрение анкеты или запрос на исправления.'],
+            ] as Array<[keyof EmailPreferences, string, string]>).map(([key, title, description]) => (
+              <label
+                key={key}
+                className={`${styles.emailPreferenceItem} ${!emailPreferences.enabled ? styles.emailPreferenceDisabled : ''}`}
+              >
+                <span className={styles.emailPreferenceCopy}>
+                  <span className={styles.emailPreferenceTitle}>{title}</span>
+                  <span className={styles.emailPreferenceDescription}>{description}</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={emailPreferences[key]}
+                  disabled={emailLoading || emailSaving !== null || !emailPreferences.enabled}
+                  onChange={event => void updateEmailPreference(key, event.target.checked)}
+                />
+                <span className={styles.emailSwitch} aria-hidden="true"/>
+              </label>
+            ))}
+          </div>
+        </section>
 
         {loading ? (
           <section className={styles.panel}>

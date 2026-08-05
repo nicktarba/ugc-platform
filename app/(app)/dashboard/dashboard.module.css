@@ -412,3 +412,93 @@
   .metric { min-height: 118px; }
   .requestBadges .status { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 }
+
+/* Email notification preferences */
+.emailSettingsPanel { margin-bottom: 18px; }
+.emailMasterToggle {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 760;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.emailMasterToggle input,
+.emailPreferenceItem input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.emailSwitch {
+  width: 38px;
+  height: 22px;
+  padding: 3px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  background: #ddd9d4;
+  transition: background .18s ease;
+}
+.emailSwitch::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(24, 22, 20, .18);
+  transition: transform .18s ease;
+}
+.emailMasterToggle input:checked + .emailSwitch,
+.emailPreferenceItem input:checked + .emailSwitch {
+  background: var(--app-accent);
+}
+.emailMasterToggle input:checked + .emailSwitch::after,
+.emailPreferenceItem input:checked + .emailSwitch::after {
+  transform: translateX(16px);
+}
+.emailMasterToggle input:focus-visible + .emailSwitch,
+.emailPreferenceItem input:focus-visible + .emailSwitch {
+  outline: 2px solid #1769d2;
+  outline-offset: 3px;
+}
+.emailMasterToggle input:disabled + .emailSwitch,
+.emailPreferenceItem input:disabled + .emailSwitch {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.emailPreferencesGrid {
+  padding: 6px 14px 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.emailPreferenceItem {
+  min-height: 78px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--app-line);
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, opacity .18s ease;
+}
+.emailPreferenceItem:hover { border-color: #d3cec8; background: #fcfbf9; }
+.emailPreferenceDisabled { opacity: .55; cursor: not-allowed; }
+.emailPreferenceCopy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.emailPreferenceTitle { font-size: 11px; font-weight: 790; }
+.emailPreferenceDescription { margin-top: 4px; color: var(--app-muted); font-size: 9px; line-height: 1.45; }
+
+@media (max-width: 700px) {
+  .emailPreferencesGrid { grid-template-columns: 1fr; padding: 6px 10px 10px; }
+  .emailMasterToggle { width: 100%; justify-content: space-between; }
+  .emailPreferenceItem { min-height: 72px; padding: 12px; }
+}
