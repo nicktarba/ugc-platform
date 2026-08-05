@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { markRequestNotificationsRead } from '@/lib/notification-client'
 import { useToast } from '@/components/Toast'
 import { useApp } from '../../../AppContext'
 import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
@@ -113,12 +114,7 @@ export default function ChatPage() {
       const { data: unreadMsgs } = await supabase.from('messages').select('id').eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
       const unreadCount = unreadMsgs?.length || 0
       await supabase.from('messages').update({ read: true }).eq('request_id', requestId).neq('sender_id', uid).eq('read', false)
-      await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('user_id', uid)
-        .contains('data', { request_id: requestId })
-        .eq('read', false)
+      await markRequestNotificationsRead(requestId).catch(() => {})
       if (unreadCount > 0) bumpBadge(-unreadCount)
     }
     init()
@@ -136,12 +132,7 @@ export default function ChatPage() {
         setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
         if (userId && newMsg.sender_id !== userId) {
           await supabase.from('messages').update({ read: true }).eq('id', newMsg.id)
-          await supabase
-            .from('notifications')
-            .update({ read: true })
-            .eq('user_id', userId)
-            .contains('data', { message_id: newMsg.id })
-            .eq('read', false)
+          await markRequestNotificationsRead(requestId).catch(() => {})
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `request_id=eq.${requestId}` }, (payload) => {

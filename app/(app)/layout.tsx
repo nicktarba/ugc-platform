@@ -7,17 +7,8 @@ import BottomNav from '@/components/BottomNav'
 import Footer from '@/components/Footer'
 import LoadingScreen from '@/components/LoadingScreen'
 import { getBusinessBadgeCount, getAuthorBadgeCount } from '@/lib/badges'
+import { getUnreadNotificationCount } from '@/lib/notification-client'
 import { AppContext, AuthorProfile, BusinessProfile } from './AppContext'
-
-async function getUnreadNotificationCount(uid: string): Promise<number> {
-  const { count } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', uid)
-    .eq('read', false)
-
-  return count || 0
-}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -53,10 +44,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const { data: p } = await supabase.from('authors').select('id, name, city, status, avatar_url, instagram_url, telegram_url, followers_count, telegram_followers, stories_views, occupation, lifestyle, hobbies, bio, open_to_barter, completed_deals_count, avg_rating, reviews_count').eq('user_id', u.id).single()
         setAuthorProfile((p as AuthorProfile) || null)
         if (p) setBadgeCount(await getAuthorBadgeCount(p.id))
-        setNotifCount(await getUnreadNotificationCount(u.id))
+        setNotifCount(await getUnreadNotificationCount().catch(() => 0))
       } else if (role === 'business') {
         setBadgeCount(await getBusinessBadgeCount(u.id))
-        setNotifCount(await getUnreadNotificationCount(u.id))
+        setNotifCount(await getUnreadNotificationCount().catch(() => 0))
         const { data: bp } = await supabase.from('business_profiles').select('company_name, website_url, niche, description, inn, avatar_url').eq('id', u.id).maybeSingle()
         setBusinessProfile({
           company_name: bp?.company_name || '',
@@ -94,7 +85,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const refreshCount = () => {
       if (refreshTimer) clearTimeout(refreshTimer)
       refreshTimer = setTimeout(() => {
-        getUnreadNotificationCount(userId).then(setNotifCount)
+        getUnreadNotificationCount().then(setNotifCount).catch(() => {})
       }, 80)
     }
 
@@ -107,6 +98,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )
       .subscribe()
 
+    const poll = window.setInterval(refreshCount, 30_000)
     const onFocus = () => refreshCount()
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshCount()
@@ -117,6 +109,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     return () => {
       if (refreshTimer) clearTimeout(refreshTimer)
+      window.clearInterval(poll)
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
       supabase.removeChannel(channel)

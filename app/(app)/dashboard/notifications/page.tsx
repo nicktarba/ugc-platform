@@ -1,22 +1,19 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import UiIcon from '@/components/UiIcon'
 import { useToast } from '@/components/Toast'
-import { getNotificationHref, type NotificationData } from '@/lib/notifications'
+import { getNotificationHref } from '@/lib/notifications'
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type NotificationRecord,
+} from '@/lib/notification-client'
 import { useApp } from '../../AppContext'
 import styles from '../dashboard.module.css'
-
-type Notification = {
-  id: string
-  type: string
-  title: string
-  body: string | null
-  data: NotificationData | null
-  read: boolean
-  created_at: string
-}
 
 type IconName = Parameters<typeof UiIcon>[0]['name']
 const ICONS: Record<string, IconName> = {
@@ -37,10 +34,11 @@ const ICONS: Record<string, IconName> = {
 
 export default function NotificationsPage() {
   const router = useRouter()
-  const toast = useToast()
+  const { error: showError, success: showSuccess } = useToast()
   const { userId, userRole, setNotifCount } = useApp()
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [markingAll, setMarkingAll] = useState(false)
 
   const unreadCount = useMemo(
@@ -52,128 +50,133 @@ export default function NotificationsPage() {
     setNotifCount(unreadCount)
   }, [unreadCount, setNotifCount])
 
+  const loadNotifications = useCallback(async (showToast = false) => {
+    if (!userId) return
+
+    try {
+      const items = await getNotifications(100)
+      setNotifications(items)
+      setLoadError(null)
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Не удалось загрузить уведомления.'
+      setLoadError(message)
+      if (showToast) showError(message)
+    } finally {
+      setLoading(false)
+    }
+  }, [userId, showError])
+
   useEffect(() => {
     if (!userId) return
 
     let active = true
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
-    const loadNotifications = async () => {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('id, type, title, body, data, read, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(100)
-
-      if (!active) return
-
-      if (error) {
-        toast.error('Не удалось загрузить уведомления.')
-        setNotifications([])
-      } else {
-        setNotifications((data as Notification[]) || [])
-      }
-      setLoading(false)
+    const refresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer)
+      refreshTimer = setTimeout(() => {
+        if (active) void loadNotifications(false)
+      }, 120)
     }
 
-    loadNotifications()
+    void loadNotifications(true)
 
     const channel = supabase
       .channel(`notifications-page-${userId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        payload => {
-          const notification = payload.new as Notification
-          setNotifications(previous =>
-            previous.some(item => item.id === notification.id)
-              ? previous
-              : [notification, ...previous].slice(0, 100),
-          )
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
         },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        payload => {
-          const notification = payload.new as Notification
-          setNotifications(previous =>
-            previous.map(item => item.id === notification.id ? notification : item),
-          )
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        payload => {
-          const deleted = payload.old as { id?: string }
-          if (!deleted.id) return
-          setNotifications(previous => previous.filter(item => item.id !== deleted.id))
-        },
+        refresh,
       )
       .subscribe()
 
+    // Если Realtime временно недоступен, список всё равно обновится.
+    const poll = window.setInterval(refresh, 30_000)
+    const onFocus = () => refresh()
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+
     return () => {
       active = false
+      if (refreshTimer) clearTimeout(refreshTimer)
+      window.clearInterval(poll)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
       supabase.removeChannel(channel)
     }
-  }, [userId, toast])
+  }, [userId, loadNotifications])
 
-  const markOneRead = async (notification: Notification) => {
-    if (notification.read || !userId) return true
+  const markOneRead = async (notification: NotificationRecord) => {
+    if (notification.read) return true
 
     setNotifications(previous =>
-      previous.map(item => item.id === notification.id ? { ...item, read: true } : item),
+      previous.map(item => item.id === notification.id
+        ? { ...item, read: true }
+        : item),
     )
 
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', notification.id)
-      .eq('user_id', userId)
-      .eq('read', false)
-
-    if (error) {
+    try {
+      await markNotificationRead(notification.id)
+      return true
+    } catch (error) {
       setNotifications(previous =>
-        previous.map(item => item.id === notification.id ? { ...item, read: false } : item),
+        previous.map(item => item.id === notification.id
+          ? { ...item, read: false }
+          : item),
       )
-      toast.error('Не удалось отметить уведомление прочитанным.')
+      showError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось отметить уведомление прочитанным.',
+      )
       return false
     }
-
-    return true
   }
 
-  const handleClick = async (notification: Notification) => {
+  const handleClick = async (notification: NotificationRecord) => {
     const marked = await markOneRead(notification)
     if (!marked) return
 
-    const href = getNotificationHref(notification.type, notification.data, userRole)
+    const href = getNotificationHref(
+      notification.type,
+      notification.data,
+      userRole,
+    )
+
     if (href) router.push(href)
   }
 
   const markAllRead = async () => {
-    if (!userId || unreadCount === 0 || markingAll) return
+    if (unreadCount === 0 || markingAll) return
 
     setMarkingAll(true)
     const snapshot = notifications
     setNotifications(previous => previous.map(item => ({ ...item, read: true })))
 
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('user_id', userId)
-      .eq('read', false)
-
-    setMarkingAll(false)
-
-    if (error) {
+    try {
+      await markAllNotificationsRead()
+      showSuccess('Все уведомления прочитаны')
+    } catch (error) {
       setNotifications(snapshot)
-      toast.error('Не удалось отметить уведомления прочитанными.')
-      return
+      showError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось отметить уведомления прочитанными.',
+      )
+    } finally {
+      setMarkingAll(false)
     }
-
-    toast.success('Все уведомления прочитаны')
   }
 
   const timeAgo = (iso: string) => {
@@ -182,7 +185,10 @@ export default function NotificationsPage() {
     if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`
     if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`
     if (diff < 604800) return `${Math.floor(diff / 86400)} дн назад`
-    return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+    return new Date(iso).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+    })
   }
 
   return (
@@ -210,13 +216,47 @@ export default function NotificationsPage() {
         </header>
 
         {loading ? (
-          <section className={styles.panel}><div className={styles.empty}><span className={styles.emptyIcon}><UiIcon name="bell" width={22} height={22}/></span><p className={styles.emptyText}>Загружаем уведомления...</p></div></section>
+          <section className={styles.panel}>
+            <div className={styles.empty}>
+              <span className={styles.emptyIcon}><UiIcon name="bell" width={22} height={22}/></span>
+              <p className={styles.emptyText}>Загружаем уведомления...</p>
+            </div>
+          </section>
+        ) : loadError ? (
+          <section className={styles.panel}>
+            <div className={styles.empty}>
+              <span className={styles.emptyIcon}><UiIcon name="flag" width={22} height={22}/></span>
+              <h2 className={styles.emptyTitle}>Уведомления временно не загрузились</h2>
+              <p className={styles.emptyText}>{loadError}</p>
+              <button
+                type="button"
+                className={styles.buttonSecondary}
+                onClick={() => {
+                  setLoading(true)
+                  void loadNotifications(true)
+                }}
+              >
+                Повторить
+              </button>
+            </div>
+          </section>
         ) : notifications.length === 0 ? (
-          <section className={styles.panel}><div className={styles.empty}><span className={styles.emptyIcon}><UiIcon name="bell" width={22} height={22}/></span><h2 className={styles.emptyTitle}>Уведомлений пока нет</h2><p className={styles.emptyText}>Здесь появятся важные события по профилю, сообщениям и сделкам.</p></div></section>
+          <section className={styles.panel}>
+            <div className={styles.empty}>
+              <span className={styles.emptyIcon}><UiIcon name="bell" width={22} height={22}/></span>
+              <h2 className={styles.emptyTitle}>Уведомлений пока нет</h2>
+              <p className={styles.emptyText}>Здесь появятся важные события по профилю, сообщениям и сделкам.</p>
+            </div>
+          </section>
         ) : (
           <section className={styles.notificationList}>
             {notifications.map(notification => {
-              const href = getNotificationHref(notification.type, notification.data, userRole)
+              const href = getNotificationHref(
+                notification.type,
+                notification.data,
+                userRole,
+              )
+
               return (
                 <button
                   key={notification.id}
@@ -224,14 +264,16 @@ export default function NotificationsPage() {
                   onClick={() => handleClick(notification)}
                   className={`${styles.notification} ${styles.notificationClickable} ${!notification.read ? styles.notificationUnread : ''}`}
                 >
-                  <span className={styles.notificationIcon}><UiIcon name={ICONS[notification.type] || 'bell'} width={18} height={18}/></span>
+                  <span className={styles.notificationIcon}>
+                    <UiIcon name={ICONS[notification.type] || 'bell'} width={18} height={18}/>
+                  </span>
                   <span className={styles.notificationCopy}>
                     <span className={styles.notificationTitle}>{notification.title}</span>
                     {notification.body && <span className={styles.notificationBody}>{notification.body}</span>}
                     <span className={styles.notificationTime}>{timeAgo(notification.created_at)}</span>
                   </span>
-                  {!notification.read && <span className={styles.notificationDot}/>}
-                  {href && <UiIcon name="arrowRight" width={16} height={16} style={{ color:'var(--app-muted-soft)', marginTop: 9, flexShrink: 0 }}/>}
+                  {!notification.read && <span className={styles.notificationDot}/>} 
+                  {href && <UiIcon name="arrowRight" width={16} height={16} style={{ color:'var(--app-muted-soft)', marginTop: 9, flexShrink: 0 }}/>} 
                 </button>
               )
             })}

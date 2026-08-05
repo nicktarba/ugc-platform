@@ -3,6 +3,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getNotificationHref } from '@/lib/notifications'
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '@/lib/notification-client'
 
 type Notification = {
   id: string
@@ -35,14 +40,9 @@ export default function NotificationBell({ userId }: { userId: string }) {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('notifications')
-        .select('id, type, title, body, data, read, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(30)
-      setNotifications((data as Notification[]) || [])
-      setUnread((data || []).filter(n => !n.read).length)
+      const data = await getNotifications(30).catch(() => [])
+      setNotifications(data as Notification[])
+      setUnread(data.filter(notification => !notification.read).length)
     }
     load()
 
@@ -73,14 +73,14 @@ export default function NotificationBell({ userId }: { userId: string }) {
   }, [])
 
   const markAllRead = async () => {
-    await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
+    await markAllNotificationsRead().catch(() => {})
     setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     setUnread(0)
   }
 
   const handleClick = async (n: Notification) => {
     if (!n.read) {
-      await supabase.from('notifications').update({ read: true }).eq('id', n.id).eq('user_id', userId)
+      await markNotificationRead(n.id).catch(() => {})
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))
       setUnread(prev => Math.max(0, prev - 1))
     }
