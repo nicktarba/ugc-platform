@@ -50,7 +50,7 @@ export function getAuthErrorMessage(
   }
 
   if (message.includes('password should be at least') || message.includes('weak password')) {
-    return 'Пароль должен содержать минимум 6 символов.'
+    return 'Пароль должен содержать минимум 8 символов.'
   }
 
   if (message.includes('invalid email')) {

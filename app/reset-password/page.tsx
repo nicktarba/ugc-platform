@@ -19,19 +19,31 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     let mounted = true
+    let recoveryObserved = false
 
-    const checkSession = async () => {
+    try {
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      recoveryObserved = hash.get('type') === 'recovery'
+    } catch {}
+
+    const timeout = window.setTimeout(async () => {
+      if (!mounted || ready) return
       const { data } = await supabase.auth.getSession()
       if (!mounted) return
-      setReady(Boolean(data.session))
+      if (recoveryObserved && data.session) {
+        setReady(true)
+        setError('')
+      } else {
+        setReady(false)
+        setError('Ссылка недействительна, уже использована или истекла. Запросите новую.')
+      }
       setChecking(false)
-      if (!data.session) setError('Ссылка недействительна или уже истекла. Запросите новую.')
-    }
+    }, 1800)
 
-    void checkSession()
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
-      if (event === 'PASSWORD_RECOVERY' || session) {
+      if (event === 'PASSWORD_RECOVERY' && session) {
+        recoveryObserved = true
         setReady(true)
         setChecking(false)
         setError('')
@@ -40,31 +52,23 @@ export default function ResetPasswordPage() {
 
     return () => {
       mounted = false
+      window.clearTimeout(timeout)
       listener.subscription.unsubscribe()
     }
-  }, [])
+  }, [ready])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (password !== confirm) {
-      setError('Пароли не совпадают.')
-      return
-    }
-    if (password.length < 6) {
-      setError('Пароль должен содержать минимум 6 символов.')
-      return
-    }
+    if (password !== confirm) return setError('Пароли не совпадают.')
+    if (password.length < 8) return setError('Пароль должен содержать минимум 8 символов.')
+    if (password.length > 128) return setError('Пароль слишком длинный.')
 
     setLoading(true)
     setError('')
-
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password })
-      if (updateError) {
-        setError(getAuthErrorMessage(updateError, 'update'))
-        return
-      }
-      await supabase.auth.signOut()
+      if (updateError) return setError(getAuthErrorMessage(updateError, 'update'))
+      await supabase.auth.signOut({ scope: 'global' })
       router.push('/login?reset=success')
     } catch (caught) {
       setError(getAuthErrorMessage(caught instanceof Error ? caught : null, 'update'))
@@ -78,20 +82,13 @@ export default function ResetPasswordPage() {
       eyebrow="Новый пароль"
       title={<>Защитите доступ к <em>своему профилю</em></>}
       description="Создайте новый пароль. После сохранения старая комбинация больше не будет работать."
-      points={[
-        'Минимум 6 символов',
-        'Используйте уникальную комбинацию',
-        'Не передавайте пароль другим людям',
-        'После сохранения войдите заново',
-      ]}
+      points={['Минимум 8 символов','Используйте уникальную комбинацию','Не передавайте пароль другим людям','После сохранения войдите заново']}
     >
       {checking ? (
         <div className={styles.infoBox}>Проверяем ссылку восстановления...</div>
       ) : !ready ? (
         <div className={styles.invalidState}>
-          <div className={styles.stateIcon}>!</div>
-          <h2>Ссылка не работает</h2>
-          <p>{error}</p>
+          <div className={styles.stateIcon}>!</div><h2>Ссылка не работает</h2><p>{error}</p>
           <div className={styles.stateActions}>
             <Link className={styles.primaryButton} href="/forgot-password">Запросить новую ссылку</Link>
             <Link className={styles.secondaryButton} href="/login">Вернуться ко входу</Link>
@@ -99,45 +96,12 @@ export default function ResetPasswordPage() {
         </div>
       ) : (
         <>
-          <div className={styles.formHeader}>
-            <span className={styles.formEyebrow}>Восстановление доступа</span>
-            <h2>Создайте новый пароль</h2>
-            <p>Введите новую комбинацию два раза, чтобы исключить опечатку.</p>
-          </div>
-
+          <div className={styles.formHeader}><span className={styles.formEyebrow}>Восстановление доступа</span><h2>Создайте новый пароль</h2><p>Введите новую комбинацию два раза, чтобы исключить опечатку.</p></div>
           <form className={styles.form} onSubmit={handleSubmit}>
-            <div className={styles.field}>
-              <label htmlFor="new-password">Новый пароль</label>
-              <input
-                id="new-password"
-                className={styles.input}
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Минимум 6 символов"
-                minLength={6}
-                required
-              />
-            </div>
-            <div className={styles.field}>
-              <label htmlFor="confirm-password">Повторите пароль</label>
-              <input
-                id="confirm-password"
-                className={styles.input}
-                type="password"
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(event) => setConfirm(event.target.value)}
-                placeholder="Введите пароль ещё раз"
-                minLength={6}
-                required
-              />
-            </div>
+            <div className={styles.field}><label htmlFor="new-password">Новый пароль</label><input id="new-password" className={styles.input} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Минимум 8 символов" minLength={8} maxLength={128} required /></div>
+            <div className={styles.field}><label htmlFor="confirm-password">Повторите пароль</label><input id="confirm-password" className={styles.input} type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} placeholder="Введите пароль ещё раз" minLength={8} maxLength={128} required /></div>
             {error && <div className={styles.error} role="alert">{error}</div>}
-            <button className={styles.primaryButton} type="submit" disabled={loading}>
-              {loading ? 'Сохраняем...' : 'Сохранить пароль'}
-            </button>
+            <button className={styles.primaryButton} type="submit" disabled={loading}>{loading ? 'Сохраняем...' : 'Сохранить пароль'}</button>
           </form>
         </>
       )}
