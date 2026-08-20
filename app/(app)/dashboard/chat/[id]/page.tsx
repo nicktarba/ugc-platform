@@ -244,11 +244,7 @@ export default function ChatPage() {
       } else toast.error('Не удалось отправить отзыв.')
       return
     }
-    const { data: allReviews } = await supabase.from('reviews').select('rating').eq('author_id', request.author_id)
-    if (allReviews && allReviews.length > 0) {
-      const avg = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
-      await supabase.from('authors').update({ avg_rating: Math.round(avg * 10) / 10, reviews_count: allReviews.length }).eq('id', request.author_id)
-    }
+    // Рейтинг и количество отзывов пересчитывает БД-триггер.
     setReviewSending(false)
     setReviewSent(true)
     setExistingReview({ rating: reviewRating, comment: reviewComment.trim() || null })
@@ -536,7 +532,7 @@ export default function ChatPage() {
             <h3>Пожаловаться</h3>
             <p>Выберите причину. Второй участник сделки не увидит вашу жалобу.</p>
             <div className={styles.reasonList}>
-              {['Нарушение договорённостей', 'Спам или мошенничество', 'Неадекватное поведение', 'Другое'].map(reason => (
+              {['Нарушение договорённостей', 'Пользователь не отвечает', 'Оскорбления или давление', 'Подозрение на мошенничество', 'Проблема с оплатой', 'Спам или нежелательный контент', 'Другое'].map(reason => (
                 <button type="button" key={reason} className={`${styles.reasonButton} ${complaintReason === reason ? styles.reasonActive : ''}`} onClick={() => setComplaintReason(reason)}>
                   {reason}{complaintReason === reason && <UiIcon name="check" width={15} height={15} />}
                 </button>
@@ -547,12 +543,39 @@ export default function ChatPage() {
               <button type="button" className={`${styles.actionButton} ${styles.outlineButton}`} onClick={() => setComplaintOpen(false)}>Отмена</button>
               <button type="button" className={`${styles.actionButton} ${styles.dangerButton}`} disabled={!complaintReason || complaintSending} onClick={async () => {
                 setComplaintSending(true)
-                const targetAuthorId = userRole === 'business' ? request?.author_id : null
-                const targetBusinessId = userRole === 'author' ? request?.business_id : null
-                const { error } = await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: targetAuthorId, target_business_id: targetBusinessId, request_id: requestId, reason: complaintReason, comment: complaintComment.trim() || null }])
-                setComplaintSending(false)
-                if (error) { toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.'); return }
-                setComplaintOpen(false); setComplaintReason(''); setComplaintComment(''); toast.success('Жалоба отправлена')
+                try {
+                  const { data: sessionData } = await supabase.auth.getSession()
+                  const token = sessionData.session?.access_token
+                  if (!token) { toast.error('Сессия истекла. Войди снова.'); return }
+
+                  const response = await fetch('/api/complaints', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                      kind: 'deal',
+                      requestId,
+                      reason: complaintReason,
+                      comment: complaintComment.trim() || null,
+                    }),
+                  })
+                  const result = await response.json()
+                  if (!response.ok) {
+                    toast.error(result?.error || 'Не удалось отправить жалобу. Попробуйте ещё раз.')
+                    return
+                  }
+
+                  setComplaintOpen(false)
+                  setComplaintReason('')
+                  setComplaintComment('')
+                  toast.success('Жалоба отправлена')
+                } catch {
+                  toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.')
+                } finally {
+                  setComplaintSending(false)
+                }
               }}>{complaintSending ? 'Отправляем…' : 'Отправить'}</button>
             </div>
           </div>

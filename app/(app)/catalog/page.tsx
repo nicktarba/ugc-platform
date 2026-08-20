@@ -441,10 +441,8 @@ export default function CatalogPage() {
     setFiltered(base)
     setVisibleCount(12)
 
-    // Логируем обычный поиск (fire and forget, с дебаунсом через тот же useEffect)
-    if (searchMode === 'regular' && search.trim().length >= 2 && !aiResults) {
-      supabase.from('search_logs').insert([{ query: search.trim().toLowerCase(), mode: 'regular', results_count: base.length }])
-    }
+    // Обычный поиск не пишет напрямую в БД.
+    // Логи AI-поиска создаются только серверным API после проверки пользователя.
   }, [authors, search, city, barter, lifestyleFilter, sort, aiResults, searchMode, minFollowers, maxFollowers])
 
   useEffect(() => {
@@ -465,28 +463,51 @@ export default function CatalogPage() {
   // ИИ-поиск — явное действие (кнопка/Enter), не авто-триггер
   const runAiSearch = async () => {
     if (!search.trim() || search.trim().length < 2 || authors.length === 0) return
+    if (!userId) {
+      toast.error('ИИ-поиск доступен после входа в бизнес-аккаунт.')
+      return
+    }
+    if (userRole !== 'business') {
+      toast.error('ИИ-поиск доступен бизнес-аккаунтам.')
+      return
+    }
+
     setAiSearching(true)
     try {
-      const authorsData = authors.map(a => ({
-        id: a.id, name: a.name, city: a.city, occupation: a.occupation,
-        bio: a.bio, lifestyle: a.lifestyle, open_to_barter: a.open_to_barter
-      }))
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) {
+        toast.error('Сессия истекла. Войди снова.')
+        setAiSearching(false)
+        return
+      }
+
       const resp = await fetch('/api/search', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: search.trim(), authors: authorsData })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ query: search.trim() }),
       })
       const data = await resp.json()
+      if (!resp.ok) {
+        toast.error(data?.error || 'ИИ-поиск сейчас недоступен. Попробуй обычный поиск.')
+        setAiResults(null)
+        return
+      }
+
       const raw = data.results?.length > 0 ? data.results : []
       const relevant = filterAiResultsByRelevance(raw, authors, search)
-        .sort((a, b) => b.score - a.score) // не доверяем порядку из ответа модели — сортируем сами
+        .sort((a, b) => b.score - a.score)
       setAiFilteredOutCount(raw.length - relevant.length)
       setAiResults(relevant)
     } catch {
       setAiResults(null)
       toast.error('ИИ-поиск сейчас недоступен. Попробуй обычный поиск.')
+    } finally {
+      setAiSearching(false)
     }
-    setAiSearching(false)
   }
 
   const clearAiSearch = () => {

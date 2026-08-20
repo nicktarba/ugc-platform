@@ -380,10 +380,42 @@ export default function AuthorPublicPage() {
               <button type="button" onClick={() => setComplaintOpen(false)}>Отмена</button>
               <button type="button" className={styles.dangerButton} disabled={!complaintReason || complaintSending} onClick={async () => {
                 setComplaintSending(true)
-                const { error } = await supabase.from('complaints').insert([{ reporter_id: userId, target_author_id: authorId, reason: complaintReason, comment: complaintComment.trim() || null }])
-                setComplaintSending(false)
-                if (error) { toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.'); return }
-                setComplaintOpen(false); setComplaintReason(''); setComplaintComment(''); toast.success('Жалоба отправлена, мы рассмотрим её')
+                try {
+                  const { data: sessionData } = await supabase.auth.getSession()
+                  const token = sessionData.session?.access_token
+                  if (!token) {
+                    toast.error('Чтобы отправить жалобу, войди в аккаунт.')
+                    return
+                  }
+
+                  const response = await fetch('/api/complaints', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                      kind: 'profile',
+                      authorId,
+                      reason: complaintReason,
+                      comment: complaintComment.trim() || null,
+                    }),
+                  })
+                  const result = await response.json()
+                  if (!response.ok) {
+                    toast.error(result?.error || 'Не удалось отправить жалобу. Попробуйте ещё раз.')
+                    return
+                  }
+
+                  setComplaintOpen(false)
+                  setComplaintReason('')
+                  setComplaintComment('')
+                  toast.success('Жалоба отправлена, мы рассмотрим её')
+                } catch {
+                  toast.error('Не удалось отправить жалобу. Попробуйте ещё раз.')
+                } finally {
+                  setComplaintSending(false)
+                }
               }}>{complaintSending ? 'Отправляем…' : 'Отправить жалобу'}</button>
             </div>
           </div>
