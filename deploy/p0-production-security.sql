@@ -167,7 +167,7 @@ CREATE POLICY "Business can insert review"
       FROM public.requests r
       WHERE r.id = request_id
         AND r.business_id = auth.uid()
-        AND r.author_id = author_id
+        AND r.author_id = reviews.author_id
         AND r.status = 'completed'
     )
   );
