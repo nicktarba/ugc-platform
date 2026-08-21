@@ -3,15 +3,36 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getAccountRole, type AccountRole } from '@/lib/profile-role-client'
 
 export default function Navbar() {
   const router = useRouter()
-  const [user, setUser] = useState<{ email?: string; user_metadata?: { role?: string } } | null>(null)
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
+  const [role, setRole] = useState<AccountRole | null>(null)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user))
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => setUser(session?.user ?? null))
-    return () => listener.subscription.unsubscribe()
+    let mounted = true
+
+    const applyUser = async (nextUser: { id: string; email?: string } | null) => {
+      if (!mounted) return
+      setUser(nextUser)
+      if (!nextUser?.id) {
+        setRole(null)
+        return
+      }
+      const nextRole = await getAccountRole(nextUser.id)
+      if (mounted) setRole(nextRole)
+    }
+
+    void supabase.auth.getUser().then(({ data }) => applyUser(data.user))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      void applyUser(session?.user ?? null)
+    })
+
+    return () => {
+      mounted = false
+      listener.subscription.unsubscribe()
+    }
   }, [])
 
   const handleLogout = async () => {
@@ -27,7 +48,7 @@ export default function Navbar() {
         <Link href="/catalog" style={{ padding: '8px 16px', border: '1px solid #d4d0c8', borderRadius: '100px', textDecoration: 'none', color: '#1a1a1a', fontSize: '14px', fontWeight: 500 }}>Каталог</Link>
         {user ? (
           <>
-            <Link href={user.user_metadata?.role === 'author' ? '/dashboard/author' : '/catalog'} style={{ padding: '8px 16px', fontSize: '14px', color: '#7a7570', textDecoration: 'none' }}>{user.email}</Link>
+            <Link href={role === 'author' ? '/dashboard/author' : '/dashboard/business'} style={{ padding: '8px 16px', fontSize: '14px', color: '#7a7570', textDecoration: 'none' }}>{user.email}</Link>
             <button onClick={handleLogout} style={{ padding: '8px 20px', border: '1px solid #d4d0c8', borderRadius: '100px', background: 'none', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit', color: '#1a1a1a' }}>Выйти</button>
           </>
         ) : (

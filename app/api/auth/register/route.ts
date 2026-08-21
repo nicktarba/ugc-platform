@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 import { authJson, normalizeEmail, readAuthBody, validPassword } from '@/lib/auth-api'
 import { authServerClient } from '@/lib/auth-server'
 import { verifySmartCaptcha } from '@/lib/smartcaptcha-server'
+import { readSignupGuard } from '@/lib/signup-guard-server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
       email,
       password: password as string,
       options: {
-        data: { role },
+        data: { role, svoi_signup_guard: readSignupGuard() },
         emailRedirectTo: 'https://svoi-ugc.ru/login?confirmed=1',
       },
     })

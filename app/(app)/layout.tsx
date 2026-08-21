@@ -9,6 +9,7 @@ import LoadingScreen from '@/components/LoadingScreen'
 import { getBusinessBadgeCount, getAuthorBadgeCount } from '@/lib/badges'
 import { getUnreadNotificationCount } from '@/lib/notification-client'
 import { AppContext, AuthorProfile, BusinessProfile } from './AppContext'
+import { getAccountRole } from '@/lib/profile-role-client'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -16,7 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [userRole, setUserRole] = useState<'business' | 'author' | 'admin' | null>(null)
+  const [userRole, setUserRole] = useState<'business' | 'author' | null>(null)
   const [authorProfile, setAuthorProfile] = useState<AuthorProfile | null>(null)
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile | null>(null)
   const [badgeCount, setBadgeCount] = useState(0)
@@ -30,14 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setUserId(u.id)
       setUserEmail(u.email || null)
 
-      const metadataRole = u.user_metadata?.role as 'business' | 'author' | 'admin' | undefined
-      const { data: accountProfile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', u.id)
-        .maybeSingle()
-      const storedRole = accountProfile?.role as 'business' | 'author' | 'admin' | undefined
-      const role = storedRole || metadataRole || null
+      const role = await getAccountRole(u.id)
       setUserRole(role)
 
       if (role === 'author') {
@@ -121,13 +115,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace('/login')
     }
     if (ready && userId && userRole) {
-      // Не перенаправляем /dashboard/admin по основной роли аккаунта.
-      // Доступ к админке проверяется серверным API по UUID allowlist и MFA.
-      // Это позволяет владельцу сохранить роль business и пользоваться обоими кабинетами.
-      if (userRole === 'admin' && (pathname.startsWith('/dashboard/business') || pathname.startsWith('/dashboard/author'))) {
-        router.replace('/dashboard/admin')
-        return
-      }
       if (userRole === 'business' && pathname.startsWith('/dashboard/author')) {
         router.replace('/dashboard/business')
       }

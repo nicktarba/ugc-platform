@@ -4,45 +4,45 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import PublicBrand from './PublicBrand'
 import { supabase } from '@/lib/supabase'
+import { getAccountRole, type AccountRole } from '@/lib/profile-role-client'
 import styles from '@/app/public.module.css'
 
 type HeaderUser = {
   id: string
   email?: string
-  user_metadata?: { role?: string }
 }
 
 export default function AppHeader() {
   const [user, setUser] = useState<HeaderUser | null>(null)
-  const [role, setRole] = useState<string | null>(null)
+  const [role, setRole] = useState<AccountRole | null>(null)
   const [accountOpen, setAccountOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const loadUser = async () => {
-      const { data } = await supabase.auth.getUser()
-      const currentUser = data.user as HeaderUser | null
+    let mounted = true
+
+    const applyUser = async (currentUser: HeaderUser | null) => {
+      if (!mounted) return
       setUser(currentUser)
       if (!currentUser?.id) {
         setRole(null)
         return
       }
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', currentUser.id)
-        .maybeSingle()
-      setRole(profile?.role || currentUser.user_metadata?.role || null)
+      const profileRole = await getAccountRole(currentUser.id)
+      if (mounted) setRole(profileRole)
     }
 
-    void loadUser()
+    void supabase.auth.getUser().then(({ data }) => applyUser(data.user as HeaderUser | null))
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      const currentUser = session?.user as HeaderUser | undefined
-      setUser(currentUser || null)
-      setRole(currentUser?.user_metadata?.role || null)
+      void applyUser((session?.user as HeaderUser | undefined) || null)
     })
-    return () => listener.subscription.unsubscribe()
+
+    return () => {
+      mounted = false
+      listener.subscription.unsubscribe()
+    }
   }, [])
 
   useEffect(() => {
@@ -54,11 +54,7 @@ export default function AppHeader() {
     return () => document.removeEventListener('mousedown', close)
   }, [accountOpen])
 
-  const dashboardHref = role === 'author'
-    ? '/dashboard/author'
-    : role === 'admin'
-      ? '/dashboard/admin'
-      : '/dashboard/business'
+  const dashboardHref = role === 'author' ? '/dashboard/author' : '/dashboard/business'
 
   const logout = async () => {
     await supabase.auth.signOut()

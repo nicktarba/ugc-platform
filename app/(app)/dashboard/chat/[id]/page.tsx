@@ -10,6 +10,7 @@ import { OPEN_STATUSES, CLOSED_STATUSES } from '@/lib/types'
 import { truncate, parseStatusError } from '@/lib/format'
 import UiIcon from '@/components/UiIcon'
 import styles from './chat.module.css'
+import { getAccountRole } from '@/lib/profile-role-client'
 
 type Msg = { id: string; sender_id: string; sender_role: string; text: string; created_at: string; read: boolean }
 type RequestInfo = {
@@ -92,7 +93,8 @@ export default function ChatPage() {
       const uid = userData.user.id
       setUserId(uid)
       setUserEmail(userData.user.email || null)
-      const role = userData.user.user_metadata?.role
+      const role = await getAccountRole(uid)
+      if (!role) { router.push('/login'); return }
       setUserRole(role)
 
       const { data: req } = await supabase.from('requests').select('*, authors(name, user_id, status)').eq('id', requestId).single()

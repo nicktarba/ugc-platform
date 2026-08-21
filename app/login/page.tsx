@@ -17,6 +17,9 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [captchaTrigger, setCaptchaTrigger] = useState(0)
+  const [resendTrigger, setResendTrigger] = useState(0)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
 
   const resetSuccessful = searchParams.get('reset') === 'success'
   const emailConfirmed = searchParams.get('confirmed') === '1'
@@ -82,6 +85,33 @@ function LoginForm() {
     setError(message)
   }, [])
 
+  const runResendConfirmation = useCallback(async (captchaToken: string) => {
+    try {
+      const response = await fetch('/api/auth/resend-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email.trim(), captchaToken }),
+      })
+      const result = await response.json() as { ok?: boolean; error?: string }
+      if (!response.ok || !result.ok) {
+        setResendMessage(result.error || 'Не удалось отправить письмо. Попробуйте ещё раз.')
+        return
+      }
+      setResendMessage('Письмо подтверждения отправлено. Проверьте входящие и папку «Спам».')
+    } catch {
+      setResendMessage('Не удалось связаться с сервером. Попробуйте ещё раз.')
+    } finally {
+      setResendLoading(false)
+    }
+  }, [form.email])
+
+  const handleResendCaptchaError = useCallback((message: string) => {
+    setResendLoading(false)
+    setResendMessage(message)
+  }, [])
+
+  const needsConfirmation = error.startsWith('Email ещё не подтверждён')
+
   return (
     <AuthShell
       eyebrow="Возвращайтесь к работе"
@@ -107,7 +137,23 @@ function LoginForm() {
           <input id="login-password" className={styles.input} type="password" autoComplete="current-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Введите пароль" required />
         </div>
         <SmartCaptchaGate trigger={captchaTrigger} onSuccess={runLogin} onError={handleCaptchaError} />
+        <SmartCaptchaGate trigger={resendTrigger} onSuccess={runResendConfirmation} onError={handleResendCaptchaError} />
         {error && <div className={styles.error} role="alert">{error}</div>}
+        {needsConfirmation && (
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            disabled={resendLoading || !form.email.trim()}
+            onClick={() => {
+              setResendMessage('')
+              setResendLoading(true)
+              setResendTrigger((value) => value + 1)
+            }}
+          >
+            {resendLoading ? 'Проверяем...' : 'Отправить письмо подтверждения ещё раз'}
+          </button>
+        )}
+        {resendMessage && <div className={styles.infoBox} role="status">{resendMessage}</div>}
         <button className={styles.primaryButton} type="submit" disabled={loading}>{loading ? 'Проверяем...' : 'Войти'}</button>
         <p className={styles.formFooter}>Форма защищена Yandex SmartCaptcha.</p>
       </form>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getAccountRole } from '@/lib/profile-role-client'
 import styles from './page.module.css'
 
 type LandingAuthor = {
@@ -116,9 +117,10 @@ export default function HomePage() {
   useEffect(() => {
     let mounted = true
 
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!mounted) return
-      setRole(data.user?.user_metadata?.role ?? null)
+      const userId = data.user?.id
+      setRole(userId ? await getAccountRole(userId) : null)
       setAuthReady(true)
     })
 

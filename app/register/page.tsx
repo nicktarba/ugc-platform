@@ -18,6 +18,9 @@ function RegisterForm() {
   const [error, setError] = useState('')
   const [sent, setSent] = useState(false)
   const [captchaTrigger, setCaptchaTrigger] = useState(0)
+  const [resendTrigger, setResendTrigger] = useState(0)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState('')
 
   const redirectValue = searchParams.get('redirect')
   const redirectQuery = redirectValue ? `?redirect=${encodeURIComponent(redirectValue)}` : ''
@@ -40,12 +43,33 @@ function RegisterForm() {
         return
       }
       setSent(true)
+      setResendMessage('')
     } catch {
       setError('Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.')
     } finally {
       setLoading(false)
     }
   }, [form])
+
+  const runResend = useCallback(async (captchaToken: string) => {
+    try {
+      const response = await fetch('/api/auth/resend-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email.trim(), captchaToken }),
+      })
+      const result = await response.json() as { ok?: boolean; error?: string }
+      if (!response.ok || !result.ok) {
+        setResendMessage(result.error || 'Не удалось отправить письмо. Попробуйте ещё раз.')
+        return
+      }
+      setResendMessage('Письмо отправлено повторно. Проверьте входящие и папку «Спам».')
+    } catch {
+      setResendMessage('Не удалось связаться с сервером. Попробуйте ещё раз.')
+    } finally {
+      setResendLoading(false)
+    }
+  }, [form.email])
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
@@ -59,6 +83,11 @@ function RegisterForm() {
   const handleCaptchaError = useCallback((message: string) => {
     setLoading(false)
     setError(message)
+  }, [])
+
+  const handleResendCaptchaError = useCallback((message: string) => {
+    setResendLoading(false)
+    setResendMessage(message)
   }, [])
 
   const roles: Array<{ value: Exclude<Role, ''>; icon: string; title: string; description: string }> = [
@@ -81,8 +110,22 @@ function RegisterForm() {
           <div className={styles.stateIcon}>@</div>
           <h2>Подтвердите email</h2>
           <p>Мы отправили письмо на <strong>{form.email.trim()}</strong>. Перейдите по ссылке из письма, чтобы завершить регистрацию.</p>
+          <SmartCaptchaGate trigger={resendTrigger} onSuccess={runResend} onError={handleResendCaptchaError} />
+          {resendMessage && <div className={styles.infoBox} role="status">{resendMessage}</div>}
           <div className={styles.stateActions}>
             <Link className={styles.primaryButton} href="/login">Перейти ко входу</Link>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              disabled={resendLoading}
+              onClick={() => {
+                setResendMessage('')
+                setResendLoading(true)
+                setResendTrigger((value) => value + 1)
+              }}
+            >
+              {resendLoading ? 'Проверяем...' : 'Отправить письмо ещё раз'}
+            </button>
             <button className={styles.secondaryButton} type="button" onClick={() => setSent(false)}>Исправить email</button>
           </div>
         </div>
