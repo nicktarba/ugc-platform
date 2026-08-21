@@ -6,6 +6,7 @@ import UiIcon from '@/components/UiIcon'
 import ReviewsList from '@/components/ReviewsList'
 import { useToast } from '@/components/Toast'
 import { isValidUrl } from '@/lib/format'
+import { AUTHOR_PUBLICATION_REQUIRED_FIELD_KEYS } from '@/lib/legal'
 import { supabase } from '@/lib/supabase'
 import { useApp } from '../../../AppContext'
 import styles from '../../profile-settings.module.css'
@@ -49,6 +50,20 @@ const EMPTY_FORM: FormState = {
   bio: '', open_to_barter: '',
 }
 
+function getPublicProfileFields(form: FormState, hasAvatar: boolean) {
+  const fields = [...AUTHOR_PUBLICATION_REQUIRED_FIELD_KEYS] as string[]
+  if (form.telegram_url.trim()) fields.push('telegram_url')
+  if ((parseInt(form.followers_count) || 0) > 0) fields.push('followers_count')
+  if ((parseInt(form.telegram_followers) || 0) > 0) fields.push('telegram_followers')
+  if ((parseInt(form.stories_views) || 0) > 0) fields.push('stories_views')
+  if (form.occupation.trim()) fields.push('occupation')
+  if (form.lifestyle.length > 0) fields.push('lifestyle')
+  if (form.hobbies.trim()) fields.push('hobbies')
+  if (form.bio.trim()) fields.push('bio')
+  if (hasAvatar) fields.push('avatar_url')
+  return Array.from(new Set(fields)).sort()
+}
+
 function formatNumber(value: string | number | null | undefined) {
   const number = typeof value === 'string' ? Number(value) : Number(value || 0)
   return number > 0 ? number.toLocaleString('ru-RU') : '0'
@@ -69,6 +84,11 @@ export default function AuthorProfilePage() {
   const [authorId, setAuthorId] = useState<string | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [openGroup, setOpenGroup] = useState('Еда и напитки')
+  const [publicationConsentLoaded, setPublicationConsentLoaded] = useState(false)
+  const [publicationConsentGranted, setPublicationConsentGranted] = useState(false)
+  const [publicationConsentFields, setPublicationConsentFields] = useState<string[]>([])
+  const [publicationConsentChecked, setPublicationConsentChecked] = useState(false)
+  const [consentFullName, setConsentFullName] = useState('')
 
   useEffect(() => {
     if (!userId) return
@@ -102,6 +122,31 @@ export default function AuthorProfilePage() {
         }
         setProfileLoaded(true)
       })
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId) return
+    let active = true
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) return
+        const response = await fetch('/api/legal-consent?type=author_publication', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const result = await response.json() as { granted?: boolean; publicFields?: string[] }
+        if (active && response.ok) {
+          setPublicationConsentGranted(Boolean(result.granted))
+          setPublicationConsentFields(Array.isArray(result.publicFields) ? result.publicFields : [])
+        }
+      } catch {
+        // A fresh consent can still be granted in the form if status loading fails.
+      } finally {
+        if (active) setPublicationConsentLoaded(true)
+      }
+    })()
+    return () => { active = false }
   }, [userId])
 
   useEffect(() => () => {
@@ -155,6 +200,50 @@ export default function AuthorProfilePage() {
     return data.publicUrl
   }
 
+  const ensurePublicationConsent = async () => {
+    const requestedFields = getPublicProfileFields(form, Boolean(avatarFile || avatarUrl))
+    const missingFields = requestedFields.filter((field) => !publicationConsentFields.includes(field))
+    if (publicationConsentGranted && missingFields.length === 0) return true
+
+    if (!publicationConsentChecked) {
+      toast.error(publicationConsentGranted
+        ? 'Подтверди расширение согласия для новых данных публичного профиля.'
+        : 'Подтверди отдельное согласие на публикацию профиля.')
+      return false
+    }
+    const fullName = consentFullName.trim().replace(/\s+/g, ' ')
+    if (fullName.split(' ').filter(Boolean).length < 2) {
+      toast.error('Укажи фамилию и имя для оформления согласия.')
+      return false
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) {
+        toast.error('Сессия истекла. Войди в аккаунт ещё раз.')
+        return false
+      }
+      const response = await fetch('/api/legal-consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type: 'author_publication', subjectName: fullName, publicFields: requestedFields }),
+      })
+      const result = await response.json() as { ok?: boolean; error?: string; publicFields?: string[] }
+      if (!response.ok || !result.ok) {
+        toast.error(result.error || 'Не удалось зафиксировать согласие на публикацию.')
+        return false
+      }
+      setPublicationConsentGranted(true)
+      setPublicationConsentFields(Array.isArray(result.publicFields) ? result.publicFields : requestedFields)
+      setPublicationConsentChecked(false)
+      return true
+    } catch {
+      toast.error('Не удалось зафиксировать согласие на публикацию.')
+      return false
+    }
+  }
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!userId) return
@@ -174,8 +263,12 @@ export default function AuthorProfilePage() {
       toast.error('Укажи, готов ли ты к бартеру.')
       return
     }
-
     setLoading(true)
+    if (!(await ensurePublicationConsent())) {
+      setLoading(false)
+      return
+    }
+
     const uploadedUrl = await uploadAvatar()
     const payload = {
       name: form.name.trim(),
@@ -262,6 +355,9 @@ export default function AuthorProfilePage() {
     Boolean(form.bio),
   ]
   const completion = Math.round((completedItems.filter(Boolean).length / completedItems.length) * 100)
+
+  const publicationFieldsForCurrentForm = getPublicProfileFields(form, Boolean(avatarFile || avatarUrl))
+  const publicationConsentNeedsUpdate = !publicationConsentGranted || publicationFieldsForCurrentForm.some((field) => !publicationConsentFields.includes(field))
 
   if (!profileLoaded) return null
 
@@ -504,6 +600,30 @@ export default function AuthorProfilePage() {
                 </div>
               </div>
             </section>
+
+            {publicationConsentLoaded && publicationConsentNeedsUpdate && (
+              <section className={styles.formSection}>
+                <div className={styles.sectionHeading}>
+                  <div>
+                    <h2 className={styles.sectionTitle}>Публикация профиля</h2>
+                    <p className={styles.sectionText}>{publicationConsentGranted ? 'Ты добавил(а) новые данные в публичный профиль. Для их распространения нужно отдельно расширить ранее зафиксированный перечень.' : 'Для размещения анкеты в открытом каталоге нужно отдельное согласие на распространение персональных данных.'}</p>
+                  </div>
+                </div>
+                <div className={styles.fieldGrid}>
+                  <div className={`${styles.field} ${styles.fieldFull}`}>
+                    <label className={styles.label}>ФИО для оформления согласия *</label>
+                    <input className={styles.input} value={consentFullName} onChange={(event) => setConsentFullName(event.target.value)} maxLength={200} autoComplete="name" placeholder="Фамилия Имя Отчество" />
+                    <p className={styles.sectionText}>Эти ФИО используются только для фиксации согласия и не добавляются автоматически в публичный профиль.</p>
+                  </div>
+                  <div className={`${styles.field} ${styles.fieldFull}`}>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, lineHeight: 1.55, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={publicationConsentChecked} onChange={(event) => setPublicationConsentChecked(event.target.checked)} style={{ width: 18, height: 18, marginTop: 2, flex: '0 0 auto' }} />
+                      <span>Я даю отдельное <Link href="/distribution-consent" target="_blank">согласие на обработку персональных данных, разрешённых для распространения</Link>, в отношении данных, заполненных в моём публичном профиле, и не устанавливаю дополнительных запретов или условий. Если нужны ограничения, сначала обращусь в поддержку и не буду подтверждать этот пункт.</span>
+                    </label>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <div className={styles.formFooter}>
               {authorId && <button className={styles.secondaryButton} type="button" onClick={cancelEditing}>Отмена</button>}

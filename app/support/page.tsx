@@ -57,6 +57,16 @@ export default function SupportPage() {
           </div>
           <span>support@svoi-ugc.ru</span>
         </div>
+
+        <div className={styles.supportLegal}>
+          <strong>Правовые документы</strong>
+          <div>
+            <Link href="/privacy">Политика ПД</Link>
+            <Link href="/personal-data-consent">Согласие на обработку ПД</Link>
+            <Link href="/distribution-consent">Согласие на распространение ПД</Link>
+            <Link href="/terms">Пользовательское соглашение</Link>
+          </div>
+        </div>
       </section>
 
       <Footer />

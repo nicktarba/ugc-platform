@@ -21,6 +21,8 @@ function RegisterForm() {
   const [resendTrigger, setResendTrigger] = useState(0)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendMessage, setResendMessage] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [personalDataAccepted, setPersonalDataAccepted] = useState(false)
 
   const redirectValue = searchParams.get('redirect')
   const redirectQuery = redirectValue ? `?redirect=${encodeURIComponent(redirectValue)}` : ''
@@ -29,7 +31,11 @@ function RegisterForm() {
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-SVOI-Terms-Consent': termsAccepted ? '1' : '0',
+          'X-SVOI-PD-Consent': personalDataAccepted ? '1' : '0',
+        },
         body: JSON.stringify({
           email: form.email.trim(),
           password: form.password,
@@ -49,7 +55,7 @@ function RegisterForm() {
     } finally {
       setLoading(false)
     }
-  }, [form])
+  }, [form, termsAccepted, personalDataAccepted])
 
   const runResend = useCallback(async (captchaToken: string) => {
     try {
@@ -75,6 +81,8 @@ function RegisterForm() {
     event.preventDefault()
     if (!form.role) return setError('Выберите, как вы будете использовать платформу.')
     if (form.password.length < 8) return setError('Пароль должен содержать минимум 8 символов.')
+    if (!termsAccepted) return setError('Чтобы зарегистрироваться, примите Пользовательское соглашение.')
+    if (!personalDataAccepted) return setError('Нужно отдельно дать согласие на обработку персональных данных.')
     setError('')
     setLoading(true)
     setCaptchaTrigger((value) => value + 1)
@@ -163,10 +171,21 @@ function RegisterForm() {
               <input id="register-password" className={styles.input} type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Минимум 8 символов" minLength={8} maxLength={128} required />
             </div>
 
+            <div className={styles.consentGroup}>
+              <label className={styles.consentRow}>
+                <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} />
+                <span>Я принимаю <Link href="/terms" target="_blank">Пользовательское соглашение</Link>.</span>
+              </label>
+              <label className={styles.consentRow}>
+                <input type="checkbox" checked={personalDataAccepted} onChange={(event) => setPersonalDataAccepted(event.target.checked)} />
+                <span>Я отдельно даю <Link href="/personal-data-consent" target="_blank">согласие на обработку персональных данных</Link> и ознакомлен(а) с <Link href="/privacy" target="_blank">Политикой ПД</Link>.</span>
+              </label>
+            </div>
+
             <SmartCaptchaGate trigger={captchaTrigger} onSuccess={runRegister} onError={handleCaptchaError} />
             {error && <div className={styles.error} role="alert">{error}</div>}
             <button className={styles.primaryButton} type="submit" disabled={loading}>{loading ? 'Проверяем...' : 'Создать аккаунт'}</button>
-            <p className={styles.formFooter}>Форма защищена Yandex SmartCaptcha. Создавая аккаунт, вы подтверждаете, что указываете достоверные данные.</p>
+            <p className={styles.formFooter}>Форма защищена Yandex SmartCaptcha. Правовые согласия фиксируются отдельно вместе с версией документа и временем подтверждения.</p>
           </form>
         </>
       )}
