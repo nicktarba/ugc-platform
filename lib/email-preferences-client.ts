@@ -4,11 +4,13 @@ import { supabase } from '@/lib/supabase'
 
 export type EmailPreferences = {
   enabled: boolean
+  account: boolean
   messages: boolean
   requests: boolean
   deals: boolean
   reviews: boolean
   moderation: boolean
+  complaints: boolean
 }
 
 type ApiErrorBody = {

@@ -67,6 +67,9 @@ const cleanText = value => String(value ?? '')
   .slice(0, 500)
 
 function emailCategory(type) {
+  if (['account_created', 'business_profile_completed', 'admin_new_account'].includes(type)) {
+    return 'account'
+  }
   if (type === 'new_message') return 'messages'
   if (['new_request', 'request_viewed'].includes(type)) return 'requests'
   if ([
@@ -77,12 +80,29 @@ function emailCategory(type) {
     'work_done',
   ].includes(type)) return 'deals'
   if (type === 'new_review') return 'reviews'
-  if (['author_approved', 'author_rejected'].includes(type)) return 'moderation'
+  if ([
+    'author_submitted',
+    'author_approved',
+    'author_rejected',
+    'admin_author_pending',
+  ].includes(type)) return 'moderation'
+  if ([
+    'complaint_created',
+    'complaint_updated',
+    'admin_complaint_created',
+  ].includes(type)) return 'complaints'
   return null
 }
 
 function destination(type, data = {}) {
   const requestId = typeof data?.request_id === 'string' ? data.request_id : ''
+  const safeUrl = typeof data?.url === 'string'
+    && data.url.startsWith('/')
+    && !data.url.startsWith('//')
+    ? data.url
+    : ''
+
+  if (safeUrl) return `${siteUrl}${safeUrl}`
 
   if (type === 'new_message' && requestId) {
     return `${siteUrl}/dashboard/chat/${encodeURIComponent(requestId)}`
@@ -92,8 +112,26 @@ function destination(type, data = {}) {
     return `${siteUrl}/dashboard/request/${encodeURIComponent(requestId)}`
   }
 
-  if (['author_approved', 'author_rejected'].includes(type)) {
+  if (['author_submitted', 'author_approved', 'author_rejected'].includes(type)) {
     return `${siteUrl}/dashboard/author/profile`
+  }
+
+  if (type === 'business_profile_completed') {
+    return `${siteUrl}/dashboard/business/profile`
+  }
+
+  if (type === 'admin_author_pending') {
+    return `${siteUrl}/dashboard/admin?section=authors`
+  }
+
+  if (type === 'admin_complaint_created') {
+    return `${siteUrl}/dashboard/admin?section=complaints`
+  }
+
+  if (type === 'admin_new_account') {
+    return data?.role === 'author'
+      ? `${siteUrl}/dashboard/admin?section=authors`
+      : `${siteUrl}/dashboard/admin?section=businesses`
   }
 
   return `${siteUrl}/dashboard/notifications`
@@ -443,7 +481,7 @@ async function getUserBundle(userId, cache) {
     admin.auth.admin.getUserById(userId),
     admin
       .from('email_notification_preferences')
-      .select('enabled, messages, requests, deals, reviews, moderation')
+      .select('enabled, account, messages, requests, deals, reviews, moderation, complaints')
       .eq('user_id', userId)
       .maybeSingle(),
   ])
@@ -455,11 +493,13 @@ async function getUserBundle(userId, cache) {
     email: authData.user?.email?.trim().toLowerCase() || '',
     preferences: {
       enabled: true,
+      account: true,
       messages: true,
       requests: true,
       deals: true,
       reviews: true,
       moderation: true,
+      complaints: true,
       ...(prefData || {}),
     },
   }
@@ -539,7 +579,21 @@ async function processGroup(group, userCache) {
     ? `${cleanText(latest.body || 'Откройте чат, чтобы прочитать сообщения.')} Ещё сообщений: ${count - 1}.`
     : cleanText(latest.body || 'Откройте платформу, чтобы посмотреть подробности.')
   const href = destination(first.type, latest.data || {})
-  const buttonText = first.type === 'new_message' ? 'Открыть чат' : 'Посмотреть событие'
+  const buttonText = first.type === 'new_message'
+    ? 'Открыть чат'
+    : first.type === 'account_created'
+      ? 'Настроить профиль'
+      : first.type === 'business_profile_completed'
+        ? 'Открыть профиль'
+        : first.type === 'author_submitted'
+          ? 'Открыть анкету'
+          : first.type === 'author_approved' || first.type === 'author_rejected'
+            ? 'Открыть профиль'
+            : first.type === 'admin_author_pending'
+              ? 'Проверить анкету'
+              : first.type === 'admin_complaint_created'
+                ? 'Открыть жалобу'
+                : 'Посмотреть событие'
   const subject = `СВОИ UGC — ${heading}`
   const rendered = renderEmail({ subject, heading, body, buttonText, href, preview: body })
   const hash = crypto.createHash('sha256').update(ids.slice().sort().join(',')).digest('hex')

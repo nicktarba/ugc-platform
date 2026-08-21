@@ -511,6 +511,8 @@
 }
 .supportNotice strong { display: block; margin-bottom: 3px; font-size: 13px; }
 .supportNotice p { color: var(--app-muted); font-size: 11px; }
+.supportNotice p a { color: var(--app-accent-deep); font-weight: 800; text-decoration: none; }
+.supportNotice p a:hover { text-decoration: underline; }
 .supportNotice span { color: #7160a2; font-size: 11px; font-weight: 750; white-space: nowrap; }
 
 .notFoundPage {

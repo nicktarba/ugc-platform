@@ -23,14 +23,22 @@ import styles from '../dashboard.module.css'
 type IconName = Parameters<typeof UiIcon>[0]['name']
 const DEFAULT_EMAIL_PREFERENCES: EmailPreferences = {
   enabled: true,
+  account: true,
   messages: true,
   requests: true,
   deals: true,
   reviews: true,
   moderation: true,
+  complaints: true,
 }
 
 const ICONS: Record<string, IconName> = {
+  account_created: 'user',
+  business_profile_completed: 'building',
+  admin_new_account: 'users',
+  author_submitted: 'shield',
+  admin_author_pending: 'shield',
+  admin_complaint_created: 'flag',
   new_request: 'message',
   request_viewed: 'eye',
   request_accepted: 'check',
@@ -312,11 +320,13 @@ export default function NotificationsPage() {
 
           <div className={styles.emailPreferencesGrid}>
             {([
+              ['account', 'Аккаунт и профиль', 'Регистрация, заполнение профиля и системные события аккаунта.'],
               ['messages', 'Новые сообщения', 'Одно письмо после паузы, если чат не открыт.'],
               ['requests', 'Новые предложения', 'Новая заявка и просмотр предложения.'],
               ['deals', 'Статусы сделок', 'Принятие, отказ, отмена, завершение и готовая работа.'],
               ['reviews', 'Отзывы', 'Новый отзыв после завершённой сделки.'],
-              ['moderation', 'Модерация', 'Одобрение анкеты или запрос на исправления.'],
+              ['moderation', 'Модерация', 'Отправка анкеты, одобрение или запрос на исправления.'],
+              ['complaints', 'Жалобы и поддержка', 'Новые обращения и изменения их статуса.'],
             ] as Array<[keyof EmailPreferences, string, string]>).map(([key, title, description]) => (
               <label
                 key={key}

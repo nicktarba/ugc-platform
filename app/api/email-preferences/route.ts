@@ -13,11 +13,13 @@ const noStoreHeaders = {
 
 const DEFAULTS = {
   enabled: true,
+  account: true,
   messages: true,
   requests: true,
   deals: true,
   reviews: true,
   moderation: true,
+  complaints: true,
 }
 
 type Preferences = typeof DEFAULTS
@@ -185,7 +187,7 @@ export async function GET(request: NextRequest) {
     const { user, admin } = await requireUser(request)
     const { data, error } = await admin
       .from('email_notification_preferences')
-      .select('enabled, messages, requests, deals, reviews, moderation')
+      .select('enabled, account, messages, requests, deals, reviews, moderation, complaints')
       .eq('user_id', user.id)
       .maybeSingle()
 
@@ -215,7 +217,7 @@ export async function PATCH(request: NextRequest) {
         },
         { onConflict: 'user_id' },
       )
-      .select('enabled, messages, requests, deals, reviews, moderation')
+      .select('enabled, account, messages, requests, deals, reviews, moderation, complaints')
       .single()
 
     if (error) throw error

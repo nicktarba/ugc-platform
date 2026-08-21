@@ -4,6 +4,9 @@ export type NotificationData = {
   review_id?: string
   author_id?: string
   complaint_id?: string
+  user_id?: string
+  role?: string
+  status?: string
   url?: string
 }
 
@@ -38,8 +41,30 @@ export function getNotificationHref(
     if (data?.request_id) return `/dashboard/chat/${data.request_id}`
   }
 
-  if (type === 'author_approved' || type === 'author_rejected') {
+  if (type === 'author_submitted' || type === 'author_approved' || type === 'author_rejected') {
     return '/dashboard/author/profile'
+  }
+
+  if (type === 'account_created') {
+    return role === 'author' ? '/dashboard/author/profile' : '/dashboard/business/profile'
+  }
+
+  if (type === 'business_profile_completed') {
+    return '/dashboard/business/profile'
+  }
+
+  if (type === 'admin_new_account') {
+    return data?.role === 'author'
+      ? '/dashboard/admin?section=authors'
+      : '/dashboard/admin?section=businesses'
+  }
+
+  if (type === 'admin_author_pending') {
+    return '/dashboard/admin?section=authors'
+  }
+
+  if (type === 'admin_complaint_created') {
+    return '/dashboard/admin?section=complaints'
   }
 
   if (type === 'complaint_created' || type === 'complaint_updated') {

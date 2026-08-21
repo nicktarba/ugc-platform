@@ -58,8 +58,14 @@ export default function BusinessProfilePage() {
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Поддерживаются JPG, PNG и WebP')
+      event.target.value = ''
+      return
+    }
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Максимум 5 МБ')
+      event.target.value = ''
       return
     }
     setAvatarFile(file)
@@ -68,7 +74,11 @@ export default function BusinessProfilePage() {
 
   const uploadAvatar = async (): Promise<string | null> => {
     if (!avatarFile || !userId) return avatarUrl
-    const extension = avatarFile.name.split('.').pop()
+    const extension = avatarFile.type === 'image/png'
+      ? 'png'
+      : avatarFile.type === 'image/webp'
+        ? 'webp'
+        : 'jpg'
     const path = `${userId}/logo.${extension}`
     const { error } = await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true })
     if (error) {

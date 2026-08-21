@@ -22,6 +22,10 @@
 
 # misc
 .DS_Store
+._*
+*.bak
+*.save
+project.zip
 *.pem
 
 # debug

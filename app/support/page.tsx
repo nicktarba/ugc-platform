@@ -36,8 +36,7 @@ export default function SupportPage() {
         <span className={styles.supportEyebrow}>Помощь по платформе</span>
         <h1>Разберёмся вместе</h1>
         <p>
-          Здесь собраны основные разделы платформы. Выберите нужную тему, чтобы перейти к действию.
-          Прямые контакты поддержки будут добавлены перед публичным запуском.
+          Здесь собраны основные разделы платформы. Если вопрос не решился, напишите в поддержку — отвечаем по рабочим вопросам платформы.
         </p>
       </section>
 
@@ -53,10 +52,10 @@ export default function SupportPage() {
 
         <div className={styles.supportNotice}>
           <div>
-            <strong>Контакты поддержки пока не опубликованы</strong>
-            <p>Мы не показываем выдуманный Telegram или несуществующий email. Рабочие контакты появятся здесь перед запуском.</p>
+            <strong>Поддержка СВОИ UGC</strong>
+            <p>Напишите на <a href="mailto:support@svoi-ugc.ru">support@svoi-ugc.ru</a>. В письме укажите email аккаунта и кратко опишите вопрос.</p>
           </div>
-          <span>Страница подготовлена</span>
+          <span>support@svoi-ugc.ru</span>
         </div>
       </section>
 

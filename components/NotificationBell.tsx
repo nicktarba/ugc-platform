@@ -20,6 +20,14 @@ type Notification = {
 }
 
 const ICONS: Record<string, string> = {
+  account_created: '👤',
+  business_profile_completed: '🏢',
+  admin_new_account: '👥',
+  author_submitted: '🛡️',
+  admin_author_pending: '🛡️',
+  complaint_created: '🚩',
+  complaint_updated: '🛡️',
+  admin_complaint_created: '🚩',
   new_request: '📩',
   request_accepted: '✅',
   request_declined: '❌',
