@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { cache } from 'react'
 import { seoSlug } from '@/lib/seo'
+import { filterSeoAuthors } from '@/lib/seo-author-exclusions'
 
 export type PublicAuthorSeo = {
   id: string
@@ -58,60 +59,29 @@ const getApprovedAuthorsCached = cache(async (): Promise<PublicAuthorSeo[]> => {
     .limit(1000)
 
   if (error || !data) return []
-  return data as PublicAuthorSeo[]
+  return filterSeoAuthors(data as PublicAuthorSeo[])
 })
 
 export async function getApprovedAuthors(limit = 1000): Promise<PublicAuthorSeo[]> {
-  if (limit === 1000) return getApprovedAuthorsCached()
-  const { data, error } = await getClient()
-    .from('authors')
-    .select(PUBLIC_SELECT)
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (error || !data) return []
-  return data as PublicAuthorSeo[]
+  const authors = await getApprovedAuthorsCached()
+  return authors.slice(0, limit)
 }
 
 export async function getAuthorsByCity(city: string, limit = 100): Promise<PublicAuthorSeo[]> {
-  const { data, error } = await getClient()
-    .from('authors')
-    .select(PUBLIC_SELECT)
-    .eq('status', 'approved')
-    .eq('city', city)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (error || !data) return []
-  return data as PublicAuthorSeo[]
+  const authors = await getApprovedAuthorsCached()
+  return authors.filter(author => author.city === city).slice(0, limit)
 }
 
 export async function getAuthorsByCategory(category: string, limit = 100): Promise<PublicAuthorSeo[]> {
-  const { data, error } = await getClient()
-    .from('authors')
-    .select(PUBLIC_SELECT)
-    .eq('status', 'approved')
-    .contains('lifestyle', [category])
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (error || !data) return []
-  return data as PublicAuthorSeo[]
+  const authors = await getApprovedAuthorsCached()
+  return authors.filter(author => (author.lifestyle || []).includes(category)).slice(0, limit)
 }
 
 export async function getAuthorsByCityCategory(city: string, category: string, limit = 100): Promise<PublicAuthorSeo[]> {
-  const { data, error } = await getClient()
-    .from('authors')
-    .select(PUBLIC_SELECT)
-    .eq('status', 'approved')
-    .eq('city', city)
-    .contains('lifestyle', [category])
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (error || !data) return []
-  return data as PublicAuthorSeo[]
+  const authors = await getApprovedAuthorsCached()
+  return authors
+    .filter(author => author.city === city && (author.lifestyle || []).includes(category))
+    .slice(0, limit)
 }
 
 export type SeoFacet = { label: string; slug: string; count: number }

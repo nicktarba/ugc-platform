@@ -4,6 +4,7 @@ import AuthorProfileClient from './AuthorProfileClient'
 import JsonLd from '@/components/seo/JsonLd'
 import { getPublicAuthor } from '@/lib/public-authors-server'
 import { absoluteUrl, authorDescription, authorTitle, SITE_NAME, SITE_URL } from '@/lib/seo'
+import { isSeoExcludedAuthor } from '@/lib/seo-author-exclusions'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,12 +40,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = authorTitle(author.name, author.city)
   const description = authorDescription(author)
   const url = absoluteUrl(`/author/${author.id}`)
+  const seoExcluded = isSeoExcludedAuthor(author.id)
 
   return {
     title,
     description,
     alternates: { canonical: url },
-    robots: { index: true, follow: true, googleBot: { index: true, follow: true, 'max-snippet': -1, 'max-image-preview': 'large', 'max-video-preview': -1 } },
+    robots: seoExcluded
+      ? { index: false, follow: false, googleBot: { index: false, follow: false } }
+      : { index: true, follow: true, googleBot: { index: true, follow: true, 'max-snippet': -1, 'max-image-preview': 'large', 'max-video-preview': -1 } },
     openGraph: {
       title,
       description,
@@ -65,6 +69,7 @@ export default async function AuthorPage({ params }: Props) {
 
   const normalized = normalizeAuthor(author)
   const url = absoluteUrl(`/author/${author.id}`)
+  const seoExcluded = isSeoExcludedAuthor(author.id)
   const profileLd = {
     '@context': 'https://schema.org',
     '@type': 'ProfilePage',
@@ -92,5 +97,5 @@ export default async function AuthorPage({ params }: Props) {
     ],
   }
 
-  return <><JsonLd data={[profileLd, breadcrumbLd]} /><AuthorProfileClient initialAuthor={normalized} /></>
+  return <>{!seoExcluded && <JsonLd data={[profileLd, breadcrumbLd]} />}<AuthorProfileClient initialAuthor={normalized} /></>
 }
