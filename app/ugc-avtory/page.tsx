@@ -52,7 +52,12 @@ export default async function UgcAuthorsPage() {
           <h1>UGC-авторы для бизнеса</h1>
           <p>СВОИ UGC помогает находить авторов для пользовательского контента по городу и тематике. В публичных подборках показываются только одобренные профили. Для отправки предложения бизнес переходит в профиль автора и начинает сотрудничество через платформу.</p>
           <div className={styles.heroActions}><Link className={styles.primaryAction} href="/catalog">Открыть поиск по каталогу</Link><Link className={styles.secondaryAction} href="/kak-nayti-ugc-avtora">Как выбрать автора</Link></div>
-          <p className={styles.dataNote}>Подборки по городам и тематикам создаются на основе реально опубликованных профилей, а не пустых SEO-страниц.</p>
+          <div className={styles.collectionStats}>
+            <div><strong>{authors.length}</strong><span>одобренных профилей в публичной базе</span></div>
+            <div><strong>{indexableCities.length}</strong><span>городов с отдельными подборками</span></div>
+            <div><strong>{indexableCategories.length}</strong><span>активных тематик авторов</span></div>
+          </div>
+          <p className={styles.dataNote}>Подборки строятся только по реально опубликованным профилям.</p>
         </section>
 
         <AuthorSeoCards authors={authors} heading="Новые одобренные UGC-авторы" />
