@@ -1,1 +1,21 @@
-<-bash: cd: /root/Desktop/UGC/ugc-platform: No such file or autodeploytest -->
+User-agent: *
+Allow: /
+Disallow: /api/
+
+User-agent: Yandex
+Allow: /
+Disallow: /api/
+Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&gclid&yclid
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+
+Sitemap: https://svoi-ugc.ru/sitemap.xml

@@ -14,6 +14,7 @@ import { getAccountRole } from '@/lib/profile-role-client'
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const isPublicAuthorRoute = pathname.startsWith('/author/')
   const [ready, setReady] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -111,7 +112,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [userId])
 
   useEffect(() => {
-    if (ready && !userId && pathname !== '/catalog') {
+    if (ready && !userId && pathname !== '/catalog' && !isPublicAuthorRoute) {
       router.replace('/login')
     }
     if (ready && userId && userRole) {
@@ -122,12 +123,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         router.replace('/dashboard/author')
       }
     }
-  }, [ready, userId, userRole, pathname, router])
+  }, [ready, userId, userRole, pathname, router, isPublicAuthorRoute])
 
   const bumpBadge = (delta: number) => setBadgeCount(prev => Math.max(0, prev + delta))
 
-  if (!ready) return <LoadingScreen />
-  if (!userId && pathname !== '/catalog') return <LoadingScreen />
+  const contextValue = { userId, userEmail, userRole, authorProfile, setAuthorProfile, businessProfile, setBusinessProfile, badgeCount, bumpBadge, notifCount, setNotifCount }
+
+  if (!ready && !isPublicAuthorRoute) return <LoadingScreen />
+  if (ready && !userId && pathname !== '/catalog' && !isPublicAuthorRoute) return <LoadingScreen />
+
+  // Публичная карточка автора должна отдавать серверный HTML поисковым роботам и гостям.
+  // После определения сессии авторизованные пользователи возвращаются в обычный shell с Sidebar.
+  if (isPublicAuthorRoute && (!ready || !userId)) {
+    return (
+      <AppContext.Provider value={contextValue}>
+        <div className="sidebar-content" style={{ marginLeft: 0, width: '100%' }}>
+          {children}
+          <Footer />
+        </div>
+      </AppContext.Provider>
+    )
+  }
 
   // BottomNav active tab
   const active =
@@ -148,7 +164,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     : null
 
   return (
-    <AppContext.Provider value={{ userId, userEmail, userRole, authorProfile, setAuthorProfile, businessProfile, setBusinessProfile, badgeCount, bumpBadge, notifCount, setNotifCount }}>
+    <AppContext.Provider value={contextValue}>
       <div className="sidebar-layout">
         <Sidebar
           role={userRole}

@@ -66,7 +66,8 @@ export default function AppHeader() {
       <PublicBrand className={styles.brand} />
 
       <nav className={styles.publicHeaderNav} aria-label="Основная навигация">
-        <Link href="/catalog">Каталог авторов</Link>
+        <Link href="/ugc-avtory">UGC-авторы</Link>
+        <Link href="/ugc-dlya-biznesa">Для бизнеса</Link>
         <Link href="/#how-it-works">Как это работает</Link>
         <Link href="/support">Поддержка</Link>
       </nav>
@@ -116,7 +117,8 @@ export default function AppHeader() {
               <button className={styles.mobileDrawerClose} type="button" onClick={() => setMobileOpen(false)}>×</button>
             </div>
             <nav className={styles.mobileDrawerNav}>
-              <Link href="/catalog" onClick={() => setMobileOpen(false)}>Каталог авторов</Link>
+              <Link href="/ugc-avtory" onClick={() => setMobileOpen(false)}>UGC-авторы</Link>
+              <Link href="/ugc-dlya-biznesa" onClick={() => setMobileOpen(false)}>Для бизнеса</Link>
               <Link href="/#how-it-works" onClick={() => setMobileOpen(false)}>Как это работает</Link>
               <Link href="/support" onClick={() => setMobileOpen(false)}>Поддержка</Link>
               {user ? (

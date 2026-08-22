@@ -7,7 +7,10 @@ export default function Footer() {
       <div className="app-footer-inner">
         <span>© {new Date().getFullYear()} СВОИ UGC</span>
         <div>
-          <Link href="/catalog">Каталог</Link>
+          <Link href="/ugc">Что такое UGC</Link>
+          <Link href="/ugc-avtory">UGC-авторы</Link>
+          <Link href="/ugc-dlya-biznesa">Для бизнеса</Link>
+          <Link href="/o-servise">О сервисе</Link>
           <Link href="/support">Поддержка</Link>
         </div>
       </div>

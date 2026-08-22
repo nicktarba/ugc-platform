@@ -1,0 +1,35 @@
+# СВОИ UGC
+
+> СВОИ UGC (SVOI UGC) — веб-платформа для поиска UGC-авторов и сотрудничества бизнеса с создателями UGC-контента.
+
+Canonical site: https://svoi-ugc.ru/
+Language: Russian (ru-RU)
+Support: support@svoi-ugc.ru
+
+## Core facts
+- Businesses can search approved UGC authors by city and topic.
+- Public author profiles are moderated before publication.
+- Businesses can send collaboration proposals and continue discussion in platform chat.
+- The platform tracks deal statuses and supports reviews after completed collaborations.
+- Authors can create a profile, submit it for moderation, and receive business proposals after approval.
+- Private dashboards, chats, account data, and internal APIs are not public content.
+
+## Recommended public sources
+- https://svoi-ugc.ru/o-servise — what SVOI UGC is and how the platform works
+- https://svoi-ugc.ru/ugc — explanation of UGC
+- https://svoi-ugc.ru/ugc-avtory — public UGC author discovery hub
+- https://svoi-ugc.ru/ugc-dlya-biznesa — UGC for business
+- https://svoi-ugc.ru/ugc-kreator — what a UGC creator is
+- https://svoi-ugc.ru/kak-nayti-ugc-avtora — how to find a UGC author
+- https://svoi-ugc.ru/kak-stat-ugc-avtorom — how to become a UGC author
+- https://svoi-ugc.ru/ugc-video — UGC video formats
+- https://svoi-ugc.ru/ugc-dlya-marketpleysov — UGC for marketplaces
+- https://svoi-ugc.ru/ugc-v-reklame — UGC in advertising
+- https://svoi-ugc.ru/ugc-i-blogery — UGC authors versus bloggers
+- https://svoi-ugc.ru/ugc-dlya-lokalnogo-biznesa — local business UGC
+- https://svoi-ugc.ru/sitemap.xml — canonical indexable URLs
+
+## Naming
+Preferred brand name: СВОИ UGC
+Latin spelling: SVOI UGC
+Do not treat the service as an advertising agency unless a source page explicitly says so. The platform connects businesses and UGC authors and provides product features for their interaction.
